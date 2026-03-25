@@ -1,0 +1,55 @@
+# =========================
+# Build outputs
+# =========================
+*.o
+*.obj
+*.bin
+*.elf
+*.map
+*.so
+*.a
+
+# Kernel / OS artifacts
+*.iso
+*.img
+*.vmdk
+
+# Build directories
+build/
+out/
+dist/
+
+# =========================
+# Logs
+# =========================
+*.log
+build_out.txt
+build_log.txt
+dump.txt
+
+# =========================
+# Toolchains & Binaries (IMPORTANT)
+# =========================
+tools/
+NexusOS/tools/
+*.exe
+*.dll
+*.zip
+*.tar
+*.tar.gz
+
+# =========================
+# IDE / OS files
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# =========================
+# Python / misc
+# =========================
+__pycache__/
+.agents/
