@@ -46,6 +46,24 @@
 - [x] **Phase 31** — POSIX Compatibility Layer
 - [x] **Phase 32** — ELF Dynamic Linking
 - [x] **Phase 33** — X11/Wayland Shim
+- [ ] **Phase 34** — Win32 Compatibility Layer
+- [ ] **Phase 35** — Package Manager
+- [ ] **Phase 36** — Scripting Engine
+- [ ] **Phase 37** — macOS Compatibility Shim
+- [ ] **Phase 38** — Sound Driver
+- [ ] **Phase 39** — Image Formats
+- [ ] **Phase 40** — Video Playback
+- [ ] **Phase 41** — GPU Acceleration (Basic)
+- [ ] **Phase 42** — Gaming Framework
+- [ ] **Phase 43** — Accessibility
+- [ ] **Phase 44** — Security
+- [ ] **Phase 45** — Cloud & Sync
+- [ ] **Phase 46** — AI Assistant
+- [ ] **Phase 47** — Mobile/Embedded Mode
+- [ ] **Phase 48** — Performance Optimization
+- [ ] **Phase 49** — App Store & Ecosystem
+- [ ] **Phase 50** — v5.0 Grand Finale
+- [ ] **Phase 51** — NPFS (NexusOS Persistent File System)
 
 ---
 
