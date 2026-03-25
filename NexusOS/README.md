@@ -27,25 +27,25 @@
 - [x] **Phase 6** — UX (login, icons, context menus, notifications)
 - [x] **Phase 7-13** — Advanced UX, apps, widgets, tools
 - [x] **Phase 14** — VESA VBE Graphics (1024×768×32bpp pixel mode!)
-- [ ] **Phase 15** — Font Rendering Engine
-- [ ] **Phase 16** — Graphics Primitives & Widget Toolkit
-- [ ] **Phase 17** — Modern Window Manager
-- [ ] **Phase 18** — Desktop Shell v2
-- [ ] **Phase 19** — FAT32 Filesystem
-- [ ] **Phase 20** — ELF Binary Loader
-- [ ] **Phase 21** — Memory Management v2
-- [ ] **Phase 22** — Advanced Process Management
-- [ ] **Phase 23** — Device Driver Framework
-- [ ] **Phase 24** — Storage Stack
-- [ ] **Phase 25** — USB Stack (Basic)
-- [ ] **Phase 26** — Network Driver
-- [ ] **Phase 27** — TCP/IP Stack
-- [ ] **Phase 28** — DNS & HTTP Client
-- [ ] **Phase 29** — Web Browser (Text)
-- [ ] **Phase 30** — Network Services
-- [ ] **Phase 31** — POSIX Compatibility Layer
-- [ ] **Phase 32** — ELF Dynamic Linking
-- [ ] **Phase 33** — X11/Wayland Shim
+- [x] **Phase 15** — Font Rendering Engine
+- [x] **Phase 16** — Graphics Primitives & Widget Toolkit
+- [x] **Phase 17** — Modern Window Manager
+- [x] **Phase 18** — Desktop Shell v2
+- [x] **Phase 19** — FAT32 Filesystem
+- [x] **Phase 20** — ELF Binary Loader
+- [x] **Phase 21** — Memory Management v2
+- [x] **Phase 22** — Advanced Process Management
+- [x] **Phase 23** — Device Driver Framework
+- [x] **Phase 24** — Storage Stack
+- [x] **Phase 25** — USB Stack (Basic)
+- [x] **Phase 26** — Network Driver
+- [x] **Phase 27** — TCP/IP Stack
+- [x] **Phase 28** — DNS & HTTP Client
+- [x] **Phase 29** — Web Browser (Text)
+- [x] **Phase 30** — Network Services
+- [x] **Phase 31** — POSIX Compatibility Layer
+- [x] **Phase 32** — ELF Dynamic Linking
+- [x] **Phase 33** — X11/Wayland Shim
 
 ---
 
