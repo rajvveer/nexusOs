@@ -2,7 +2,7 @@
 
 **A hybrid operating system taking the best of Windows, macOS, and Linux.**
 
-> *Phase 14: VESA VBE Graphics Mode (1024×768×32bpp)*
+> *Phase 33: X11/Wayland Shim*
 
 ## Architecture
 
