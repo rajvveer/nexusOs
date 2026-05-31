@@ -21,6 +21,7 @@ NexusOS is a bare-metal x86 operating system written in C and x86 Assembly. It b
 
 ## Table of Contents
 
+- [Screenshots](#-screenshots)
 - [Feature Highlights](#-feature-highlights)
 - [Architecture Overview](#-architecture-overview)
 - [Subsystem Deep Dive](#-subsystem-deep-dive)
@@ -32,6 +33,39 @@ NexusOS is a bare-metal x86 operating system written in C and x86 Assembly. It b
 - [Boot Flow](#-boot-flow)
 - [Roadmap](#-roadmap)
 - [Growth Projection](#-growth-projection)
+
+---
+
+## 📸 Screenshots
+
+<p align="center">
+  <img src="screenshots/desktop.png" width="85%" alt="NexusOS desktop environment"/>
+  <br>
+  <sub><b>The VESA desktop</b> (1024×768×32bpp) — window manager, taskbar, dock, and 30+ built-in apps</sub>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="screenshots/login.png" alt="Login screen"/>
+      <br><sub><b>Boot login screen</b></sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="screenshots/package-manager.png" alt="Package manager"/>
+      <br><sub><b>Package manager</b> — <code>npkg list</code></sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="screenshots/package-install.png" alt="Installing a package"/>
+      <br><sub><b>Installing a package</b> — <code>.npk</code> build, CRC32 verify, extract</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="screenshots/scripting.png" alt="NexusScript scripting engine"/>
+      <br><sub><b>Scripting engine</b> — <code>script demo.ns</code> (loops, conditionals, <code>run</code>)</sub>
+    </td>
+  </tr>
+</table>
 
 ---
 
