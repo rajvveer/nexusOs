@@ -10,6 +10,7 @@
 #include "theme.h"
 #include "vga.h"
 #include "framebuffer.h"
+#include "gfx.h"
 
 /* Phase 14: Include pixel wallpaper data */
 #include "wallpaper_data.h"
@@ -121,19 +122,49 @@ void wallpaper_draw(void) {
     uint8_t bg = t->desktop_bg;
     uint8_t fg = t->desktop_fg;
 
-    /* Phase 14: Photo wallpaper in VESA mode */
-    if (current_pattern == WP_PHOTO && fb_is_vesa()) {
-        draw_photo_wallpaper();
-        /* DON'T use gui_putchar — it renders pixels that overwrite the wallpaper.
-         * Just write transparent spaces to the backbuf for UI hit-testing. */
+    /* VESA: draw a clean pixel-perfect background and skip the glyph fill.
+     * Pure pixel fill — no fonts, no interpolation, no per-cell drawing. */
+    if (fb_is_vesa()) {
+        int sw = (int)fb_get_width();
+        int sh = (int)fb_get_height();
+
+        switch (current_pattern) {
+            case WP_PHOTO:
+                draw_photo_wallpaper();
+                break;
+            case WP_GRADIENT:
+                /* Smooth vertical gradient: deep navy → dark slate */
+                gfx_draw_gradient_v(0, 0, sw, sh,
+                    FB_RGB(20, 24, 38), FB_RGB(12, 14, 22));
+                break;
+            case WP_DOTS: {
+                /* Solid dark with tiny accent dots — sharp and minimal */
+                gfx_fill_rect(0, 0, sw, sh, FB_RGB(18, 20, 28));
+                for (int y = 16; y < sh - 24; y += 32)
+                    for (int x = 16; x < sw; x += 32)
+                        gfx_fill_rect(x, y, 2, 2, FB_RGB(40, 46, 60));
+                break;
+            }
+            case WP_GRID: {
+                gfx_fill_rect(0, 0, sw, sh, FB_RGB(16, 18, 26));
+                for (int x = 0; x < sw; x += 32)
+                    gfx_draw_vline(x, 0, sh, FB_RGB(28, 32, 44));
+                for (int y = 0; y < sh; y += 32)
+                    gfx_draw_hline(0, y, sw, FB_RGB(28, 32, 44));
+                break;
+            }
+            default:
+                gfx_fill_rect(0, 0, sw, sh, FB_RGB(18, 20, 28));
+                break;
+        }
+
+        /* Keep the char back-buffer "empty" for hit-testing */
         extern uint16_t* gui_get_backbuf(void);
         uint16_t* buf = gui_get_backbuf();
         if (buf) {
-            for (int y = 0; y < GUI_HEIGHT - 1; y++) {
-                for (int x = 0; x < GUI_WIDTH; x++) {
+            for (int y = 0; y < GUI_HEIGHT - 1; y++)
+                for (int x = 0; x < GUI_WIDTH; x++)
                     buf[y * GUI_WIDTH + x] = (' ' | (VGA_COLOR(VGA_WHITE, VGA_BLACK) << 8));
-                }
-            }
         }
         return;
     }

@@ -100,13 +100,15 @@ static void taddl(const char*t){
 
 static void tproc(void){
     char e[TBC+4];strcpy(e,"> ");strcat(e,ti);taddl(e);
-    if(!strcmp(ti,"help"))taddl("help clear about date mem ldd ldconfig dlsym xinfo");
+    if(!strcmp(ti,"help"))taddl("help clear about date mem dl x11 win32 pkg script");
     else if(!strcmp(ti,"help net"))taddl("ifconfig ping netstat arp dns wget browse");
     else if(!strcmp(ti,"help srv"))taddl("dhcp ntp httpd [stop] rshell [stop]");
     else if(!strcmp(ti,"help dl"))taddl("ldd ldconfig dlopen dlsym");
     else if(!strcmp(ti,"help x11"))taddl("xinfo xdemo");
+    else if(!strcmp(ti,"help win32"))taddl("win32info regedit runexe");
+    else if(!strcmp(ti,"help pkg"))taddl("npkg list install remove info installed update");
     else if(!strcmp(ti,"clear"))tlc=0;
-    else if(!strcmp(ti,"about"))taddl("NexusOS v3.3.0 - Phase 33");
+    else if(!strcmp(ti,"about"))taddl("NexusOS v3.3.0 - Phase 34");
     else if(!strcmp(ti,"date")){rtc_time_t t;rtc_read(&t);char s[16];rtc_format_time(&t,s);taddl(s);}
     else if(!strcmp(ti,"mem")){char b[30],n[12];strcpy(b,"Free: ");int_to_str(pmm_get_free_pages()*4,n);strcat(b,n);strcat(b," KB");taddl(b);}
     else if(!strncmp(ti,"theme ",6))taddl(theme_set_by_name(ti+6)?"Changed.":"Unknown.");
@@ -274,6 +276,11 @@ static void tproc(void){
     else if(!strncmp(ti,"dlsym ",6))taddl("dlsym: use text shell (Esc) for full dl commands.");
     else if(!strcmp(ti,"xinfo"))taddl("X11 shim: NexusOS X11 v1.0 (use shell for xdemo).");
     else if(!strcmp(ti,"xdemo"))taddl("xdemo: use text shell (Esc) to launch X11 demo.");
+    else if(!strcmp(ti,"win32info"))taddl("win32info: use text shell (Esc) for details.");
+    else if(!strcmp(ti,"regedit"))taddl("regedit: use text shell (Esc) for registry.");
+    else if(!strncmp(ti,"runexe",6))taddl("runexe: use text shell (Esc) to run PE32.");
+    else if(!strncmp(ti,"npkg",4))taddl("npkg: use text shell (Esc) for the package manager.");
+    else if(!strncmp(ti,"script",6))taddl("script: use text shell (Esc) to run NexusScript files.");
     else if(ti[0])taddl("Unknown command. Try 'help'");
     ti[0]='\0';til=0;screen_dirty=true;
 }
@@ -410,9 +417,9 @@ static void dcursor(int mx, int my, int px, int py){
 }
 
 void desktop_run(void){
-    gui_init();icons_init();workspaces_init();recycle_init();syslog_init();dock_init();
-    /* Phase 14: Set pixel wallpaper as default in VESA mode */
-    if (gui_is_vesa()) { wallpaper_set(WP_PHOTO); }
+    gui_init();icons_init();workspaces_init();recycle_init();syslog_init();
+    /* Clean solid-color wallpaper in VESA mode — no photo (was laggy + blurry) */
+    if (gui_is_vesa()) { wallpaper_set(WP_GRADIENT); }
     syslog_add("NexusOS v1.7 booted");notifcenter_add("System started",'\x0F');
     open_terminal();
     bool drag=false;int dwn=-1,dox=0,doy=0;
@@ -439,7 +446,6 @@ void desktop_run(void){
             else if(context_menu_is_open()&&context_menu_hit(ms.x,ms.y)){int a=context_menu_handle_click(ms.x,ms.y);if(a)handle_ctx(a);}
             else if(context_menu_is_open())context_menu_close();
             else if(start_menu_is_open()&&start_menu_hit(ms.x,ms.y)){int a=start_menu_handle_click(ms.x,ms.y);if(a)handle_action(a);}
-            else if(dock_hit(ms.x,ms.y)){int a=dock_handle_click(ms.x);if(a)handle_action(a);}
             else if(taskbar_hit(ms.x,ms.y)){
                 int tr=taskbar_tray_hit(ms.x);
                 if(tr==3){lockscreen_run();last_input_tick=system_ticks;}
@@ -535,7 +541,6 @@ void desktop_run(void){
 
         if(screen_dirty){
             wallpaper_draw();
-            dock_draw();
             icons_draw();
             if(widgets_visible())widgets_draw();
             window_draw_all();taskbar_draw();
@@ -558,4 +563,5 @@ void desktop_run(void){
     port_byte_out(0x3D4,0x0A);port_byte_out(0x3D5,14);
     port_byte_out(0x3D4,0x0B);port_byte_out(0x3D5,15);
     vga_init();
+    vga_flush();
 }

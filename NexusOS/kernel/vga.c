@@ -31,7 +31,7 @@ static bool vesa_mode = false;
  * Make a VGA entry: char + color packed into 16 bits
  * -------------------------------------------------------------------------- */
 static uint16_t vga_entry(char c, uint8_t color) {
-    return (uint16_t)c | ((uint16_t)color << 8);
+    return (uint16_t)(uint8_t)c | ((uint16_t)color << 8);
 }
 
 /* --------------------------------------------------------------------------

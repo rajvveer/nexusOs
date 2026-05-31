@@ -1,5 +1,5 @@
 /* ============================================================================
- * NexusOS - Kernel Main (Phase 32 - v3.2)
+ * NexusOS - Kernel Main (Phase 36 - v3.6)
  * ============================================================================
  * Initializes all subsystems and launches the shell.
  * Phase 14: VESA VBE graphics mode (1024x768x32bpp).
@@ -10,9 +10,14 @@
  * Phase 30: Network services (DHCP, NTP, HTTP server, remote shell).
  * Phase 31: POSIX compatibility (/proc, termios, Unix tools).
  * Phase 32: ELF dynamic linking (shared libraries, dlopen/dlsym/dlclose).
+ * Phase 33: X11 compatibility shim (Windows, Events, GC, Graphics).
+ * Phase 34: Win32 compatibility layer (PE32, kernel32/user32/gdi32, Registry).
+ * Phase 35: Package manager (.npk archive format, repository, dependency resolver).
+ * Phase 36: Scripting engine (NexusScript interpreter, OS automation/macros).
  * ============================================================================ */
 
 #include "types.h"
+#include "port.h"
 #include "vga.h"
 #include "gdt.h"
 #include "idt.h"
@@ -68,6 +73,11 @@
 #include "dynlink.h"
 #include "libc.h"
 #include "x11.h"
+#include "pe.h"
+#include "registry.h"
+#include "win32.h"
+#include "pkg.h"
+#include "script.h"
 
 /* Timer tick counter */
 volatile uint32_t system_ticks = 0;
@@ -80,7 +90,7 @@ volatile uint32_t system_ticks = 0;
  * -------------------------------------------------------------------------- */
 static void update_statusbar(void) {
     /* Left: OS name + version */
-    char left[40] = " NexusOS v3.2.0";
+    char left[40] = " NexusOS v3.4.0";
 
     /* Center: time */
     rtc_time_t t;
@@ -133,7 +143,7 @@ static void print_banner(void) {
     vga_print_color("  ██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║╚██████╔╝███████║\n", VGA_COLOR(VGA_CYAN, VGA_BLACK));
     vga_print_color("  ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝ ╚═════╝ ╚══════╝\n", VGA_COLOR(VGA_CYAN, VGA_BLACK));
     vga_print("\n");
-    vga_print_color("  v3.2.0", VGA_COLOR(VGA_WHITE, VGA_BLACK));
+    vga_print_color("  v3.4.0", VGA_COLOR(VGA_WHITE, VGA_BLACK));
     vga_print_color(" — The Hybrid Operating System\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
     vga_print_color("  Best of Windows + macOS + Linux\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
     vga_print_color("  Initializing kernel subsystems...\n\n", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
@@ -284,6 +294,17 @@ void kernel_main(void) {
 
     /* === Phase 33: X11 Compatibility Shim === */
     x11_init();
+
+    /* === Phase 34: Win32 Compatibility Layer === */
+    pe_init();
+    registry_init();
+    win32_init();
+
+    /* === Phase 35: Package Manager === */
+    pkg_init();
+
+    /* === Phase 36: Scripting Engine === */
+    script_init();
 
     /* === Phase 3 Subsystems === */
 

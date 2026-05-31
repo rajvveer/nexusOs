@@ -200,7 +200,12 @@ echo [BUILD] Linking kernel...
     kernel\shell.o ^
     kernel\string.o ^
     kernel\ui_widgets.o ^
-    kernel\x11.o
+    kernel\x11.o ^
+    kernel\pe.o ^
+    kernel\registry.o ^
+    kernel\win32.o ^
+    kernel\pkg.o ^
+    kernel\script.o
 if errorlevel 1 (echo [FAIL] Linking & exit /b 1)
 
 REM --- Create OS image ---

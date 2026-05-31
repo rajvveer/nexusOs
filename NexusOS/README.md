@@ -2,9 +2,9 @@
   <img src="https://img.shields.io/badge/Architecture-x86_(i386)-blue?style=for-the-badge" alt="x86"/>
   <img src="https://img.shields.io/badge/Language-C_&_Assembly-orange?style=for-the-badge" alt="C & ASM"/>
   <img src="https://img.shields.io/badge/Display-1024×768_32bpp-green?style=for-the-badge" alt="VESA"/>
-  <img src="https://img.shields.io/badge/Kernel-~400KB-red?style=for-the-badge" alt="Kernel"/>
-  <img src="https://img.shields.io/badge/Phase-33_of_51-purple?style=for-the-badge" alt="Phase"/>
-  <img src="https://img.shields.io/badge/Files-113+_source-yellow?style=for-the-badge" alt="Files"/>
+  <img src="https://img.shields.io/badge/Kernel-~460KB-red?style=for-the-badge" alt="Kernel"/>
+  <img src="https://img.shields.io/badge/Phase-36_of_51-purple?style=for-the-badge" alt="Phase"/>
+  <img src="https://img.shields.io/badge/Files-117+_source-yellow?style=for-the-badge" alt="Files"/>
 </p>
 
 <h1 align="center">NexusOS</h1>
@@ -15,7 +15,7 @@
 
 ---
 
-NexusOS is a bare-metal x86 operating system written in C and x86 Assembly. It boots from a custom 2-stage bootloader, initializes VESA graphics at 1024×768×32bpp, sets up full virtual memory with paging, launches a windowed desktop environment with 30+ built-in applications, provides a complete TCP/IP networking stack with a web browser, implements POSIX/X11 compatibility layers, supports ELF dynamic linking with shared libraries, and includes a PE32 loader for Windows executables — all in under 1 MB of kernel code running on 16 MB of RAM.
+NexusOS is a bare-metal x86 operating system written in C and x86 Assembly. It boots from a custom 2-stage bootloader, initializes VESA graphics at 1024×768×32bpp, sets up full virtual memory with paging, launches a windowed desktop environment with 30+ built-in applications, provides a complete TCP/IP networking stack with a web browser, implements POSIX/X11 compatibility layers, supports ELF dynamic linking with shared libraries, includes a PE32 loader for Windows executables, ships a package manager with its own `.npk` archive format, CRC32 integrity checking, and recursive dependency resolution, and embeds a scripting engine (NexusScript) for OS automation — all in under 1 MB of kernel code running on 16 MB of RAM.
 
 ---
 
@@ -25,7 +25,7 @@ NexusOS is a bare-metal x86 operating system written in C and x86 Assembly. It b
 - [Architecture Overview](#-architecture-overview)
 - [Subsystem Deep Dive](#-subsystem-deep-dive)
 - [Built-in Applications](#-built-in-applications-30)
-- [Shell Commands](#-shell-commands-79-total)
+- [Shell Commands](#-shell-commands-90-total)
 - [Desktop GUI](#-desktop-gui)
 - [Project Structure](#-project-structure)
 - [Build & Run](#-build--run)
@@ -95,7 +95,34 @@ NexusOS is a bare-metal x86 operating system written in C and x86 Assembly. It b
   - Atoms: `XInternAtom`, `XGetAtomName`
   - Misc: `XFlush`, `XSync`, `XBell`
   - Supports 16 X11 windows, 32 GCs, 8 pixmaps, 64 atoms, 32-event queue
-- **PE32 Loader** *(Phase 34, in progress)* — DOS MZ header validation, PE signature parsing, section loading (.text/.data/.bss), import table resolution
+- **Win32 Compatibility Layer** — Full PE32 loader + Win32 API shim:
+  - **PE32 Loader** — DOS MZ header validation, PE signature parsing, i386 section loading (.text/.data/.bss), import table resolution, ring-3 userspace execution
+  - **kernel32.dll** — `GetModuleHandle`, `ExitProcess`, `CreateFileA`, `ReadFile`, `WriteFile`, `CloseHandle`, `GetFileSize`, `HeapAlloc`, `HeapFree`, `Sleep`, `GetTickCount`, `GetCommandLineA`, `OutputDebugStringA`
+  - **user32.dll** — `RegisterClassA`, `CreateWindowExA`, `ShowWindow`, `UpdateWindow`, `GetMessageA`, `TranslateMessage`, `DispatchMessageA`, `PostQuitMessage`, `DefWindowProcA`, `MessageBoxA`, `DestroyWindow`, `BeginPaint`, `EndPaint`, `GetDC`, `ReleaseDC`
+  - **gdi32.dll** — `TextOutA`, `SetBkColor`, `SetTextColor`, `GetStockObject`, `SelectObject`, `CreateSolidBrush`, `DeleteObject`, `FillRect`, `Rectangle`, `MoveToEx`, `LineTo`, `SetPixel`
+  - **advapi32.dll** — `RegOpenKeyExA`, `RegCreateKeyExA`, `RegCloseKey`, `RegQueryValueExA`, `RegSetValueExA`
+  - **Registry Emulation** — In-memory flat key-value store, `HKEY_LOCAL_MACHINE`/`HKEY_CURRENT_USER`/`HKEY_CLASSES_ROOT`, pre-populated Windows version keys
+  - **Import Resolver** — `win32_resolve_import()` dynamically binds PE imports to shim functions
+  - 47 Win32 API functions shimmed, 16 windows, 8 classes, 32 handles, 64-event message queue
+
+### 📦 Package Manager
+- **`.npk` Archive Format** — Binary NexusOS Package: fixed header (magic `NPK1`, name/version/description/author, dependency + file tables) followed by a concatenated payload section
+- **CRC32 Integrity** — A header CRC covers the entire archive body, and every payload file carries its own CRC32 — a corrupt download is rejected *before* anything is written to disk
+- **Bundled Repository** — 8 curated packages (`libnx`, `coreutils`, `hello`, `fetch`, `nano`, `nxedit`, `sdl-shim`, `doom`) with a real dependency graph
+- **Recursive Dependency Resolution** — Depth-first, dependencies installed first, with cycle detection, deduplication, and minimum-version checking (`>=`)
+- **Install Pipeline** — `serialize → CRC verify → extract to VFS → register` with all-or-nothing rollback on filesystem failure
+- **Installed Database** — Tracks each installed package's version, files, and on-disk size so `npkg remove` cleans up precisely (leaving shared dependencies intact)
+- **Remote Mirror Probe** — `npkg update` does a best-effort HTTP reach of the configured mirror, falling back to the bundled local mirror
+- **CLI** — `npkg list / search / info / install / remove / installed / update`
+
+### 📜 Scripting Engine (NexusScript)
+- **Real Interpreter** — lexer → token stream → recursive-descent evaluator walked by a token cursor (no external dependencies, fully in-kernel)
+- **Language** — integer + string values, variables (`let`/reassignment), `if/elif/else/end`, `while/do/end`, `print`, and comments (`#`)
+- **Expressions** — `+ - * / %`, comparisons `== != < <= > >=`, logical `and / or / not`, parentheses, string concatenation with `+`
+- **Builtins** — `len(x)`, `str(x)`, `abs(x)`
+- **OS Automation** — `run "<command>"` executes any shell command line from within a script, enabling macros and batch tasks
+- **Safe by Design** — every statement and loop iteration draws from a step budget, so a runaway script can never hang the kernel; recursion and nesting are also bounded
+- **CLI** — `script <file.ns>` (a sample `demo.ns` is installed at boot)
 
 ### 🧠 Core Kernel
 - **Custom 2-Stage Bootloader** — Stage 1 (512-byte MBR at 0x7C00): loads stage 2 via BIOS INT 0x13. Stage 2: sets up VESA VBE mode, loads kernel, switches to 32-bit Protected Mode
@@ -133,7 +160,7 @@ NexusOS is a bare-metal x86 operating system written in C and x86 Assembly. It b
 
 | App | Description | Source |
 |---|---|---|
-| 🖥️ **Shell** | Interactive command shell with 79 commands, history, pipe/redirect, $VAR expansion | `shell.c` (61 KB) |
+| 🖥️ **Shell** | Interactive command shell with 90 commands, history, pipe/redirect, $VAR expansion | `shell.c` (67 KB) |
 | 📝 **Text Editor** | Full-screen text editor with cursor navigation and file save | `editor.c` |
 | 📓 **Notepad** | GUI notepad window with clipboard support | `notepad.c` |
 | 🧮 **Calculator** | Multi-operation calculator with button UI | `calculator.c` |
@@ -168,7 +195,7 @@ NexusOS is a bare-metal x86 operating system written in C and x86 Assembly. It b
 
 ---
 
-## 🖥️ Shell Commands (79 Total)
+## 🖥️ Shell Commands (90 Total)
 
 ### System Commands
 
@@ -254,6 +281,33 @@ NexusOS is a bare-metal x86 operating system written in C and x86 Assembly. It b
 |---|---|
 | `xinfo` | Show X11 shim status, display info, protocol version, supported API |
 | `xdemo` | Launch X11 demo window with colored rectangles, lines, arcs, and text |
+
+### Win32 Compatibility Commands
+
+| Command | Description |
+|---|---|
+| `win32info` | Show Win32 subsystem status (active windows, handles, classes, shimmed DLLs) |
+| `regedit` | Display all registry entries (root key, path, value name, data) |
+| `runexe <file>` | Load and execute a PE32 `.exe` from filesystem |
+
+### Package Manager Commands
+
+| Command | Description |
+|---|---|
+| `npkg list` | List all packages in the bundled repository (installed ones marked) |
+| `npkg search <term>` | Search packages by name or description (case-insensitive) |
+| `npkg info <pkg>` | Show package version, author, dependencies, and files |
+| `npkg install <pkg>` | Install a package, auto-resolving and installing its dependencies |
+| `npkg remove <pkg>` | Uninstall a package and delete its files (shared deps kept) |
+| `npkg installed` | List installed packages with file count and on-disk size |
+| `npkg update` | Refresh the package index (probes the remote mirror) |
+
+### Scripting Commands
+
+| Command | Description |
+|---|---|
+| `script <file.ns>` | Run a NexusScript file (variables, `if`/`while`, `print`, `run`, expressions) |
+| `script demo.ns` | Run the sample script installed at boot |
 
 ### Application Launchers
 
@@ -372,6 +426,7 @@ The desktop includes an embedded GUI terminal with its own command set:
 - POSIX commands: `uname`, `whoami`, `env`, `export`, `cat`, `wc`, `grep`
 - Dynamic linking: `ldd`, `ldconfig`, `dlopen`, `dlsym`
 - X11: `xinfo`, `xdemo`
+- Win32: `win32info`, `regedit`, `runexe`
 
 ---
 
@@ -388,7 +443,7 @@ The desktop includes an embedded GUI terminal with its own command set:
 | **Networking** | RTL8139 NIC → Ethernet → ARP → IPv4 → ICMP/UDP/TCP → Socket API → DNS/HTTP |
 | **Process Model** | ELF32 loader, round-robin scheduler, POSIX signals, pipes, IPC, context switch (ASM) |
 | **GUI Pipeline** | Framebuffer → GFX primitives → 8×16 bitmap font → Widget toolkit → Window manager → Desktop compositor |
-| **Compatibility** | POSIX syscalls, ELF dynamic linker (.so), X11R6 shim, PE32 loader (in progress) |
+| **Compatibility** | POSIX syscalls, ELF dynamic linker (.so), X11R6 shim, Win32 API layer (PE32 + kernel32/user32/gdi32 + registry) |
 | **Disk Image** | Floppy `.img` (1.44 MB) + Hard disk image (16 MB FAT32) |
 
 ---
@@ -444,6 +499,10 @@ NexusOS/
 │   ├── posix.c/h                # POSIX compatibility (open/read/write/fork/exec translation)
 │   ├── termios.c/h              # Terminal I/O control (termios struct, tcgetattr/tcsetattr)
 │   ├── pe.c/h                   # PE32 executable loader (DOS MZ + PE headers, section loading)
+│   ├── win32.c/h                # Win32 API shim (kernel32/user32/gdi32, 47 functions, import resolver)
+│   ├── registry.c/h             # Windows registry emulation (flat key-value store, advapi32 API)
+│   ├── pkg.c/h                  # Package manager (.npk format, CRC32, repository, dependency resolver)
+│   ├── script.c/h               # Scripting engine (NexusScript lexer + recursive-descent interpreter)
 │   │
 │   │  ═══ HARDWARE DRIVERS ═══════════════════════════════════════════════
 │   ├── keyboard.c/h             # PS/2 keyboard (IRQ1, scancode→ASCII, modifiers, arrows)
@@ -513,7 +572,7 @@ NexusOS/
 │   ├── widgets.c/h              # Desktop widgets (toggle with Ctrl+I)
 │   │
 │   │  ═══ APPLICATIONS ═══════════════════════════════════════════════════
-│   ├── shell.c/h                # Interactive shell (79 commands, history, pipes, redirects)
+│   ├── shell.c/h                # Interactive shell (90 commands, history, pipes, redirects)
 │   ├── editor.c/h               # Full-screen text editor
 │   ├── notepad.c/h              # GUI notepad with clipboard
 │   ├── calculator.c/h           # Calculator with button UI
@@ -557,7 +616,7 @@ NexusOS/
 └── README.md
 ```
 
-> **113+ source files** · **341 total files** · **~400 KB kernel** · Written entirely in C and x86 Assembly
+> **121+ source files** · **350+ total files** · **~460 KB kernel** · Written entirely in C and x86 Assembly
 
 ---
 
@@ -643,7 +702,10 @@ qemu-system-i386 -fda nexus.img -hda disk.img -m 16M -rtc base=localtime \
 ├── 22. POSIX (procfs + termios + signal translation)
 ├── 23. Dynamic Linker (shared libs + libc symbols)
 ├── 24. X11 Compatibility Shim
-├── 25. RTC + PC Speaker + Boot Sound
+├── 25. PE Loader + Win32 API Layer + Registry Emulation
+├── 26. Package Manager (.npk format + bundled repository)
+├── 27. Scripting Engine (NexusScript interpreter + sample script)
+├── 28. RTC + PC Speaker + Boot Sound
 │
 ▼
 ┌──────────────┐    ┌───────────────┐    ┌──────────────────────────────────┐
@@ -660,7 +722,7 @@ qemu-system-i386 -fda nexus.img -hda disk.img -m 16M -rtc base=localtime \
 
 ## 🗺️ Roadmap
 
-### Progress: `████████████████████████████████░░░░░░░░░░░░░░░░░░` **65%** (33/51 phases complete)
+### Progress: `███████████████████████████████████░░░░░░░░░░░░░░░` **71%** (36/51 phases complete)
 
 <details>
 <summary><b>✅ Phase 1–13 — Foundation (Complete)</b></summary>
@@ -711,11 +773,11 @@ qemu-system-i386 -fda nexus.img -hda disk.img -m 16M -rtc base=localtime \
 
 - [x] **Phase 31** — POSIX Compatibility Layer (syscall translation, /proc filesystem, signals, termios, Unix tools)
 - [x] **Phase 32** — ELF Dynamic Linking (shared libraries .so, dynamic linker ld.so, dlopen/dlsym, 26+ libc symbols)
-- [x] **Phase 33** — X11/Wayland Shim (X11R6 API, display/window/GC/drawing/events, 16 windows, 32 GCs) ← **current**
-- [ ] **Phase 34** — Win32 Compatibility Layer (PE32 loader ✅, Win32 API subset, registry emulation)
-- [ ] **Phase 35** — Package Manager (.npk format, repository system, dependency resolution, `npkg install`)
-- [ ] **Phase 36** — Scripting Engine (built-in Lua or custom interpreter, OS automation, plugin system)
-- [ ] **Phase 37** — macOS Compatibility Shim (Mach-O loader, Cocoa API subset, Core Foundation)
+- [x] **Phase 33** — X11/Wayland Shim (X11R6 API, display/window/GC/drawing/events, 16 windows, 32 GCs)
+- [x] **Phase 34** — Win32 Compatibility Layer (PE32 loader, Win32 API shim — 47 functions, registry emulation, runexe/regedit/win32info commands)
+- [x] **Phase 35** — Package Manager (.npk archive format with CRC32 integrity, bundled repository, recursive dependency resolution, `npkg list/search/info/install/remove/installed/update`)
+- [x] **Phase 36** — Scripting Engine (NexusScript custom interpreter — variables, expressions, `if`/`while`, builtins, `run` for OS automation, step-budget safety, `script <file.ns>`)
+- [ ] **Phase 37** — macOS Compatibility Shim (Mach-O loader, Cocoa API subset, Core Foundation) ← **current**
 </details>
 
 <details>
@@ -757,8 +819,8 @@ qemu-system-i386 -fda nexus.img -hda disk.img -m 16M -rtc base=localtime \
 | 14–18 | 35 | 120 | 250 KB | **Pixel graphics — 393× visual improvement** |
 | 19–25 | 40 | 180 | 400 KB | USB, persistent disk, ELF binaries |
 | 26–30 | 45 | 230 | 600 KB | **Internet — browse the web from scratch** |
-| 31–33 | 50 | 340+ | ~400 KB | **Current ⭐** — POSIX, X11, dynamic linking |
-| 34–37 | 55 | 380 | 800 KB | Run Windows/Mac/Linux apps |
+| 31–36 | 50 | 350+ | ~460 KB | **Current ⭐** — POSIX, X11, dynamic linking, Win32, package manager, scripting |
+| 37 | 55 | 380 | 800 KB | macOS shim — run Windows/Mac/Linux apps |
 | 38–42 | 60 | 420 | 900 KB | **Sound, images, video — Doom runs** |
 | 43–48 | 65 | 480 | 950 KB | Security, cloud sync, multi-core |
 | 49–51 | 70+ | 500+ | < 1 MB | 🌍 **App store, ISO installer, world domination** |
@@ -770,5 +832,5 @@ qemu-system-i386 -fda nexus.img -hda disk.img -m 16M -rtc base=localtime \
   <br><br>
   <i>"From 2,000 character cells to 786,432 pixels — a 393× improvement."</i>
   <br><br>
-  <sub>113+ source files · 79 shell commands · 30+ applications · 4 themes · Full TCP/IP stack · X11 compatibility · All in ~400 KB</sub>
+  <sub>121+ source files · 90 shell commands · 30+ applications · 4 themes · Full TCP/IP stack · X11 + Win32 compatibility · package manager · scripting engine · All in ~460 KB</sub>
 </p>

@@ -14,8 +14,9 @@ section .text
 global _start
 
 _start:
-    ; Set up kernel stack
-    mov esp, 0x90000            ; Stack pointer at 576KB
+    ; Set up kernel stack at 4MB (above kernel binary, below fb_back at 5MB).
+    ; BSS now lives at 8MB+ via the linker script, so no overlap.
+    mov esp, 0x400000
     mov ebp, esp
 
     ; Zero the BSS section

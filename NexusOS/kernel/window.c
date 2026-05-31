@@ -141,32 +141,25 @@ void window_draw(int id) {
             gfx_draw_shadow(px, py, pw, ph, WIN_SHADOW_R, 0x000000);
         }
 
-        /* Window body with rounded corners */
-        gfx_fill_rounded_rect(px, py, pw, ph, WIN_CORNER_R, FB_RGB(245, 245, 245));
+        /* Modern flat dark window body */
+        gfx_fill_rounded_rect(px, py, pw, ph, WIN_CORNER_R, FB_RGB(30, 30, 34));
 
-        /* Titlebar with gradient */
-        uint32_t tb_left, tb_right;
+        /* Flat titlebar — slightly lighter than body, accent stripe on focus */
+        uint32_t tb_color = focused ? FB_RGB(42, 42, 48) : FB_RGB(34, 34, 38);
+        gfx_fill_rounded_rect(px, py, pw, WIN_TITLEBAR_H, WIN_CORNER_R, tb_color);
+        gfx_fill_rect(px + 1, py + WIN_CORNER_R, pw - 2, WIN_TITLEBAR_H - WIN_CORNER_R, tb_color);
+
+        /* Hairline divider under titlebar */
+        gfx_draw_hline(px + 1, py + WIN_TITLEBAR_H, pw - 2, FB_RGB(60, 60, 66));
+
+        /* Accent bar on focused window (left edge of titlebar) */
         if (focused) {
-            tb_left = FB_RGB(30, 120, 220);
-            tb_right = FB_RGB(80, 160, 240);
-        } else {
-            tb_left = FB_RGB(140, 140, 140);
-            tb_right = FB_RGB(170, 170, 170);
+            gfx_fill_rect(px + 1, py + 4, 3, WIN_TITLEBAR_H - 8, FB_RGB(80, 165, 255));
         }
 
-        /* Clip titlebar to rounded top corners */
-        gfx_fill_rounded_rect(px, py, pw, WIN_TITLEBAR_H, WIN_CORNER_R, tb_left);
-        /* Bottom half of titlebar is square */
-        gfx_fill_rect(px + 1, py + WIN_CORNER_R, pw - 2, WIN_TITLEBAR_H - WIN_CORNER_R, tb_left);
-        /* Gradient overlay */
-        gfx_draw_gradient_h(px + 1, py + 1, pw - 2, WIN_TITLEBAR_H - 1, tb_left, tb_right);
-
-        /* Titlebar separator line */
-        gfx_draw_hline(px, py + WIN_TITLEBAR_H, pw, focused ? FB_RGB(20, 90, 180) : FB_RGB(120, 120, 120));
-
-        /* Border outline */
+        /* Subtle border outline */
         gfx_draw_rounded_rect(px, py, pw, ph, WIN_CORNER_R,
-            focused ? FB_RGB(50, 130, 230) : FB_RGB(160, 160, 160));
+            focused ? FB_RGB(70, 130, 210) : FB_RGB(55, 55, 60));
 
         /* Title bar buttons — close (red), maximize (green), minimize (yellow) */
         int btn_y = py + (WIN_TITLEBAR_H - WIN_BTN_SIZE) / 2;
@@ -203,13 +196,12 @@ void window_draw(int id) {
             strncpy(tbuf, win->title, WIN_TITLE_MAX - 1);
             tbuf[WIN_TITLE_MAX - 1] = 0;
             int ty = py + (WIN_TITLEBAR_H - font_get_active_height()) / 2;
-            font_draw_string(px + 10, ty, tbuf, FB_RGB(255, 255, 255), tb_left);
+            uint32_t txt_color = focused ? FB_RGB(245, 245, 250) : FB_RGB(150, 150, 160);
+            font_draw_string(px + 14, ty, tbuf, txt_color, tb_color);
         }
 
-        /* Content area background (mapped from theme color) */
-        uint8_t tb_bg = (t->win_content >> 4) & 0x0F;
-        uint32_t bg_pixel = vga_attr_bg(t->win_content);
-        gfx_fill_rect(px + 1, py + WIN_TITLEBAR_H + 1, pw - 2, ph - WIN_TITLEBAR_H - 2, bg_pixel);
+        /* Content area background — flat dark */
+        gfx_fill_rect(px + 1, py + WIN_TITLEBAR_H + 1, pw - 2, ph - WIN_TITLEBAR_H - 2, FB_RGB(24, 24, 28));
 
     } else {
         /* Legacy text-mode rendering */

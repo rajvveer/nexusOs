@@ -1,7 +1,7 @@
 /* ============================================================================
- * NexusOS - Interactive Shell v21.0
+ * NexusOS - Interactive Shell v22.0
  * ============================================================================
- * Phase 33: X11 Compatibility Shim. 79 commands total.
+ * Phase 36: Scripting Engine (script). 90 commands total.
  * ============================================================================ */
 
 #include "shell.h"
@@ -58,6 +58,9 @@
 #include "http.h"
 #include "browser.h"
 #include "dhcp.h"
+#include "win32.h"
+#include "pe.h"
+#include "registry.h"
 #include "ntp.h"
 #include "httpd.h"
 #include "rshell.h"
@@ -66,6 +69,11 @@
 #include "posix.h"
 #include "dynlink.h"
 #include "libc.h"
+#include "pe.h"
+#include "registry.h"
+#include "win32.h"
+#include "pkg.h"
+#include "script.h"
 
 /* System tick counter */
 extern volatile uint32_t system_ticks;
@@ -223,7 +231,7 @@ static int parse_args(char* input, char* argv[]) {
  * -------------------------------------------------------------------------- */
 
 static void cmd_help(void) {
-    vga_print_color("\n  NexusOS Shell Commands v17.0\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("\n  NexusOS Shell Commands v18.0\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
     vga_print_color("  ===========================\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
 
     vga_print_color("  System:     ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
@@ -247,7 +255,13 @@ static void cmd_help(void) {
     vga_print_color("  Fun:        ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
     vga_print("snake  beep  echo <text>  color <0-15>  history\n");
     vga_print_color("  DynLink:    ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
-    vga_print("ldd  ldconfig  dlopen <lib>  dlsym <handle> <sym>\n\n");
+    vga_print("ldd  ldconfig  dlopen <lib>  dlsym <handle> <sym>\n");
+    vga_print_color("  Win32:      ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("runexe <file>  regedit  win32info\n");
+    vga_print_color("  Packages:   ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("npkg list  npkg install <pkg>  npkg remove <pkg>  npkg info <pkg>\n");
+    vga_print_color("  Scripting:  ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("script <file.ns>   (try: script demo.ns)\n\n");
 
     vga_print_color("  Tip: ", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
     vga_print("Use Up/Down arrows for command history\n\n");
@@ -1110,6 +1124,303 @@ static void cmd_whoami(void) {
     vga_print("  "); vga_print(user ? user : "root"); vga_print("\n");
 }
 
+/* --- Phase 34: Win32 Layer Commands --- */
+
+static void cmd_win32info(void) {
+    vga_print_color("\n  Win32 Compatibility Shim - Phase 34\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  ==================================\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    vga_print("  ");
+    vga_print(win32_get_status());
+    vga_print("\n");
+    char buf[12];
+    vga_print_color("  API Layer:  ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("kernel32.dll, user32.dll, gdi32.dll\n");
+    vga_print_color("  Registry:   ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    int_to_str((int)registry_get_entry_count(), buf);
+    vga_print(buf); vga_print(" entries\n");
+    vga_print_color("  System:     ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("PE32 Loader + Win32 API translation\n\n");
+}
+
+static void cmd_regedit(void) {
+    syslog_add("cmd_regedit: started");
+    vga_print_color("\n  Registry Editor (Console)\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  =========================\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    syslog_add("cmd_regedit: printing labels done");
+    int count = registry_get_entry_count();
+    syslog_add("cmd_regedit: count retrieved");
+    if (count == 0) {
+        vga_print("  Registry is empty.\n");
+    } else {
+        const reg_entry_t* entries = registry_get_entries();
+        for (int i = 0; i < 64; i++) {
+            if (!entries[i].active) continue;
+            vga_print("  ");
+            if (entries[i].hkey_root == (uint32_t)HKEY_LOCAL_MACHINE) vga_print("HKLM\\");
+            else if (entries[i].hkey_root == (uint32_t)HKEY_CURRENT_USER) vga_print("HKCU\\");
+            else if (entries[i].hkey_root == (uint32_t)HKEY_CLASSES_ROOT) vga_print("HKCR\\");
+            else if (entries[i].hkey_root == (uint32_t)HKEY_USERS) vga_print("HKU\\");
+            else vga_print("HK??\\");
+            
+            vga_print((char*)entries[i].path);
+            vga_print("\\");
+            vga_print_color((char*)entries[i].value_name, VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+            vga_print(" = ");
+            
+            if (entries[i].type == REG_SZ) {
+                vga_print("\"");
+                vga_print((char*)entries[i].data);
+                vga_print("\"");
+            } else if (entries[i].type == REG_DWORD) {
+                uint32_t val;
+                memcpy(&val, entries[i].data, 4);
+                char buf[16]; int_to_str(val, buf);
+                vga_print(buf);
+            } else {
+                vga_print("<binary data>");
+            }
+            vga_print("\n");
+        }
+    }
+    vga_print("\n");
+}
+
+static void cmd_runexe(int argc, char* argv[]) {
+    if (argc < 2) {
+        vga_print("  Usage: runexe <file.exe>\n");
+    } else {
+        const char* fname = argv[1];
+        fs_node_t* node = vfs_finddir(vfs_get_root(), fname);
+        if (!node || node->size == 0) {
+            vga_print_color("  File not found: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+            vga_print((char*)fname); vga_print("\n");
+        } else {
+            uint8_t* buf = (uint8_t*)kmalloc(node->size);
+            if (buf) {
+                int32_t rd = vfs_read(node, 0, node->size, buf);
+                if (rd == (int32_t)node->size) {
+                    vga_print("  Loading PE32 executable...\n");
+                    int res = pe_exec(buf, node->size, fname);
+                    if (res != 0) {
+                        vga_print_color("  Failed to execute PE file.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+                    }
+                } else {
+                    vga_print("  Read error.\n");
+                }
+                kfree(buf);
+            } else {
+                vga_print("  Out of memory.\n");
+            }
+        }
+    }
+}
+
+/* --------------------------------------------------------------------------
+ * cmd_npkg: NexusOS Package Manager front-end (Phase 35)
+ * -------------------------------------------------------------------------- */
+
+/* Case-insensitive substring test for `npkg search`. */
+static bool npkg_contains_ci(const char* haystack, const char* needle) {
+    if (!needle || !*needle) return true;
+    for (const char* h = haystack; *h; h++) {
+        const char* a = h;
+        const char* b = needle;
+        while (*a && *b) {
+            char ca = (*a >= 'A' && *a <= 'Z') ? (char)(*a + 32) : *a;
+            char cb = (*b >= 'A' && *b <= 'Z') ? (char)(*b + 32) : *b;
+            if (ca != cb) break;
+            a++; b++;
+        }
+        if (!*b) return true;
+    }
+    return false;
+}
+
+static void npkg_usage(void) {
+    vga_print_color("\n  npkg — NexusOS Package Manager (Phase 35)\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  =========================================\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    vga_print_color("  npkg list", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("               List all packages in the repository\n");
+    vga_print_color("  npkg search <term>", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("      Search packages by name/description\n");
+    vga_print_color("  npkg info <pkg>", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("         Show package details and dependencies\n");
+    vga_print_color("  npkg install <pkg>", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("      Install a package (auto-resolves deps)\n");
+    vga_print_color("  npkg remove <pkg>", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("       Uninstall a package\n");
+    vga_print_color("  npkg installed", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("          List installed packages\n");
+    vga_print_color("  npkg update", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("             Refresh the package index\n\n");
+}
+
+static void npkg_list(void) {
+    int n = pkg_repo_count();
+    vga_print_color("\n  Available packages (", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    char buf[12]; int_to_str(n, buf); vga_print_color(buf, VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("):\n\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    for (int i = 0; i < n; i++) {
+        const pkg_def_t* p = pkg_repo_get(i);
+        if (!p) continue;
+        vga_print("  ");
+        vga_print_color((char*)p->name, VGA_COLOR(VGA_WHITE, VGA_BLACK));
+        /* pad name column to ~12 chars */
+        int pad = 12 - (int)strlen(p->name);
+        for (int s = 0; s < pad; s++) vga_putchar(' ');
+        vga_print_color((char*)p->version, VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+        pad = 9 - (int)strlen(p->version);
+        for (int s = 0; s < pad; s++) vga_putchar(' ');
+        if (pkg_is_installed(p->name))
+            vga_print_color("[installed] ", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+        else
+            vga_print("            ");
+        vga_print_color((char*)p->description, VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+        vga_print("\n");
+    }
+    vga_print("\n");
+}
+
+static void npkg_search(const char* term) {
+    int n = pkg_repo_count();
+    int hits = 0;
+    vga_print_color("\n  Search results for '", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print((char*)term);
+    vga_print_color("':\n\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    for (int i = 0; i < n; i++) {
+        const pkg_def_t* p = pkg_repo_get(i);
+        if (!p) continue;
+        if (npkg_contains_ci(p->name, term) || npkg_contains_ci(p->description, term)) {
+            vga_print("  ");
+            vga_print_color((char*)p->name, VGA_COLOR(VGA_WHITE, VGA_BLACK));
+            vga_print(" - ");
+            vga_print_color((char*)p->description, VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+            vga_print("\n");
+            hits++;
+        }
+    }
+    if (hits == 0) vga_print("  No matching packages.\n");
+    vga_print("\n");
+}
+
+static void npkg_info(const char* name) {
+    const pkg_def_t* p = pkg_repo_find(name);
+    if (!p) {
+        vga_print_color("  Package not found: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print((char*)name); vga_print("\n");
+        return;
+    }
+    vga_print_color("\n  Package: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print_color((char*)p->name, VGA_COLOR(VGA_WHITE, VGA_BLACK)); vga_print("\n");
+    vga_print_color("  Version: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print((char*)p->version); vga_print("\n");
+    vga_print_color("  Author:  ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print((char*)p->author); vga_print("\n");
+    vga_print_color("  Summary: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print((char*)p->description); vga_print("\n");
+    vga_print_color("  Status:  ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    if (pkg_is_installed(p->name))
+        vga_print_color("installed\n", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    else
+        vga_print_color("not installed\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+
+    vga_print_color("  Depends: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    if (!p->deps[0].name) {
+        vga_print("(none)\n");
+    } else {
+        for (int i = 0; i < PKG_MAX_DEPS && p->deps[i].name; i++) {
+            if (i > 0) vga_print(", ");
+            vga_print((char*)p->deps[i].name);
+            vga_print(" >="); vga_print((char*)p->deps[i].min_version);
+        }
+        vga_print("\n");
+    }
+
+    vga_print_color("  Files:   ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    for (int i = 0; i < PKG_MAX_FILES && p->files[i].name; i++) {
+        if (i > 0) vga_print(", ");
+        vga_print((char*)p->files[i].name);
+    }
+    vga_print("\n\n");
+}
+
+static void npkg_installed(void) {
+    int n = pkg_installed_count();
+    vga_print_color("\n  Installed packages (", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    char buf[12]; int_to_str(n, buf); vga_print_color(buf, VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("):\n\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    if (n == 0) {
+        vga_print("  Nothing installed yet. Try 'npkg install hello'.\n\n");
+        return;
+    }
+    for (int i = 0; i < n; i++) {
+        const pkg_installed_t* inst = pkg_installed_get(i);
+        if (!inst) continue;
+        vga_print("  ");
+        vga_print_color((char*)inst->name, VGA_COLOR(VGA_WHITE, VGA_BLACK));
+        int pad = 12 - (int)strlen(inst->name);
+        for (int s = 0; s < pad; s++) vga_putchar(' ');
+        vga_print_color((char*)inst->version, VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+        vga_print("  (");
+        int_to_str((int)inst->file_count, buf); vga_print(buf);
+        vga_print(" file(s), ");
+        int_to_str((int)inst->install_size, buf); vga_print(buf);
+        vga_print(" bytes)\n");
+    }
+    vga_print("\n");
+}
+
+static void cmd_npkg(int argc, char* argv[]) {
+    if (argc < 2 || strcmp(argv[1], "help") == 0) { npkg_usage(); return; }
+
+    const char* sub = argv[1];
+    if (strcmp(sub, "list") == 0) {
+        npkg_list();
+    } else if (strcmp(sub, "installed") == 0) {
+        npkg_installed();
+    } else if (strcmp(sub, "update") == 0) {
+        pkg_update();
+    } else if (strcmp(sub, "search") == 0) {
+        if (argc < 3) { vga_print("  Usage: npkg search <term>\n"); return; }
+        npkg_search(argv[2]);
+    } else if (strcmp(sub, "info") == 0) {
+        if (argc < 3) { vga_print("  Usage: npkg info <package>\n"); return; }
+        npkg_info(argv[2]);
+    } else if (strcmp(sub, "install") == 0) {
+        if (argc < 3) { vga_print("  Usage: npkg install <package>\n"); return; }
+        vga_print("\n");
+        pkg_install(argv[2]);
+    } else if (strcmp(sub, "remove") == 0) {
+        if (argc < 3) { vga_print("  Usage: npkg remove <package>\n"); return; }
+        vga_print("\n");
+        pkg_remove(argv[2]);
+    } else {
+        vga_print_color("  Unknown npkg subcommand: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print((char*)sub); vga_print("\n");
+        npkg_usage();
+    }
+}
+
+/* --------------------------------------------------------------------------
+ * cmd_script: Run a NexusScript file (Phase 36)
+ * -------------------------------------------------------------------------- */
+static void cmd_script(int argc, char* argv[]) {
+    if (argc < 2) {
+        vga_print("  Usage: script <file.ns>\n");
+        vga_print("  Try:   script demo.ns\n");
+        return;
+    }
+    int rc = script_run_file(argv[1]);
+    if (rc == SCRIPT_ERR_NOTFOUND) {
+        vga_print_color("  Script not found: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print(argv[1]); vga_print("\n");
+    } else if (rc != SCRIPT_OK && rc != SCRIPT_ERR_SYNTAX) {
+        /* Syntax/runtime errors already printed a line diagnostic from the engine. */
+        vga_print_color("  Script error: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print((char*)script_strerror(rc)); vga_print("\n");
+    }
+}
+
 /* --------------------------------------------------------------------------
  * shell_pipe_redirect: Handle |, >, < operators
  * Returns true if handled (caller should not execute_command)
@@ -1586,10 +1897,25 @@ static void execute_command(char* input) {
             vga_print("  X11 window created. Close from desktop.\n");
         }
     }
+    /* === Phase 34: Win32 Shim commands === */
+    else if (strcmp(argv[0], "win32info") == 0) cmd_win32info();
+    else if (strcmp(argv[0], "regedit") == 0) cmd_regedit();
+    else if (strcmp(argv[0], "runexe") == 0) cmd_runexe(argc, argv);
+    /* === Phase 35: Package Manager === */
+    else if (strcmp(argv[0], "npkg") == 0) cmd_npkg(argc, argv);
+    /* === Phase 36: Scripting Engine === */
+    else if (strcmp(argv[0], "script") == 0) cmd_script(argc, argv);
     else {
-        vga_print_color("  Unknown command: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
-        vga_print(argv[0]);
-        vga_print("\n  Type 'help' for available commands.\n");
+        int len = strlen(argv[0]);
+        if (len > 4 && 
+            (strcmp(argv[0] + len - 4, ".exe") == 0 || strcmp(argv[0] + len - 4, ".EXE") == 0)) {
+            char* runexe_args[] = { "runexe", argv[0] };
+            cmd_runexe(2, runexe_args);
+        } else {
+            vga_print_color("  Unknown command: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+            vga_print(argv[0]);
+            vga_print("\n  Type 'help' for available commands.\n");
+        }
     }
 }
 
@@ -1605,10 +1931,26 @@ void shell_run(void) {
 
     while (1) {
         print_prompt();
+        vga_flush();
         shell_readline(input, INPUT_MAX);
         if (input[0] != '\0') {
             history_add(input);
             execute_command(input);
+            vga_flush();
         }
     }
+}
+
+/* --------------------------------------------------------------------------
+ * shell_exec_line: Execute one command line programmatically.
+ * Used by the scripting engine's `run` statement. Copies into a mutable
+ * buffer because execute_command() tokenizes in place.
+ * -------------------------------------------------------------------------- */
+void shell_exec_line(const char* line) {
+    if (!line) return;
+    char buf[INPUT_MAX];
+    int i = 0;
+    while (line[i] && i < INPUT_MAX - 1) { buf[i] = line[i]; i++; }
+    buf[i] = '\0';
+    execute_command(buf);
 }
