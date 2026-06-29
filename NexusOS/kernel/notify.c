@@ -63,13 +63,18 @@ void notify_push(const char* message) {
 }
 
 /* --------------------------------------------------------------------------
- * notify_update: Expire old notifications
+ * notify_update: Expire old notifications. Returns true if anything changed
+ * (a toast expired), so the desktop knows it must do a full repaint to clear
+ * the toast area back to wallpaper; otherwise the idle tick can take the cheap
+ * taskbar-only path (Phase 53).
  * -------------------------------------------------------------------------- */
-void notify_update(void) {
+bool notify_update(void) {
+    bool changed = false;
     for (int i = 0; i < NOTIFY_MAX; i++) {
         if (notifications[i].active &&
             system_ticks >= notifications[i].expire_tick) {
             notifications[i].active = false;
+            changed = true;
         }
     }
 
@@ -80,6 +85,14 @@ void notify_update(void) {
             notifications[i + 1].active = false;
         }
     }
+    return changed;
+}
+
+/* True if any toast is currently visible (forces full redraws while shown). */
+bool notify_any_active(void) {
+    for (int i = 0; i < NOTIFY_MAX; i++)
+        if (notifications[i].active) return true;
+    return false;
 }
 
 /* --------------------------------------------------------------------------

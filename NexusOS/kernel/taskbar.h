@@ -17,6 +17,10 @@
 /* Draw the taskbar to the GUI back buffer */
 void taskbar_draw(void);
 
+/* Taskbar height in pixels (VESA). Lets the desktop repaint just this strip on
+ * the idle clock tick instead of recompositing the whole screen (Phase 53). */
+int taskbar_height_px(void);
+
 /* Check if a click at (mx, my) is on the taskbar */
 bool taskbar_hit(int mx, int my);
 

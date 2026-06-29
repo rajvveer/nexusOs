@@ -662,11 +662,18 @@ void desktop_run(void){
          * timer) without forcing a content recomposite. */
         if(cursor_moved){last_input_tick=system_ticks;}
 
-        /* Phase 47: idle (clock) refresh cadence — stretched in low-power mode
-         * so the CPU stays in HLT far more of the time when nothing's happening.
-         * This fires at most ~once/second, so a full recomposite here is cheap;
-         * the perf win (Phase 52) is in the per-pointer-move fast path below. */
-        if(system_ticks-last_tick>=(uint32_t)mobile_redraw_interval()){last_tick=system_ticks;screen_dirty=true;frame_count++;notify_update();}
+        /* Phase 47/53: idle clock refresh cadence. At 1080p a full recomposite
+         * is ~2.6x the pixels of 768p, so doing one every second visibly
+         * stutters the cursor. Instead the idle tick repaints ONLY the taskbar
+         * strip (where the clock lives) unless something visible actually
+         * changed (a toast expired / is showing), which needs a full repaint. */
+        bool taskbar_tick=false;
+        if(system_ticks-last_tick>=(uint32_t)mobile_redraw_interval()){
+            last_tick=system_ticks;frame_count++;
+            bool toast_changed=notify_update();
+            if(toast_changed||notify_any_active()) screen_dirty=true;  /* toast area must repaint */
+            else if(!screen_dirty) taskbar_tick=true;                  /* cheap clock refresh */
+        }
         if(system_ticks-last_input_tick>=IDLE_TIMEOUT){screensaver_run();last_input_tick=system_ticks;screen_dirty=true;}
 
         if(screen_dirty){
@@ -685,6 +692,19 @@ void desktop_run(void){
             notify_draw();dcursor(ms.x,ms.y,ms.px,ms.py);
             fb_mark_dirty_all();
             gui_flip();screen_dirty=false;
+        } else if(taskbar_tick && fb_is_vesa()){
+            /* Cheap idle frame: repaint only the taskbar strip + re-stamp the
+             * cursor, present just those regions. No wallpaper/window redraw. */
+            int tbh=taskbar_height_px();
+            int sw=(int)fb_get_width(), sh=(int)fb_get_height();
+            bool had_old=cur_shown; int ox=cur_px,oy=cur_py;
+            cursor_erase();
+            if(had_old) fb_mark_dirty(ox,oy,CURSOR_W,CURSOR_H);
+            taskbar_draw();
+            fb_mark_dirty(0,sh-tbh,sw,tbh);
+            cursor_stamp(ms.px,ms.py);
+            fb_mark_dirty(ms.px,ms.py,CURSOR_W,CURSOR_H);
+            gui_flip();
         } else if(cursor_moved && fb_is_vesa()){
             /* Cheap path: cursor-only motion. Erase old, stamp new, present
              * only the two small cursor rectangles. No desktop recomposite. */

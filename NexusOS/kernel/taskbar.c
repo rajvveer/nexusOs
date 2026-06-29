@@ -42,6 +42,8 @@ static int tray_bell_col = 0;
 static int tray_clip_col = 0;
 static int tray_lock_col = 0;
 
+int taskbar_height_px(void) { return TB_H; }
+
 /* -------------------------------------------------------------------------- */
 void taskbar_draw(void) {
     const theme_t* t = theme_get();
