@@ -255,6 +255,15 @@ void taskbar_draw(void) {
 /* -------------------------------------------------------------------------- */
 bool taskbar_hit(int mx, int my) {
     (void)mx;
+    /* In VESA mode the cell-row mapping (py/16) does not line up with the
+     * taskbar's pixel band at non-768 resolutions (Phase 53). Test the actual
+     * pixel band instead: the taskbar occupies the bottom TB_H pixels. my is a
+     * cell row (py/16), so the taskbar covers cell rows >= (sh-TB_H)/16. */
+    if (fb_is_vesa()) {
+        int sh = (int)fb_get_height();
+        int first_row = (sh - TB_H) / 16;       /* first cell row inside the bar */
+        return my >= first_row;
+    }
     return my == TASKBAR_ROW;
 }
 
