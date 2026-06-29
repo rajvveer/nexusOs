@@ -87,6 +87,10 @@ void fb_clear(uint32_t color);
  * nothing if no region was marked dirty since the last flip. */
 void fb_flip(void);
 
+/* Force a whole-screen present, ignoring the dirty box (content-frame safety
+ * net so a partial-present bug can't leave a stale strip). */
+void fb_flip_full(void);
+
 /* Always use the VESA copy path for the whole screen (benchmark/fallback) */
 void fb_flip_legacy(void);
 

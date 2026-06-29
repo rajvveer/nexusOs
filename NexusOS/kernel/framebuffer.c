@@ -246,6 +246,16 @@ void fb_clear(uint32_t color) {
     fb_mark_dirty_all();
 }
 
+/* Force a whole-screen present, ignoring the dirty box. Used by content frames
+ * (window open/move/drag) so a partial-present accumulator bug can never leave a
+ * stale strip on screen (Phase 53 grey-band safety net). */
+void fb_flip_full(void) {
+    if (!vesa_active) return;
+    fb_dirty_valid = false;
+    if (gpu_present_region(0, 0, (int)fb_width, (int)fb_height)) return;
+    fb_flip_region(0, 0, (int)fb_width, (int)fb_height);
+}
+
 void fb_flip(void) {
     if (!vesa_active) return;
 

@@ -690,8 +690,12 @@ void desktop_run(void){
             if(notifcenter_is_open())notifcenter_draw();
             if(shortcuts_is_open())shortcuts_draw();
             notify_draw();dcursor(ms.x,ms.y,ms.px,ms.py);
-            fb_mark_dirty_all();
-            gui_flip();screen_dirty=false;
+            /* Content frame: force a guaranteed whole-screen present so a
+             * partial-present accumulator bug (e.g. after a window drag) can
+             * never leave a stale strip / grey band on screen. */
+            if(fb_is_vesa()) fb_flip_full();
+            else gui_flip();
+            screen_dirty=false;
         } else if(taskbar_tick && fb_is_vesa()){
             /* Cheap idle frame: repaint only the taskbar strip + re-stamp the
              * cursor, present just those regions. No wallpaper/window redraw. */
