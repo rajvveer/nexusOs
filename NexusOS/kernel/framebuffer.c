@@ -12,6 +12,8 @@
 #include "framebuffer.h"
 #include "string.h"
 #include "port.h"
+#include "gpu.h"
+#include "memory.h"
 
 static void serial_print_hex(uint32_t val) {
     char hex[16] = "0123456789ABCDEF";
@@ -33,10 +35,36 @@ static uint8_t  fb_bpp = 0;
 static uint8_t  fb_bytes_per_pixel = 0;
 static bool     vesa_active = false;
 
-#define FB_BACKBUF_ADDR  0x500000
+/* Phase 53: the 32-bit back buffer lives at 16MB. At 1920x1080x4 it is ~8MB
+ * (0x01000000-0x017E9000), which sits ABOVE the heap (HEAP_MAX=0xA00000) and
+ * above the 15MB demand-paging window, entirely inside the 32MB identity map
+ * (see paging.c IDENTITY_TABLES). pmm_reserve_range() marks these pages used so
+ * the physical allocator never hands them out. Old location (0x500000) collided
+ * with the heap region and could not hold a 1080p buffer. */
+#define FB_BACKBUF_ADDR  0x01000000
 static uint32_t* fb_back = NULL;
 static uint32_t fb_back_pitch = 0;
 static uint32_t fb_buf_size = 0;
+
+/* --------------------------------------------------------------------------
+ * Dirty-rectangle accumulator (Phase 52: only present what changed).
+ * A single coarse bounding box over the back buffer. fb_mark_dirty() unions
+ * a rect into the box; fb_flip() presents only that box and resets it. This
+ * collapses a cursor move from a whole-screen (~3MB) blit to a few rows.
+ * -------------------------------------------------------------------------- */
+static bool fb_dirty_valid = false;
+static int  fb_dx1 = 0, fb_dy1 = 0, fb_dx2 = 0, fb_dy2 = 0;  /* [x1,x2) [y1,y2) */
+static bool gpu_present_region(int x, int y, int w, int h);  /* fwd decl */
+
+/* rep stosl fill of `count` 32-bit words at dst with `color`. Mirrors the
+ * memset fast path in string.c but stores a full 32-bit colour, not a
+ * broadcast byte. dst must be dword-aligned (the back buffer always is). */
+static inline void fb_memset32(uint32_t* dst, uint32_t color, uint32_t count) {
+    __asm__ volatile("cld; rep stosl"
+                     : "+D"(dst), "+c"(count)
+                     : "a"(color)
+                     : "memory");
+}
 
 /* VGA 16-color to 32-bit RGB lookup table */
 static const uint32_t vga_palette[16] = {
@@ -95,13 +123,46 @@ void fb_init(void) {
     fb_back_pitch = fb_width * 4;
     fb_buf_size = fb_height * fb_back_pitch;
 
+    /* Phase 53: protect the back buffer from the physical allocator. fb_init
+     * runs after pmm_init, so the bitmap exists. Without this, demand paging /
+     * page-table allocation could hand out pages inside the buffer. */
+    pmm_reserve_range(FB_BACKBUF_ADDR, fb_buf_size);
+
     /* Clear back buffer to black */
-    uint32_t pixels = fb_width * fb_height;
-    for (uint32_t i = 0; i < pixels; i++) {
-        fb_back[i] = 0;
-    }
+    fb_memset32(fb_back, 0, fb_width * fb_height);
 
     vesa_active = true;
+}
+
+/* --------------------------------------------------------------------------
+ * fb_mark_dirty: union a rect into the pending present box. Clamped to the
+ * screen. Callers that change pixels in the back buffer should mark the
+ * affected region; if nobody marks anything, fb_flip presents nothing.
+ * -------------------------------------------------------------------------- */
+void fb_mark_dirty(int x, int y, int w, int h) {
+    if (!vesa_active) return;
+    int x1 = x, y1 = y, x2 = x + w, y2 = y + h;
+    if (x1 < 0) x1 = 0;
+    if (y1 < 0) y1 = 0;
+    if (x2 > (int)fb_width)  x2 = (int)fb_width;
+    if (y2 > (int)fb_height) y2 = (int)fb_height;
+    if (x1 >= x2 || y1 >= y2) return;
+    if (!fb_dirty_valid) {
+        fb_dx1 = x1; fb_dy1 = y1; fb_dx2 = x2; fb_dy2 = y2;
+        fb_dirty_valid = true;
+    } else {
+        if (x1 < fb_dx1) fb_dx1 = x1;
+        if (y1 < fb_dy1) fb_dy1 = y1;
+        if (x2 > fb_dx2) fb_dx2 = x2;
+        if (y2 > fb_dy2) fb_dy2 = y2;
+    }
+}
+
+/* Mark the whole screen dirty (heavy frames: wallpaper/window changes). */
+void fb_mark_dirty_all(void) {
+    if (!vesa_active) return;
+    fb_dx1 = 0; fb_dy1 = 0; fb_dx2 = (int)fb_width; fb_dy2 = (int)fb_height;
+    fb_dirty_valid = true;
 }
 
 bool fb_is_vesa(void) { return vesa_active; }
@@ -110,6 +171,9 @@ uint32_t fb_get_height(void) { return fb_height; }
 uint32_t fb_get_pitch(void)  { return fb_pitch; }
 uint32_t fb_get_phys_addr(void) { return fb_phys_addr; }
 uint32_t* fb_get_backbuffer(void) { return fb_back; }
+
+/* Byte size of the hardware framebuffer (pitch*height) — used to map the LFB. */
+uint32_t fb_get_lfb_size(void) { return fb_pitch * fb_height; }
 
 void fb_putpixel(int x, int y, uint32_t color) {
     if (!vesa_active) return;
@@ -131,10 +195,38 @@ void fb_fill_rect(int x, int y, int w, int h, uint32_t color) {
     if (x2 > (int)fb_width) x2 = (int)fb_width;
     if (y2 > (int)fb_height) y2 = (int)fb_height;
     if (x1 >= x2 || y1 >= y2) return;
-    int cw = x2 - x1;
+    uint32_t cw = (uint32_t)(x2 - x1);
     for (int row = y1; row < y2; row++) {
-        uint32_t* dst = &fb_back[row * fb_width + x1];
-        for (int i = 0; i < cw; i++) dst[i] = color;
+        fb_memset32(&fb_back[row * fb_width + x1], color, cw);
+    }
+}
+
+/* Save a w×h region of the back buffer into buf (row-major, w stride).
+ * Off-screen pixels are left untouched in buf; fb_restore_rect uses the same
+ * clipping so only on-screen pixels are written back. */
+void fb_save_rect(int x, int y, int w, int h, uint32_t* buf) {
+    if (!vesa_active) return;
+    for (int row = 0; row < h; row++) {
+        int sy = y + row;
+        if (sy < 0 || sy >= (int)fb_height) continue;
+        for (int col = 0; col < w; col++) {
+            int sx = x + col;
+            if (sx < 0 || sx >= (int)fb_width) continue;
+            buf[row * w + col] = fb_back[sy * fb_width + sx];
+        }
+    }
+}
+
+void fb_restore_rect(int x, int y, int w, int h, const uint32_t* buf) {
+    if (!vesa_active) return;
+    for (int row = 0; row < h; row++) {
+        int sy = y + row;
+        if (sy < 0 || sy >= (int)fb_height) continue;
+        for (int col = 0; col < w; col++) {
+            int sx = x + col;
+            if (sx < 0 || sx >= (int)fb_width) continue;
+            fb_back[sy * fb_width + sx] = buf[row * w + col];
+        }
     }
 }
 
@@ -150,35 +242,74 @@ void fb_draw_rect(int x, int y, int w, int h, uint32_t color) {
 
 void fb_clear(uint32_t color) {
     if (!vesa_active) return;
-    uint32_t pixels = fb_width * fb_height;
-    for (uint32_t i = 0; i < pixels; i++) fb_back[i] = color;
+    fb_memset32(fb_back, color, fb_width * fb_height);
+    fb_mark_dirty_all();
 }
 
 void fb_flip(void) {
     if (!vesa_active) return;
 
+    /* Backward-compatible default: a caller that drew without marking any
+     * dirty region (lockscreen, games, screensaver, shell, …) gets a full
+     * present, exactly as before. Only callers that opt into partial present
+     * by calling fb_mark_dirty() pay the cheap path. */
+    int dx1, dy1, dx2, dy2;
+    if (fb_dirty_valid) {
+        dx1 = fb_dx1; dy1 = fb_dy1; dx2 = fb_dx2; dy2 = fb_dy2;
+    } else {
+        dx1 = 0; dy1 = 0; dx2 = (int)fb_width; dy2 = (int)fb_height;
+    }
+    fb_dirty_valid = false;
+
+    /* Phase 41/52: when the VirtIO-GPU owns the scanout, present only the
+     * dirty rectangle (transfer+flush of that span) — no full-screen copy. */
+    if (gpu_present_region(dx1, dy1, dx2 - dx1, dy2 - dy1)) return;
+
+    fb_flip_region(dx1, dy1, dx2 - dx1, dy2 - dy1);
+}
+
+/* GPU partial present wrapper: returns false when no GPU scanout is active so
+ * the caller falls back to the legacy VESA copy. */
+static bool gpu_present_region(int x, int y, int w, int h) {
+    if (!gpu_active()) return false;
+    gpu_present(x, y, w, h);
+    return true;
+}
+
+/* Legacy VESA present of one rectangle: copy only [x,x+w) on rows [y,y+h)
+ * from the back buffer into the hardware framebuffer. */
+void fb_flip_region(int x, int y, int w, int h) {
+    if (!vesa_active) return;
+    if (x < 0) { w += x; x = 0; }
+    if (y < 0) { h += y; y = 0; }
+    if (x + w > (int)fb_width)  w = (int)fb_width  - x;
+    if (y + h > (int)fb_height) h = (int)fb_height - y;
+    if (w <= 0 || h <= 0) return;
+
     if (fb_bpp == 32) {
-        /* Direct copy if pitch matches, otherwise row by row */
-        if (fb_pitch == fb_width * 4) {
-            memcpy(fb_front, fb_back, fb_buf_size);
-        } else {
-            for (uint32_t y = 0; y < fb_height; y++) {
-                memcpy(&fb_front[y * fb_pitch], &fb_back[y * fb_width], fb_width * 4);
-            }
+        for (int row = y; row < y + h; row++) {
+            memcpy(&fb_front[row * fb_pitch + x * 4],
+                   &fb_back[row * fb_width + x],
+                   (uint32_t)w * 4);
         }
     } else if (fb_bpp == 24) {
-        /* Convert 32-bit backbuffer to 24-bit physical framebuffer */
-        for (uint32_t y = 0; y < fb_height; y++) {
-            uint8_t* dst_row = &fb_front[y * fb_pitch];
-            uint32_t* src_row = &fb_back[y * fb_width];
-            for (uint32_t x = 0; x < fb_width; x++) {
-                uint32_t color = src_row[x];
-                dst_row[x * 3 + 0] = color & 0xFF;         // Blue
-                dst_row[x * 3 + 1] = (color >> 8) & 0xFF;  // Green
-                dst_row[x * 3 + 2] = (color >> 16) & 0xFF; // Red
+        /* Convert 32-bit backbuffer to 24-bit, dirty span only */
+        for (int row = y; row < y + h; row++) {
+            uint8_t*  dst_row = &fb_front[row * fb_pitch + x * 3];
+            uint32_t* src_row = &fb_back[row * fb_width + x];
+            for (int i = 0; i < w; i++) {
+                uint32_t color = src_row[i];
+                dst_row[i * 3 + 0] = color & 0xFF;         // Blue
+                dst_row[i * 3 + 1] = (color >> 8) & 0xFF;  // Green
+                dst_row[i * 3 + 2] = (color >> 16) & 0xFF; // Red
             }
         }
     }
+}
+
+void fb_flip_legacy(void) {
+    if (!vesa_active) return;
+    fb_flip_region(0, 0, (int)fb_width, (int)fb_height);
 }
 
 uint32_t vga_to_rgb(uint8_t vga_color) { return vga_palette[vga_color & 0x0F]; }

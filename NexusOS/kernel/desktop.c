@@ -39,6 +39,8 @@
 #include "widgets.h"
 #include "paint.h"
 #include "speaker.h"
+#include "accessibility.h"
+#include "font.h"
 #include "workspaces.h"
 #include "minesweeper.h"
 #include "recycle.h"
@@ -72,6 +74,9 @@
 #include "ntp.h"
 #include "httpd.h"
 #include "rshell.h"
+#include "vnc.h"
+#include "sync.h"
+#include "mobile.h"
 #include "procfs.h"
 #include "termios.h"
 #include "posix.h"
@@ -87,26 +92,43 @@ extern volatile uint32_t system_ticks;
 static uint32_t last_tick=0,last_input_tick=0;
 #define IDLE_TIMEOUT (18*60)
 
-#define TBL 20
-#define TBC 50
+#define TBL 96
+#define TBC 112
+static const char TERM_PROMPT[]="nexus@os:~$ ";
 static char tl[TBL][TBC];static int tlc=0;
 static char ti[TBC];static int til=0;static int tscr=0;
+/* Per-line color role for the terminal (gives output simple highlighting). */
+enum { TC_DEF=0, TC_ECHO, TC_ERR, TC_BANNER, TC_HINT };
+static uint8_t trole[TBL];
 
-static void taddl(const char*t){
-    if(tlc<TBL){strncpy(tl[tlc],t,TBC-1);tl[tlc][TBC-1]='\0';tlc++;}
-    else{for(int i=0;i<TBL-1;i++)strcpy(tl[i],tl[i+1]);strncpy(tl[TBL-1],t,TBC-1);tl[TBL-1][TBC-1]='\0';}
+/* Add a line with an explicit color role. */
+static void taddlc(const char*t,uint8_t role){
+    if(tlc<TBL){strncpy(tl[tlc],t,TBC-1);tl[tlc][TBC-1]='\0';trole[tlc]=role;tlc++;}
+    else{for(int i=0;i<TBL-1;i++){strcpy(tl[i],tl[i+1]);trole[i]=trole[i+1];}
+         strncpy(tl[TBL-1],t,TBC-1);tl[TBL-1][TBC-1]='\0';trole[TBL-1]=role;}
     screen_dirty=true;
 }
 
+/* Add a line, auto-classifying its color (command echo dim, errors red). */
+static void taddl(const char*t){
+    uint8_t role=TC_DEF;
+    if(!strncmp(t,TERM_PROMPT,strlen(TERM_PROMPT)))role=TC_ECHO;
+    else if(strstr(t,"Unknown")||strstr(t,"Invalid")||strstr(t,"failed")||
+            strstr(t,"Failed")||strstr(t,"Timeout")||strstr(t,"denied")||strstr(t,"Bad "))
+        role=TC_ERR;
+    taddlc(t,role);
+}
+
 static void tproc(void){
-    char e[TBC+4];strcpy(e,"> ");strcat(e,ti);taddl(e);
-    if(!strcmp(ti,"help"))taddl("help clear about date mem dl x11 win32 pkg script");
+    char e[TBC+24];strcpy(e,TERM_PROMPT);strcat(e,ti);taddl(e);
+    if(!strcmp(ti,"help"))taddl("help clear about date mem dl x11 win32 pkg script macos");
     else if(!strcmp(ti,"help net"))taddl("ifconfig ping netstat arp dns wget browse");
     else if(!strcmp(ti,"help srv"))taddl("dhcp ntp httpd [stop] rshell [stop]");
     else if(!strcmp(ti,"help dl"))taddl("ldd ldconfig dlopen dlsym");
     else if(!strcmp(ti,"help x11"))taddl("xinfo xdemo");
     else if(!strcmp(ti,"help win32"))taddl("win32info regedit runexe");
     else if(!strcmp(ti,"help pkg"))taddl("npkg list install remove info installed update");
+    else if(!strcmp(ti,"help macos"))taddl("machoinfo runmacho cocoademo");
     else if(!strcmp(ti,"clear"))tlc=0;
     else if(!strcmp(ti,"about"))taddl("NexusOS v3.3.0 - Phase 34");
     else if(!strcmp(ti,"date")){rtc_time_t t;rtc_read(&t);char s[16];rtc_format_time(&t,s);taddl(s);}
@@ -281,6 +303,9 @@ static void tproc(void){
     else if(!strncmp(ti,"runexe",6))taddl("runexe: use text shell (Esc) to run PE32.");
     else if(!strncmp(ti,"npkg",4))taddl("npkg: use text shell (Esc) for the package manager.");
     else if(!strncmp(ti,"script",6))taddl("script: use text shell (Esc) to run NexusScript files.");
+    else if(!strcmp(ti,"machoinfo"))taddl("machoinfo: use text shell (Esc) for the macOS shim.");
+    else if(!strncmp(ti,"runmacho",8))taddl("runmacho: use text shell (Esc) to load Mach-O.");
+    else if(!strcmp(ti,"cocoademo"))taddl("cocoademo: use text shell (Esc) to launch it.");
     else if(ti[0])taddl("Unknown command. Try 'help'");
     ti[0]='\0';til=0;screen_dirty=true;
 }
@@ -303,13 +328,55 @@ static void about_draw(int id,int cx,int cy,int cw,int ch){
 }
 static void about_key(int id,char key){(void)id;(void)key;}
 
+static int term_puts(int x,int y,int max,const char*s,uint8_t col){
+    int n=0;while(s[n]&&n<max){gui_putchar(x+n,y,s[n],col);n++;}return n;
+}
+static uint8_t term_line_color(uint8_t role,int bg){
+    if(role==TC_ECHO)return VGA_COLOR(VGA_DARK_GREY,bg);
+    if(role==TC_ERR)return VGA_COLOR(VGA_LIGHT_RED,bg);
+    if(role==TC_BANNER)return VGA_COLOR(VGA_LIGHT_CYAN,bg);
+    if(role==TC_HINT)return VGA_COLOR(VGA_DARK_GREY,bg);
+    return VGA_COLOR(VGA_LIGHT_GREY,bg);
+}
+static int term_draw_prompt_prefix(int x,int y,int max,int bg){
+    int p=0;
+    p+=term_puts(x+p,y,max-p,"nexus",VGA_COLOR(VGA_LIGHT_GREEN,bg));
+    p+=term_puts(x+p,y,max-p,"@os",VGA_COLOR(VGA_LIGHT_CYAN,bg));
+    p+=term_puts(x+p,y,max-p,":~",VGA_COLOR(VGA_LIGHT_BLUE,bg));
+    p+=term_puts(x+p,y,max-p,"$ ",VGA_COLOR(VGA_WHITE,bg));
+    return p;
+}
+static void term_draw_current_prompt(int x,int y,int max,int bg){
+    int p=term_draw_prompt_prefix(x,y,max,bg);
+    int input_max=max-p;if(input_max<1)return;
+    int start=0;if(til>input_max)start=til-input_max;
+    int drawn=0;
+    for(int i=start;i<til&&drawn<input_max;i++,drawn++)
+        gui_putchar(x+p+drawn,y,ti[i],VGA_COLOR(VGA_LIGHT_GREY,bg));
+    if(drawn<input_max)
+        gui_putchar(x+p+drawn,y,(frame_count%8<4)?'_':' ',VGA_COLOR(VGA_WHITE,bg));
+}
+static void term_draw_line(int x,int y,int max,const char*line,uint8_t role,int bg){
+    if(role==TC_ECHO&&!strncmp(line,TERM_PROMPT,strlen(TERM_PROMPT))){
+        int p=term_draw_prompt_prefix(x,y,max,bg);
+        term_puts(x+p,y,max-p,line+strlen(TERM_PROMPT),VGA_COLOR(VGA_DARK_GREY,bg));
+        return;
+    }
+    term_puts(x,y,max,line,term_line_color(role,bg));
+}
 static void term_draw(int id,int cx,int cy,int cw,int ch){
-    (void)id;const theme_t*t=theme_get();uint8_t tc=t->win_content,bg=(tc>>4)&0xF;
-    int vis=ch-1,st=tlc-vis-tscr;if(st<0)st=0;
-    for(int i=0;i<vis&&(st+i)<tlc;i++){int j=0;while(tl[st+i][j]&&j<cw-1){gui_putchar(cx+j,cy+i,tl[st+i][j],tc);j++;}}
-    int ir=cy+ch-1;gui_putchar(cx,ir,'>',VGA_COLOR(VGA_LIGHT_GREEN,bg));
-    for(int i=0;i<til&&i<cw-3;i++)gui_putchar(cx+2+i,ir,ti[i],tc);
-    if(til<cw-3)gui_putchar(cx+2+til,ir,(frame_count%8<4)?'_':' ',VGA_COLOR(VGA_WHITE,bg));
+    (void)id;
+    int bg=VGA_BLACK;
+    uint8_t fill=VGA_COLOR(VGA_LIGHT_GREY,bg);
+    for(int y=0;y<ch;y++)for(int x=0;x<cw;x++)gui_putchar(cx+x,cy+y,' ',fill);
+    int rows=ch,prompt_index=tlc,st=prompt_index-rows+1-tscr;
+    if(st<0)st=0;
+    if(st>prompt_index)st=prompt_index;
+    int tx=cx+1,tw=cw-2;if(tw<1)return;
+    for(int r=0;r<rows;r++){
+        int idx=st+r;if(idx<tlc)term_draw_line(tx,cy+r,tw,tl[idx],trole[idx],bg);
+        else if(idx==tlc)term_draw_current_prompt(tx,cy+r,tw,bg);
+    }
 }
 static void term_key(int id,char key){
     (void)id;
@@ -323,8 +390,8 @@ static void term_key(int id,char key){
 static void open_about(void){window_create("About NexusOS",25,4,30,18,about_draw,about_key);syslog_add("About");notifcenter_add("Opened About",'\x01');screen_dirty=true;}
 static void open_terminal(void){
     tlc=0;til=0;ti[0]='\0';tscr=0;
-    taddl("NexusOS Terminal v1.3.0");taddl("Type 'help' for commands.");taddl("");
-    window_create("Terminal",16,3,42,17,term_draw,term_key);syslog_add("Terminal");notifcenter_add("Terminal opened",'\xB2');screen_dirty=true;
+    taddlc("NexusOS Terminal",TC_BANNER);taddlc("Last login: tty0",TC_HINT);taddl("");
+    window_create("Terminal",14,5,86,25,term_draw,term_key);syslog_add("Terminal");notifcenter_add("Terminal opened",'\xB2');screen_dirty=true;
 }
 
 static void handle_action(int a){
@@ -397,22 +464,52 @@ static const uint8_t cursor_bitmap[18][12] = {
     {0,0,0,0,0,0,0,0,0,0,0,0}
 };
 
+#define CURSOR_W 12
+#define CURSOR_H 18
+
+/* Phase 52: cursor save-under. We keep the pixels the cursor currently
+ * overdraws so we can erase it by restoring them, instead of repainting the
+ * whole desktop. cur_shown tracks whether a sprite is currently stamped. */
+static uint32_t cursor_under[CURSOR_W * CURSOR_H];
+static int  cur_px = -1, cur_py = -1;
+static bool cur_shown = false;
+
+/* Stamp the cursor sprite into the back buffer at (px,py) over a freshly
+ * saved background. Caller guarantees no sprite is currently shown. */
+static void cursor_stamp(int px, int py){
+    fb_save_rect(px, py, CURSOR_W, CURSOR_H, cursor_under);
+    for (int y = 0; y < CURSOR_H; y++) {
+        for (int x = 0; x < CURSOR_W; x++) {
+            if (cursor_bitmap[y][x] == 1)      fb_putpixel(px + x, py + y, 0xFFFFFF);
+            else if (cursor_bitmap[y][x] == 2) fb_putpixel(px + x, py + y, 0x000000);
+        }
+    }
+    cur_px = px; cur_py = py; cur_shown = true;
+}
+
+/* Erase the currently-stamped cursor by restoring the saved background. */
+static void cursor_erase(void){
+    if (!cur_shown) return;
+    fb_restore_rect(cur_px, cur_py, CURSOR_W, CURSOR_H, cursor_under);
+    cur_shown = false;
+}
+
+/* Text-mode cursor erase (restore underlying glyph). */
+static void cursor_erase_text(int mx, int my){
+    if(mx>=0&&mx<GUI_WIDTH&&my>=0&&my<GUI_HEIGHT){
+        uint16_t e=gui_getchar(mx,my);uint8_t ch=e&0xFF,co=(e>>8)&0xFF;
+        gui_putchar(mx,my,ch?ch:' ',VGA_COLOR((co>>4)&0xF,co&0xF));
+    }
+}
+
+/* Full-frame cursor draw used after a heavy recomposite: the back buffer was
+ * just rewritten, so any prior save-under is stale — just stamp fresh. */
 static void dcursor(int mx, int my, int px, int py){
     if (fb_is_vesa()) {
-        for (int y = 0; y < 18; y++) {
-            for (int x = 0; x < 12; x++) {
-                if (cursor_bitmap[y][x] == 1) {
-                    fb_putpixel(px + x, py + y, 0xFFFFFF);
-                } else if (cursor_bitmap[y][x] == 2) {
-                    fb_putpixel(px + x, py + y, 0x000000);
-                }
-            }
-        }
+        cur_shown = false;       /* prior save-under invalid after recomposite */
+        cursor_stamp(px, py);
     } else {
-        if(mx>=0&&mx<GUI_WIDTH&&my>=0&&my<GUI_HEIGHT){
-            uint16_t e=gui_getchar(mx,my);uint8_t ch=e&0xFF,co=(e>>8)&0xFF;
-            gui_putchar(mx,my,ch?ch:' ',VGA_COLOR((co>>4)&0xF,co&0xF));
-        }
+        cursor_erase_text(mx, my);
     }
 }
 
@@ -432,8 +529,13 @@ void desktop_run(void){
     bool run=true;
     while(run){
         bool inp=false;
+        bool cursor_moved=false;
         mouse_state_t ms=mouse_get_state();
-        if(ms.x!=pmx||ms.y!=pmy){inp=true;pmx=ms.x;pmy=ms.y;}
+        /* Pure pointer motion no longer forces a full recomposite in VESA mode
+         * (Phase 52); it takes the cheap save-under fast path below. In text
+         * mode (cheap anyway) keep the old full-redraw behavior. Clicks/keys
+         * still set inp -> screen_dirty as before. */
+        if(ms.x!=pmx||ms.y!=pmy){cursor_moved=true;pmx=ms.x;pmy=ms.y;if(!fb_is_vesa())screen_dirty=true;}
         bool ln=(ms.buttons&MOUSE_LEFT)!=0,rn=(ms.buttons&MOUSE_RIGHT)!=0;
         bool lc=ln&&!pl,lr=!ln&&pl,rc=rn&&!pr;
 
@@ -535,11 +637,40 @@ void desktop_run(void){
             else window_send_key(key);
         }
 
+        /* Phase 43: emit any deferred accessibility earcon (IRQ hooks defer
+         * sound here), and force a redraw if a global hotkey changed the theme
+         * or text scale out from under us. */
+        accessibility_poll();
+
+        /* Phase 45: service backgrounded network servers (VNC remote desktop +
+         * cloud sync) once per frame in normal context. net_poll() pumps RX
+         * through the protocol stack; the server polls then act on it. */
+        net_poll();
+        vnc_poll();
+        sync_poll();
+
+        /* Phase 47: recognize touch gestures from the mouse (no-op unless
+         * touch mode is on) — observes mouse state only, doesn't change it. */
+        mobile_poll();
+
+        { static int acc_theme=-2, acc_scale=-2;
+          int th=theme_get_index(), fs=font_get_scale();
+          if(th!=acc_theme||fs!=acc_scale){acc_theme=th;acc_scale=fs;screen_dirty=true;last_input_tick=system_ticks;} }
+
         if(inp){screen_dirty=true;last_input_tick=system_ticks;}
-        if(system_ticks-last_tick>=18){last_tick=system_ticks;screen_dirty=true;frame_count++;notify_update();}
+        /* Pointer motion keeps the screen "awake" (resets idle/screensaver
+         * timer) without forcing a content recomposite. */
+        if(cursor_moved){last_input_tick=system_ticks;}
+
+        /* Phase 47: idle (clock) refresh cadence — stretched in low-power mode
+         * so the CPU stays in HLT far more of the time when nothing's happening.
+         * This fires at most ~once/second, so a full recomposite here is cheap;
+         * the perf win (Phase 52) is in the per-pointer-move fast path below. */
+        if(system_ticks-last_tick>=(uint32_t)mobile_redraw_interval()){last_tick=system_ticks;screen_dirty=true;frame_count++;notify_update();}
         if(system_ticks-last_input_tick>=IDLE_TIMEOUT){screensaver_run();last_input_tick=system_ticks;screen_dirty=true;}
 
         if(screen_dirty){
+            /* Heavy frame: full recomposite of the whole desktop. */
             wallpaper_draw();
             icons_draw();
             if(widgets_visible())widgets_draw();
@@ -552,7 +683,18 @@ void desktop_run(void){
             if(notifcenter_is_open())notifcenter_draw();
             if(shortcuts_is_open())shortcuts_draw();
             notify_draw();dcursor(ms.x,ms.y,ms.px,ms.py);
+            fb_mark_dirty_all();
             gui_flip();screen_dirty=false;
+        } else if(cursor_moved && fb_is_vesa()){
+            /* Cheap path: cursor-only motion. Erase old, stamp new, present
+             * only the two small cursor rectangles. No desktop recomposite. */
+            bool had_old=cur_shown;
+            int ox=cur_px,oy=cur_py;
+            cursor_erase();
+            if(had_old) fb_mark_dirty(ox,oy,CURSOR_W,CURSOR_H);
+            cursor_stamp(ms.px,ms.py);
+            fb_mark_dirty(ms.px,ms.py,CURSOR_W,CURSOR_H);
+            gui_flip();
         }
         __asm__ volatile("hlt");
     }

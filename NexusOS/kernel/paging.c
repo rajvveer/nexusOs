@@ -15,11 +15,18 @@
 /* Page directory: 1024 entries, each points to a page table */
 static uint32_t page_directory[1024] __attribute__((aligned(4096)));
 
-/* Page tables: 4 tables for 16MB identity mapping (4MB each) */
-static uint32_t page_tables[4][1024] __attribute__((aligned(4096)));
+/* Page tables for the identity map. Each table maps 4MB, so IDENTITY_TABLES
+ * tables cover IDENTITY_TABLES*4MB. Phase 53: raised from 4 (16MB) to 8 (32MB)
+ * so the relocated high VESA back buffer (1920x1080x4 ~= 8MB at 0x01000000)
+ * lands inside identity-mapped RAM. See framebuffer.c FB_BACKBUF_ADDR. */
+#define IDENTITY_TABLES 8
+static uint32_t page_tables[IDENTITY_TABLES][1024] __attribute__((aligned(4096)));
 
-/* Extra page tables for VESA framebuffer mapping (up to 4MB) */
-static uint32_t vesa_page_table[1024] __attribute__((aligned(4096)));
+/* Extra page tables for VESA framebuffer mapping. Each maps 4MB. Phase 53: a
+ * 1920x1080x32 LFB is ~8MB, so one 4MB table is not enough — provide 4 (16MB)
+ * and map as many as the framebuffer actually spans. */
+#define VESA_FB_TABLES 4
+static uint32_t vesa_page_tables[VESA_FB_TABLES][1024] __attribute__((aligned(4096)));
 
 /* --------------------------------------------------------------------------
  * Page fault handler (ISR 14)
@@ -78,8 +85,10 @@ void paging_init(void) {
     /* Clear page directory */
     memset(page_directory, 0, sizeof(page_directory));
 
-    /* Identity map first 16MB using 4 page tables (4MB each) */
-    for (int t = 0; t < 4; t++) {
+    /* Identity map the first IDENTITY_TABLES*4MB (32MB) using one page table
+     * per 4MB. This covers the kernel, heap, DMA buffers, and the relocated
+     * high VESA back buffer. */
+    for (int t = 0; t < IDENTITY_TABLES; t++) {
         for (int i = 0; i < 1024; i++) {
             uint32_t phys = (t * 1024 + i) * PAGE_SIZE;
             page_tables[t][i] = phys | PAGE_PRESENT | PAGE_WRITABLE;
@@ -102,21 +111,29 @@ void paging_init(void) {
     register_interrupt_handler(14, page_fault_handler);
 
     vga_print_color("[OK] ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
-    vga_print("Paging enabled (16MB, page faults)\n");
+    vga_print("Paging enabled (32MB, page faults)\n");
 }
 
 /* --------------------------------------------------------------------------
- * paging_map_vesa_fb: Identity-map the VESA framebuffer
+ * paging_map_vesa_fb: Identity-map the VESA framebuffer (front buffer / LFB).
+ * fb_size is the framebuffer byte length; we map enough 4MB page tables to
+ * cover it (Phase 53: a 1920x1080x32 LFB is ~8MB and needs two tables — the
+ * old single-table map faulted past the first 4MB and double-faulted at boot).
  * -------------------------------------------------------------------------- */
-void paging_map_vesa_fb(uint32_t fb_phys) {
-    uint32_t pd_index = fb_phys >> 22;
-    uint32_t base = pd_index << 22;
+void paging_map_vesa_fb(uint32_t fb_phys, uint32_t fb_size) {
+    uint32_t start_pd = fb_phys >> 22;                 /* first 4MB region   */
+    uint32_t end_pd   = (fb_phys + fb_size - 1) >> 22; /* last 4MB region    */
+    uint32_t span     = end_pd - start_pd + 1;
+    if (span > VESA_FB_TABLES) span = VESA_FB_TABLES;  /* clamp to provision */
 
-    for (int i = 0; i < 1024; i++) {
-        vesa_page_table[i] = (base + i * PAGE_SIZE) | PAGE_PRESENT | PAGE_WRITABLE;
+    for (uint32_t t = 0; t < span; t++) {
+        uint32_t pd_index = start_pd + t;
+        uint32_t base = pd_index << 22;
+        for (int i = 0; i < 1024; i++) {
+            vesa_page_tables[t][i] = (base + i * PAGE_SIZE) | PAGE_PRESENT | PAGE_WRITABLE;
+        }
+        page_directory[pd_index] = ((uint32_t)vesa_page_tables[t]) | PAGE_PRESENT | PAGE_WRITABLE;
     }
-
-    page_directory[pd_index] = ((uint32_t)vesa_page_table) | PAGE_PRESENT | PAGE_WRITABLE;
 
     __asm__ volatile("mov %0, %%cr3\n" : : "r"(page_directory) : "memory");
 }

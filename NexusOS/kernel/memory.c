@@ -99,6 +99,22 @@ uint32_t pmm_alloc_page(void) {
 }
 
 /* --------------------------------------------------------------------------
+ * pmm_reserve_range: Mark a physical [addr, addr+size) span as used so the
+ * allocator never hands those pages out. Used to protect the VESA back buffer
+ * (Phase 53) which lives in otherwise-free high RAM.
+ * -------------------------------------------------------------------------- */
+void pmm_reserve_range(uint32_t addr, uint32_t size) {
+    uint32_t first = addr / PAGE_SIZE;
+    uint32_t last  = (addr + size + PAGE_SIZE - 1) / PAGE_SIZE;  /* round up */
+    for (uint32_t i = first; i < last && i < TOTAL_PAGES; i++) {
+        if (!bitmap_test(i)) {
+            bitmap_set(i);
+            used_pages++;
+        }
+    }
+}
+
+/* --------------------------------------------------------------------------
  * pmm_free_page: Free a previously allocated page
  * -------------------------------------------------------------------------- */
 void pmm_free_page(uint32_t addr) {

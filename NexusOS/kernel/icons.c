@@ -34,9 +34,6 @@ static const icon_entry_t icon_list[] = {
     { '\xF0', "Settings",    5,  VGA_LIGHT_MAGENTA},
     { '\xE9', "Notepad",     10, VGA_WHITE        },
     { '\xFE', "Task Mgr",    11, VGA_LIGHT_BLUE   },
-    { '\x0E', "Music",       13, VGA_YELLOW       },
-    { '\xEB', "Paint",       15, VGA_LIGHT_GREEN  },
-    { '\x02', "Snake",       6,  VGA_LIGHT_GREEN  },
 };
 
 #define ICON_COUNT (sizeof(icon_list) / sizeof(icon_list[0]))
@@ -200,18 +197,23 @@ void icons_draw(void) {
 
             draw_pixel_icon(px, py, icon_list[i].action);
 
-            /* Label with drop shadow */
+            /* Label: transparent text + 1px drop shadow so the wallpaper shows
+             * through (no cheap black box). The shadow gives legibility on any
+             * background, the way modern desktops render icon labels. */
             int lbl_len = strlen(icon_list[i].label);
             int text_w = lbl_len * 8;
             int text_x = px + 24 - (text_w / 2);
             if (text_x < px - 6) text_x = px - 6;
 
-            /* Shadow text (offset 1px down-right) */
-            font_draw_string(text_x + 1, py + 53, icon_list[i].label,
-                FB_RGB(0, 0, 0), FB_RGB(0, 0, 0));
-            /* Main text */
-            font_draw_string(text_x, py + 52, icon_list[i].label,
-                FB_RGB(255, 255, 255), FB_RGB(0, 0, 0));
+            const char* lbl = icon_list[i].label;
+            /* Shadow pass (1px down-right, soft dark) */
+            for (int c = 0; c < lbl_len; c++)
+                font_draw_char_transparent(text_x + c * 8 + 1, py + 53,
+                    (uint8_t)lbl[c], FB_RGB(0, 0, 0));
+            /* Main text pass (white) */
+            for (int c = 0; c < lbl_len; c++)
+                font_draw_char_transparent(text_x + c * 8, py + 52,
+                    (uint8_t)lbl[c], FB_RGB(245, 247, 255));
 
         } else {
             if (is_sel) {

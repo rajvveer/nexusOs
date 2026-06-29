@@ -27,8 +27,9 @@ void paging_map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t fla
 /* Unmap a virtual address */
 void paging_unmap_page(uint32_t virtual_addr);
 
-/* Map VESA framebuffer physical address (Phase 14) */
-void paging_map_vesa_fb(uint32_t fb_phys);
+/* Map the VESA framebuffer's physical range (Phase 14; Phase 53: takes a size
+ * so framebuffers larger than 4MB, e.g. 1920x1080x32, are fully mapped). */
+void paging_map_vesa_fb(uint32_t fb_phys, uint32_t fb_size);
 
 /* Get page directory and page table pointers (for VMM) */
 uint32_t* paging_get_directory(void);

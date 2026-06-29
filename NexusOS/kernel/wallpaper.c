@@ -19,8 +19,9 @@
 extern const unsigned char wp_image_chars[24][80];
 extern const unsigned char wp_image_colors[24][80];
 
-/* Current pattern */
-static int current_pattern = WP_DOTS;
+/* Current pattern. Phase 53: default to the modern gradient wallpaper so the
+ * large 1080p desktop reads as a designed surface, not a black void. */
+static int current_pattern = WP_GRADIENT;
 
 /* Phase 14: Track if pixel wallpaper has been rendered to back buffer */
 static bool photo_rendered = false;
@@ -128,15 +129,39 @@ void wallpaper_draw(void) {
         int sw = (int)fb_get_width();
         int sh = (int)fb_get_height();
 
+        /* Phase 43: high-contrast accessibility theme overrides the patterned
+         * wallpaper with a plain black field — maximum contrast behind the
+         * (white/yellow) icon labels and windows, no busy texture. */
+        if (theme_get_index() == THEME_HICON) {
+            gfx_fill_rect(0, 0, sw, sh, FB_RGB(0, 0, 0));
+            extern uint16_t* gui_get_backbuf(void);
+            uint16_t* hbuf = gui_get_backbuf();
+            if (hbuf) {
+                for (int y = 0; y < GUI_HEIGHT - 1; y++)
+                    for (int x = 0; x < GUI_WIDTH; x++)
+                        hbuf[y * GUI_WIDTH + x] = (' ' | (VGA_COLOR(VGA_WHITE, VGA_BLACK) << 8));
+            }
+            return;
+        }
+
         switch (current_pattern) {
             case WP_PHOTO:
                 draw_photo_wallpaper();
                 break;
-            case WP_GRADIENT:
-                /* Smooth vertical gradient: deep navy → dark slate */
-                gfx_draw_gradient_v(0, 0, sw, sh,
-                    FB_RGB(20, 24, 38), FB_RGB(12, 14, 22));
+            case WP_GRADIENT: {
+                /* Modern 3-stop vertical gradient (macOS-Big-Sur vibe): a deep
+                 * indigo sky at the top easing through a blue-violet midband
+                 * into a near-black base, so windows and the taskbar read with
+                 * depth instead of floating on flat black. Drawn as two bands
+                 * that meet at the midpoint for a smooth 3-colour ramp. */
+                uint32_t c_top = FB_RGB(46, 38, 92);    /* indigo            */
+                uint32_t c_mid = FB_RGB(28, 34, 78);    /* blue-violet       */
+                uint32_t c_bot = FB_RGB(10, 12, 22);    /* near-black base   */
+                int mid = sh * 55 / 100;                /* slightly low mid  */
+                gfx_draw_gradient_v(0, 0, sw, mid, c_top, c_mid);
+                gfx_draw_gradient_v(0, mid, sw, sh - mid, c_mid, c_bot);
                 break;
+            }
             case WP_DOTS: {
                 /* Solid dark with tiny accent dots — sharp and minimal */
                 gfx_fill_rect(0, 0, sw, sh, FB_RGB(18, 20, 28));

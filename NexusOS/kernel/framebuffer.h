@@ -82,14 +82,43 @@ void fb_draw_rect(int x, int y, int w, int h, uint32_t color);
 /* Clear entire screen with color */
 void fb_clear(uint32_t color);
 
-/* Flip: copy back buffer to framebuffer (present frame) */
+/* Flip: present the dirty region of the back buffer (VirtIO-GPU flush when
+ * active — Phase 41 — otherwise copies into the VESA framebuffer). Presents
+ * nothing if no region was marked dirty since the last flip. */
 void fb_flip(void);
+
+/* Always use the VESA copy path for the whole screen (benchmark/fallback) */
+void fb_flip_legacy(void);
+
+/* Present a single rectangle via the legacy VESA copy path */
+void fb_flip_region(int x, int y, int w, int h);
+
+/* --------------------------------------------------------------------------
+ * Dirty-rectangle tracking (Phase 52)
+ * -------------------------------------------------------------------------- */
+
+/* Union a rectangle into the pending present box (clamped to screen). */
+void fb_mark_dirty(int x, int y, int w, int h);
+
+/* Mark the whole screen dirty (full recomposite frames). */
+void fb_mark_dirty_all(void);
+
+/* --------------------------------------------------------------------------
+ * Save-under helpers (Phase 52: mouse cursor erases itself without a full
+ * repaint). Copy a rect of the back buffer out to a caller-supplied buffer,
+ * and blit it back. buf must hold at least w*h uint32_t.
+ * -------------------------------------------------------------------------- */
+void fb_save_rect(int x, int y, int w, int h, uint32_t* buf);
+void fb_restore_rect(int x, int y, int w, int h, const uint32_t* buf);
 
 /* Get pointer to back buffer (for direct manipulation) */
 uint32_t* fb_get_backbuffer(void);
 
 /* Get hardware framebuffer physical address (for page mapping) */
 uint32_t fb_get_phys_addr(void);
+
+/* Get hardware framebuffer byte size (pitch*height) for page mapping */
+uint32_t fb_get_lfb_size(void);
 
 /* --------------------------------------------------------------------------
  * VGA color conversion
