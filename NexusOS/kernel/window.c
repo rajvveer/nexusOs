@@ -121,6 +121,20 @@ void window_resize_px(int id, int nw, int nh) {
 }
 
 /* --------------------------------------------------------------------------
+ * macOS-style "traffic light" button layout.
+ * Buttons sit on the LEFT of the titlebar, ordered close, minimize, maximize.
+ * win_btn_left() returns the left-edge x of button n (0/1/2). Both the renderer
+ * and the hit-testers call it, so the clickable areas can never drift from what
+ * is drawn.
+ * -------------------------------------------------------------------------- */
+#define WIN_BTN_GAP   6     /* gap between adjacent buttons */
+#define WIN_BTN_INSET 10    /* left inset of the first button */
+
+static int win_btn_left(const window_t* win, int n) {
+    return win->px + WIN_BTN_INSET + n * (WIN_BTN_SIZE + WIN_BTN_GAP);
+}
+
+/* --------------------------------------------------------------------------
  * window_draw: Render a single window (pixel-perfect in VESA)
  * -------------------------------------------------------------------------- */
 void window_draw(int id) {
@@ -141,63 +155,82 @@ void window_draw(int id) {
             gfx_draw_shadow(px, py, pw, ph, WIN_SHADOW_R, 0x000000);
         }
 
-        /* Modern flat dark window body */
-        gfx_fill_rounded_rect(px, py, pw, ph, WIN_CORNER_R, FB_RGB(30, 30, 34));
+        /* Window body — slightly warm dark slate to sit with the wallpaper */
+        gfx_fill_rounded_rect(px, py, pw, ph, WIN_CORNER_R, FB_RGB(32, 34, 42));
 
-        /* Flat titlebar — slightly lighter than body, accent stripe on focus */
-        uint32_t tb_color = focused ? FB_RGB(42, 42, 48) : FB_RGB(34, 34, 38);
-        gfx_fill_rounded_rect(px, py, pw, WIN_TITLEBAR_H, WIN_CORNER_R, tb_color);
-        gfx_fill_rect(px + 1, py + WIN_CORNER_R, pw - 2, WIN_TITLEBAR_H - WIN_CORNER_R, tb_color);
+        /* Titlebar with a subtle top-down gradient for depth. Focused windows
+         * get a cooler, brighter bar; unfocused ones recede. The bottom tone
+         * matches the body so the bar reads as raised, not stuck on. */
+        uint32_t tb_top = focused ? FB_RGB(58, 64, 86) : FB_RGB(40, 42, 52);
+        uint32_t tb_bot = focused ? FB_RGB(42, 46, 62) : FB_RGB(34, 36, 44);
+        gfx_fill_rounded_rect(px, py, pw, WIN_TITLEBAR_H, WIN_CORNER_R, tb_top);
+        /* Gradient body of the titlebar below the rounded corners */
+        gfx_draw_gradient_v(px + 1, py + WIN_CORNER_R, pw - 2,
+            WIN_TITLEBAR_H - WIN_CORNER_R, tb_top, tb_bot);
 
-        /* Hairline divider under titlebar */
-        gfx_draw_hline(px + 1, py + WIN_TITLEBAR_H, pw - 2, FB_RGB(60, 60, 66));
-
-        /* Accent bar on focused window (left edge of titlebar) */
-        if (focused) {
-            gfx_fill_rect(px + 1, py + 4, 3, WIN_TITLEBAR_H - 8, FB_RGB(80, 165, 255));
-        }
+        /* Accent divider under the titlebar (bright blue when focused) */
+        gfx_draw_hline(px + 1, py + WIN_TITLEBAR_H, pw - 2,
+            focused ? FB_RGB(80, 140, 235) : FB_RGB(54, 58, 70));
 
         /* Subtle border outline */
         gfx_draw_rounded_rect(px, py, pw, ph, WIN_CORNER_R,
-            focused ? FB_RGB(70, 130, 210) : FB_RGB(55, 55, 60));
+            focused ? FB_RGB(80, 140, 230) : FB_RGB(56, 60, 74));
 
-        /* Title bar buttons — close (red), maximize (green), minimize (yellow) */
+        /* macOS-style traffic lights on the LEFT: close, minimize, maximize.
+         * Glyphs only show on the focused window; unfocused lights go grey. */
         int btn_y = py + (WIN_TITLEBAR_H - WIN_BTN_SIZE) / 2;
+        int r = WIN_BTN_SIZE / 2;
+        uint32_t dim_fill = FB_RGB(78, 78, 84);
+        uint32_t dim_ring = FB_RGB(58, 58, 64);
 
-        /* Close button */
+        /* Close (red) */
         if (win->flags & WIN_CLOSABLE) {
-            int bx = px + pw - WIN_BTN_SIZE - 8;
-            gfx_fill_circle(bx + WIN_BTN_SIZE/2, btn_y + WIN_BTN_SIZE/2, WIN_BTN_SIZE/2, FB_RGB(255, 95, 87));
-            gfx_draw_circle(bx + WIN_BTN_SIZE/2, btn_y + WIN_BTN_SIZE/2, WIN_BTN_SIZE/2, FB_RGB(220, 60, 50));
-            /* X mark */
-            gfx_draw_line(bx + 3, btn_y + 3, bx + WIN_BTN_SIZE - 3, btn_y + WIN_BTN_SIZE - 3, FB_RGB(130, 30, 20));
-            gfx_draw_line(bx + WIN_BTN_SIZE - 3, btn_y + 3, bx + 3, btn_y + WIN_BTN_SIZE - 3, FB_RGB(130, 30, 20));
+            int bx = win_btn_left(win, 0);
+            int cx = bx + r, cy = btn_y + r;
+            gfx_fill_circle(cx, cy, r, focused ? FB_RGB(255, 95, 87) : dim_fill);
+            gfx_draw_circle(cx, cy, r, focused ? FB_RGB(210, 70, 60) : dim_ring);
+            if (focused) {
+                gfx_draw_line(bx + 4, btn_y + 4, bx + WIN_BTN_SIZE - 4, btn_y + WIN_BTN_SIZE - 4, FB_RGB(120, 25, 18));
+                gfx_draw_line(bx + WIN_BTN_SIZE - 4, btn_y + 4, bx + 4, btn_y + WIN_BTN_SIZE - 4, FB_RGB(120, 25, 18));
+            }
         }
 
-        /* Maximize button */
+        /* Minimize (yellow) */
         {
-            int bx = px + pw - 2 * (WIN_BTN_SIZE + 6) - 4;
-            gfx_fill_circle(bx + WIN_BTN_SIZE/2, btn_y + WIN_BTN_SIZE/2, WIN_BTN_SIZE/2, FB_RGB(39, 201, 63));
-            gfx_draw_circle(bx + WIN_BTN_SIZE/2, btn_y + WIN_BTN_SIZE/2, WIN_BTN_SIZE/2, FB_RGB(20, 160, 40));
+            int bx = win_btn_left(win, 1);
+            int cx = bx + r, cy = btn_y + r;
+            gfx_fill_circle(cx, cy, r, focused ? FB_RGB(254, 188, 46) : dim_fill);
+            gfx_draw_circle(cx, cy, r, focused ? FB_RGB(220, 150, 20) : dim_ring);
+            if (focused) gfx_draw_hline(bx + 3, cy, WIN_BTN_SIZE - 6, FB_RGB(150, 100, 10));
         }
 
-        /* Minimize button */
+        /* Maximize (green) — drawn with a small plus */
         {
-            int bx = px + pw - 3 * (WIN_BTN_SIZE + 6) - 2;
-            gfx_fill_circle(bx + WIN_BTN_SIZE/2, btn_y + WIN_BTN_SIZE/2, WIN_BTN_SIZE/2, FB_RGB(255, 189, 46));
-            gfx_draw_circle(bx + WIN_BTN_SIZE/2, btn_y + WIN_BTN_SIZE/2, WIN_BTN_SIZE/2, FB_RGB(210, 150, 20));
-            /* Dash mark */
-            gfx_draw_hline(bx + 3, btn_y + WIN_BTN_SIZE/2, WIN_BTN_SIZE - 6, FB_RGB(150, 100, 10));
+            int bx = win_btn_left(win, 2);
+            int cx = bx + r, cy = btn_y + r;
+            gfx_fill_circle(cx, cy, r, focused ? FB_RGB(40, 200, 64) : dim_fill);
+            gfx_draw_circle(cx, cy, r, focused ? FB_RGB(20, 160, 40) : dim_ring);
+            if (focused) {
+                gfx_draw_hline(bx + 3, cy, WIN_BTN_SIZE - 6, FB_RGB(15, 110, 25));
+                gfx_draw_vline(cx, btn_y + 3, WIN_BTN_SIZE - 6, FB_RGB(15, 110, 25));
+            }
         }
 
-        /* Title text */
+        /* Centered title (macOS-style), clamped so it never sits under the lights */
         {
             char tbuf[WIN_TITLE_MAX];
             strncpy(tbuf, win->title, WIN_TITLE_MAX - 1);
             tbuf[WIN_TITLE_MAX - 1] = 0;
+            int cw = font_get_active_width();
+            int tw = (int)strlen(tbuf) * cw;
+            int tx = px + (pw - tw) / 2;
+            int lights_right = win_btn_left(win, 2) + WIN_BTN_SIZE + 8;
+            if (tx < lights_right) tx = lights_right;
             int ty = py + (WIN_TITLEBAR_H - font_get_active_height()) / 2;
-            uint32_t txt_color = focused ? FB_RGB(245, 245, 250) : FB_RGB(150, 150, 160);
-            font_draw_string(px + 14, ty, tbuf, txt_color, tb_color);
+            uint32_t txt_color = focused ? FB_RGB(235, 235, 240) : FB_RGB(150, 152, 165);
+            /* Transparent so it sits cleanly on the titlebar gradient */
+            for (int c = 0; tbuf[c]; c++)
+                font_draw_char_transparent(tx + c * cw, ty, (uint8_t)tbuf[c], txt_color);
         }
 
         /* Content area background — flat dark */
@@ -254,7 +287,14 @@ void window_draw(int id) {
     /* Content callback — always pass character-cell coordinates
      * because all existing apps use gui_putchar/gui_draw_text (cell-based) */
     if (win->draw) {
-        win->draw(id, win->x + 1, win->y + 1, win->w - 2, win->h - 2);
+        int content_y = win->y + 1;
+        int content_h = win->h - 2;
+        if (vesa) {
+            content_y = win->y + 2;
+            content_h = win->h - 3;
+        }
+        if (content_h > 0)
+            win->draw(id, win->x + 1, content_y, win->w - 2, content_h);
     }
 }
 
@@ -337,7 +377,7 @@ bool window_close_hit_px(int id, int mx, int my) {
     if (id < 0 || id >= MAX_WINDOWS || !windows[id].active) return false;
     if (!(windows[id].flags & WIN_CLOSABLE)) return false;
     window_t* win = &windows[id];
-    int bx = win->px + win->pw - WIN_BTN_SIZE - 8;
+    int bx = win_btn_left(win, 0);
     int by = win->py + (WIN_TITLEBAR_H - WIN_BTN_SIZE) / 2;
     int cx = bx + WIN_BTN_SIZE/2, cy = by + WIN_BTN_SIZE/2;
     int dx = mx - cx, dy = my - cy;
@@ -347,7 +387,7 @@ bool window_close_hit_px(int id, int mx, int my) {
 bool window_minimize_hit_px(int id, int mx, int my) {
     if (id < 0 || id >= MAX_WINDOWS || !windows[id].active) return false;
     window_t* win = &windows[id];
-    int bx = win->px + win->pw - 3 * (WIN_BTN_SIZE + 6) - 2;
+    int bx = win_btn_left(win, 1);
     int by = win->py + (WIN_TITLEBAR_H - WIN_BTN_SIZE) / 2;
     int cx = bx + WIN_BTN_SIZE/2, cy = by + WIN_BTN_SIZE/2;
     int dx = mx - cx, dy = my - cy;
@@ -357,7 +397,7 @@ bool window_minimize_hit_px(int id, int mx, int my) {
 bool window_maximize_hit_px(int id, int mx, int my) {
     if (id < 0 || id >= MAX_WINDOWS || !windows[id].active) return false;
     window_t* win = &windows[id];
-    int bx = win->px + win->pw - 2 * (WIN_BTN_SIZE + 6) - 4;
+    int bx = win_btn_left(win, 2);
     int by = win->py + (WIN_TITLEBAR_H - WIN_BTN_SIZE) / 2;
     int cx = bx + WIN_BTN_SIZE/2, cy = by + WIN_BTN_SIZE/2;
     int dx = mx - cx, dy = my - cy;

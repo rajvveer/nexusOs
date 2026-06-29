@@ -10,6 +10,13 @@
 #include "theme.h"
 #include "vga.h"
 #include "string.h"
+#include "framebuffer.h"
+#include "gfx.h"
+#include "font.h"
+
+#ifndef FB_RGB
+#define FB_RGB(r, g, b) (((0xFF & r) << 16) | ((0xFF & g) << 8) | (0xFF & b))
+#endif
 
 /* System tick counter */
 extern volatile uint32_t system_ticks;
@@ -79,6 +86,50 @@ void notify_update(void) {
  * notify_draw: Render active notifications at top-right
  * -------------------------------------------------------------------------- */
 void notify_draw(void) {
+    if (fb_is_vesa()) {
+        /* Modern pixel toast: a rounded dark card with a soft shadow, a slim
+         * accent stripe, a bell glyph and crisp white text — no flat black
+         * character box. */
+        int sw = (int)fb_get_width();
+        const int card_w = 248;   /* px */
+        const int card_h = 40;
+        const int gap    = 10;
+        int nx = sw - card_w - 16;
+
+        int count = 0;
+        for (int i = 0; i < NOTIFY_MAX; i++) {
+            if (!notifications[i].active) continue;
+            int ny = 14 + count * (card_h + gap);
+
+            /* Soft drop shadow */
+            gfx_draw_shadow(nx, ny, card_w, card_h, 10, FB_RGB(0, 0, 0));
+            /* Card body: dark translucent slate over the wallpaper */
+            gfx_fill_rect_alpha(nx, ny, card_w, card_h, FB_RGB(28, 32, 46), 232);
+            gfx_fill_rounded_rect(nx, ny, card_w, card_h, 10, FB_RGB(30, 34, 50));
+            /* Hairline border + accent stripe down the left edge */
+            gfx_draw_rounded_rect(nx, ny, card_w, card_h, 10, FB_RGB(70, 80, 110));
+            gfx_fill_rounded_rect(nx + 3, ny + 6, 4, card_h - 12, 2, FB_RGB(90, 150, 255));
+
+            /* Bell glyph (accent) */
+            font_draw_char_transparent(nx + 16, ny + (card_h - 16) / 2,
+                '\x0D', FB_RGB(255, 205, 90));
+
+            /* Message text, truncated to the card width */
+            int tx = nx + 34;
+            int ty = ny + (card_h - 16) / 2;
+            int maxc = (card_w - 44) / 8;
+            const char* m = notifications[i].message;
+            for (int j = 0; m[j] && j < maxc; j++)
+                font_draw_char_transparent(tx + j * 8, ty, (uint8_t)m[j],
+                    FB_RGB(238, 240, 248));
+
+            count++;
+            if (ny + card_h * 2 > (int)fb_get_height()) break;
+        }
+        return;
+    }
+
+    /* Text-mode fallback (legacy character toast) */
     int count = 0;
     for (int i = 0; i < NOTIFY_MAX; i++) {
         if (!notifications[i].active) continue;

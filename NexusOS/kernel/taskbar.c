@@ -54,12 +54,14 @@ void taskbar_draw(void) {
         int sh = (int)fb_get_height();
         int tb_y = sh - TB_H;
 
-        /* Gradient background: dark charcoal → slightly lighter */
+        /* Gradient background: deep indigo-slate that harmonizes with the
+         * wallpaper (Phase 53), brighter at the top edge for a raised feel. */
         gfx_draw_gradient_v(0, tb_y, sw, TB_H,
-            FB_RGB(50, 55, 62), FB_RGB(30, 33, 38));
+            FB_RGB(34, 38, 58), FB_RGB(20, 22, 34));
 
-        /* Top highlight line */
-        gfx_draw_hline(0, tb_y, sw, FB_RGB(80, 88, 100));
+        /* Top accent highlight line (subtle blue) */
+        gfx_draw_hline(0, tb_y, sw, FB_RGB(70, 86, 130));
+        gfx_draw_hline(0, tb_y + 1, sw, FB_RGB(44, 50, 74));
 
         /* Start button with rounded rect and gradient */
         gfx_fill_rounded_rect(4, tb_y + 3, 90, TB_BTN_H, 4, FB_RGB(25, 110, 190));
@@ -104,9 +106,9 @@ void taskbar_draw(void) {
             } else {
                 /* Inactive button */
                 gfx_fill_rounded_rect(px_x + 2, tb_y + 3, btn_pw - 4, TB_BTN_H, 3,
-                    FB_RGB(45, 50, 58));
+                    FB_RGB(40, 44, 64));
                 gfx_draw_rounded_rect(px_x + 2, tb_y + 3, btn_pw - 4, TB_BTN_H, 3,
-                    FB_RGB(60, 65, 72));
+                    FB_RGB(54, 60, 84));
             }
 
             /* Window title text */
@@ -114,8 +116,8 @@ void taskbar_draw(void) {
             strncpy(tbuf, win->title, max_title);
             tbuf[max_title] = 0;
             font_draw_string(px_x + 8, tb_y + 4, tbuf,
-                focused ? FB_RGB(255, 255, 255) : FB_RGB(160, 165, 175),
-                focused ? FB_RGB(70, 78, 90) : FB_RGB(45, 50, 58));
+                focused ? FB_RGB(255, 255, 255) : FB_RGB(170, 178, 200),
+                focused ? FB_RGB(70, 78, 90) : FB_RGB(40, 44, 64));
 
             col += max_title + 2;
             px_x += btn_pw;
@@ -145,9 +147,13 @@ void taskbar_draw(void) {
         int right_len = strlen(right_buf);
         int right_px = sw - right_len * 8 - 8;
 
-        /* Clock + memory text */
-        font_draw_string(right_px, tb_y + 4, right_buf,
-            FB_RGB(200, 210, 225), FB_RGB(35, 38, 44));
+        /* Clock + memory text — transparent so the gradient shows through */
+        {
+            int rb_len = (int)strlen(right_buf);
+            for (int c = 0; c < rb_len; c++)
+                font_draw_char_transparent(right_px + c * 8, tb_y + 4,
+                    (uint8_t)right_buf[c], FB_RGB(210, 218, 235));
+        }
 
         /* System tray area */
         int tray_px = right_px - 80;
@@ -157,8 +163,8 @@ void taskbar_draw(void) {
         tray_lock_col = tray_start + 4;
 
         /* Separator line */
-        gfx_draw_vline(tray_px - 4, tb_y + 4, TB_H - 8, FB_RGB(70, 75, 85));
-        gfx_draw_vline(tray_px + 55, tb_y + 4, TB_H - 8, FB_RGB(70, 75, 85));
+        gfx_draw_vline(tray_px - 4, tb_y + 4, TB_H - 8, FB_RGB(60, 68, 96));
+        gfx_draw_vline(tray_px + 55, tb_y + 4, TB_H - 8, FB_RGB(60, 68, 96));
 
         /* Bell icon (notification) */
         {
