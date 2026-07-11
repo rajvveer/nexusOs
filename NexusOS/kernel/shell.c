@@ -1,7 +1,8 @@
 /* ============================================================================
- * NexusOS - Interactive Shell v22.0
+ * NexusOS - Interactive Shell v36.0
  * ============================================================================
- * Phase 36: Scripting Engine (script). 90 commands total.
+ * Phase 51: NPFS journaling filesystem (write-ahead journal + crash recovery,
+ * direct+indirect blocks). 142 commands. ROADMAP COMPLETE (51/51).
  * ============================================================================ */
 
 #include "shell.h"
@@ -16,6 +17,21 @@
 #include "scheduler.h"
 #include "rtc.h"
 #include "speaker.h"
+#include "audio.h"
+#include "ac97.h"
+#include "image.h"
+#include "video.h"
+#include "gpu.h"
+#include "sprite.h"
+#include "game.h"
+#include "doom.h"
+#include "breakout.h"
+#include "accessibility.h"
+#include "font.h"
+#include "users.h"
+#include "firewall.h"
+#include "framebuffer.h"
+#include "gfx.h"
 #include "editor.h"
 #include "snake.h"
 #include "desktop.h"
@@ -64,6 +80,15 @@
 #include "ntp.h"
 #include "httpd.h"
 #include "rshell.h"
+#include "vnc.h"
+#include "sync.h"
+#include "clipboard.h"
+#include "assistant.h"
+#include "mobile.h"
+#include "perf.h"
+#include "appstore.h"
+#include "finale.h"
+#include "npfs.h"
 #include "procfs.h"
 #include "termios.h"
 #include "posix.h"
@@ -74,6 +99,8 @@
 #include "win32.h"
 #include "pkg.h"
 #include "script.h"
+#include "macho.h"
+#include "cocoa.h"
 
 /* System tick counter */
 extern volatile uint32_t system_ticks;
@@ -105,12 +132,22 @@ static void history_add(const char* cmd) {
 /* --------------------------------------------------------------------------
  * shell_readline: Enhanced readline with history (up/down arrows)
  * -------------------------------------------------------------------------- */
+/* Replace the current input with `buffer` (length `len`), redrawn from the
+ * prompt origin. Backspacing `i` chars one at a time keeps cursor_row/col in
+ * sync with any scroll the previous echo caused, so we never strand text on a
+ * stale row (the old code reset to vga_get_cursor_row()+start_col after the
+ * backspaces, which drifted a whole line whenever the echo had wrapped). */
+static void readline_replace(const char* buffer, int len, int* i) {
+    while (*i > 0) { vga_backspace(); (*i)--; }
+    for (int j = 0; j < len; j++) vga_putchar(buffer[j]);
+    *i = len;
+}
+
 static int shell_readline(char* buffer, int max_len) {
     int i = 0;
     int hist_idx = history_count;  /* Start at "current" (no history selected) */
     char saved[INPUT_MAX];
     saved[0] = '\0';
-    int cursor_start_col = vga_get_cursor_col();
 
     while (i < max_len - 1) {
         vga_flush();
@@ -126,20 +163,8 @@ static int shell_readline(char* buffer, int max_len) {
                 }
                 hist_idx--;
                 int actual = (history_pos - history_count + hist_idx + HISTORY_SIZE) % HISTORY_SIZE;
-
-                /* Clear current line */
-                while (i > 0) { vga_backspace(); i--; }
-
-                /* Print history entry */
                 strcpy(buffer, history[actual]);
-                i = strlen(buffer);
-                vga_set_cursor(vga_get_cursor_row(), cursor_start_col);
-                /* Clear rest of line */
-                for (int j = 0; j < max_len && j < VGA_WIDTH - cursor_start_col; j++)
-                    vga_putchar(' ');
-                vga_set_cursor(vga_get_cursor_row(), cursor_start_col);
-                for (int j = 0; j < i; j++)
-                    vga_putchar(buffer[j]);
+                readline_replace(buffer, strlen(buffer), &i);
             }
             continue;
         }
@@ -148,22 +173,13 @@ static int shell_readline(char* buffer, int max_len) {
         if ((unsigned char)c == 0x81) {
             if (hist_idx < history_count) {
                 hist_idx++;
-
-                while (i > 0) { vga_backspace(); i--; }
-
                 if (hist_idx == history_count) {
                     strcpy(buffer, saved);
                 } else {
                     int actual = (history_pos - history_count + hist_idx + HISTORY_SIZE) % HISTORY_SIZE;
                     strcpy(buffer, history[actual]);
                 }
-                i = strlen(buffer);
-                vga_set_cursor(vga_get_cursor_row(), cursor_start_col);
-                for (int j = 0; j < max_len && j < VGA_WIDTH - cursor_start_col; j++)
-                    vga_putchar(' ');
-                vga_set_cursor(vga_get_cursor_row(), cursor_start_col);
-                for (int j = 0; j < i; j++)
-                    vga_putchar(buffer[j]);
+                readline_replace(buffer, strlen(buffer), &i);
             }
             continue;
         }
@@ -231,7 +247,7 @@ static int parse_args(char* input, char* argv[]) {
  * -------------------------------------------------------------------------- */
 
 static void cmd_help(void) {
-    vga_print_color("\n  NexusOS Shell Commands v18.0\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("\n  NexusOS Shell Commands v36.0\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
     vga_print_color("  ===========================\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
 
     vga_print_color("  System:     ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
@@ -261,7 +277,37 @@ static void cmd_help(void) {
     vga_print_color("  Packages:   ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
     vga_print("npkg list  npkg install <pkg>  npkg remove <pkg>  npkg info <pkg>\n");
     vga_print_color("  Scripting:  ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
-    vga_print("script <file.ns>   (try: script demo.ns)\n\n");
+    vga_print("script <file.ns>   (try: script demo.ns)\n");
+    vga_print_color("  macOS:      ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("machoinfo  runmacho <file>  cocoademo\n");
+    vga_print_color("  Sound:      ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("sndinfo  play <file.wav>  volume <0-100>  tone <hz> <ms>  mixer\n");
+    vga_print_color("  Images:     ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("imginfo  view <file>   (BMP/PNG/JPEG/GIF)\n");
+    vga_print_color("  Video:      ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("vidinfo  mplay [file]   (AVI/MJPEG + audio)\n");
+    vga_print_color("  GPU:        ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("gpuinfo  gpubench  sprites   (VirtIO-GPU)\n");
+    vga_print_color("  Gaming:     ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("gameinfo  gamepad  doom  breakout   (NexusSDL)\n");
+    vga_print_color("  Access:     ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("accinfo  fontsize <1-4>  contrast  reader <on|off>  say <text>\n");
+    vga_print_color("  Security:   ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("id  users  passwd  useradd  userdel  chmod  chown  firewall\n");
+    vga_print_color("  Cloud:      ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("vnc  sync  synccfg  clipsync   (remote desktop + file/settings/clipboard sync)\n");
+    vga_print_color("  AI:         ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("ask <english>  ai [cmd]  find <query>   (offline assistant)\n");
+    vga_print_color("  Mobile:     ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("gesture  orientation  lowpower  arm  mobileinfo\n");
+    vga_print_color("  Perf:       ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("perf  smp  preempt   (benchmarks + boot time + honest SMP status)\n");
+    vga_print_color("  App Store:  ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("store [list|info|install|update|upgrade|sdk]   (ecosystem over npkg)\n");
+    vga_print_color("  Finale:     ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("urun <file>  install [disk yes]  finale   (v5.0: universal bins + installer)\n");
+    vga_print_color("  NPFS:       ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("npfs [format|mount|ls|write|cat|rm|stat|journal|crashtest]   (journaling FS)\n\n");
 
     vga_print_color("  Tip: ", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
     vga_print("Use Up/Down arrows for command history\n\n");
@@ -383,26 +429,46 @@ static void cmd_history_show(void) {
 
 /* --- File commands --- */
 
-static void cmd_ls(void) {
+static void cmd_ls(int argc, char* argv[]) {
     fs_node_t* root = vfs_get_root();
     if (!root) { vga_print("  No filesystem mounted.\n"); return; }
+
+    /* Phase 44: 'ls -l' shows mode/owner/size like Unix. */
+    bool long_fmt = (argc >= 2 && strcmp(argv[1], "-l") == 0);
 
     fs_node_t* entry;
     uint32_t index = 0;
     vga_print_color("\n  Files:\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
     while ((entry = vfs_readdir(root, index)) != NULL) {
         vga_print("  ");
+        if (long_fmt) {
+            char modes[12];
+            vfs_mode_string(entry, modes);
+            vga_print_color(modes, VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+            vga_print("  ");
+            /* owner name, padded to 8 */
+            const char* owner = users_name_of(entry->uid);
+            vga_print_color(owner, VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+            int olen = strlen(owner);
+            for (int s = olen; s < 8; s++) vga_print(" ");
+            vga_print(" ");
+            char sb[16]; int_to_str(entry->size, sb);
+            for (int s = strlen(sb); s < 6; s++) vga_print(" ");
+            vga_print(sb); vga_print("  ");
+        }
         if (entry->type & FS_DIRECTORY) {
             vga_print_color(entry->name, VGA_COLOR(VGA_LIGHT_BLUE, VGA_BLACK));
-            vga_print_color("/", VGA_COLOR(VGA_LIGHT_BLUE, VGA_BLACK));
+            if (!long_fmt) vga_print_color("/", VGA_COLOR(VGA_LIGHT_BLUE, VGA_BLACK));
         } else {
             vga_print_color(entry->name, VGA_COLOR(VGA_WHITE, VGA_BLACK));
         }
-        char buf[16];
-        vga_print("  (");
-        int_to_str(entry->size, buf);
-        vga_print(buf);
-        vga_print(" bytes)");
+        if (!long_fmt) {
+            char buf[16];
+            vga_print("  (");
+            int_to_str(entry->size, buf);
+            vga_print(buf);
+            vga_print(" bytes)");
+        }
         vga_print("\n");
         index++;
     }
@@ -501,9 +567,12 @@ static void cmd_write(int argc, char* argv[]) {
 
 static void cmd_rm(int argc, char* argv[]) {
     if (argc < 2) { vga_print("  Usage: rm <filename>\n"); return; }
-    if (ramfs_delete(argv[1]) == 0) {
+    int rc = ramfs_delete(argv[1]);
+    if (rc == 0) {
         vga_print_color("  Deleted: ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
         vga_print(argv[1]); vga_print("\n");
+    } else if (rc == -2) {
+        vga_print_color("  Permission denied: not the owner.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
     } else {
         vga_print_color("  File not found: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
         vga_print(argv[1]); vga_print("\n");
@@ -581,7 +650,16 @@ static void cmd_kill(int argc, char* argv[]) {
         vga_print_color("  Cannot kill system process.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
         return;
     }
-    process_terminate(pid);
+    /* Phase 44: permission-checked kill (owner or root only). */
+    int rc = process_terminate_as(pid, users_current_uid());
+    if (rc == -2) {
+        vga_print_color("  Permission denied: not the process owner.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        return;
+    }
+    if (rc == -1) {
+        vga_print_color("  No such process.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        return;
+    }
     vga_print_color("  Terminated PID ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
     vga_print(argv[1]); vga_print("\n");
 }
@@ -868,6 +946,118 @@ static void cmd_netstat(void) {
     vga_print("\n");
 }
 
+/* ============================================================================
+ * Phase 44: Firewall command
+ * ============================================================================ */
+
+static uint8_t fw_proto_from_str(const char* s) {
+    if (strcmp(s, "tcp") == 0) return FW_PROTO_TCP;
+    if (strcmp(s, "udp") == 0) return FW_PROTO_UDP;
+    if (strcmp(s, "icmp") == 0) return FW_PROTO_ICMP;
+    if (strcmp(s, "any") == 0) return FW_PROTO_ANY;
+    return 0xFF;  /* invalid */
+}
+
+static const char* fw_proto_str(uint8_t p) {
+    switch (p) {
+        case FW_PROTO_TCP:  return "tcp";
+        case FW_PROTO_UDP:  return "udp";
+        case FW_PROTO_ICMP: return "icmp";
+        default:            return "any";
+    }
+}
+
+static void cmd_firewall_list(void) {
+    char b[20];
+    vga_print_color("\n  Firewall rules", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print(firewall_enabled() ? "  [ENABLED]" : "  [disabled]");
+    vga_print("   default=");
+    vga_print(firewall_default() == FW_DROP ? "DROP" : "ACCEPT");
+    vga_print("\n");
+    vga_print_color("  ===============================================\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    vga_print_color("  #   ACTION  DIR   PROTO  ADDRESS          PORT\n", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    int shown = 0;
+    for (int i = 0; i < FW_MAX_RULES; i++) {
+        const fw_rule_t* r = firewall_rule(i);
+        if (!r) continue;
+        shown++;
+        vga_print("  ");
+        int_to_str(i, b); vga_print(b); for (int s = strlen(b); s < 4; s++) vga_print(" ");
+        vga_print(r->action == FW_DROP ? "DROP    " : "ACCEPT  ");
+        vga_print(r->direction == FW_IN ? "in    " : r->direction == FW_OUT ? "out   " : "both  ");
+        vga_print(fw_proto_str(r->proto)); for (int s = strlen(fw_proto_str(r->proto)); s < 7; s++) vga_print(" ");
+        if (r->addr == 0) { vga_print("any            "); }
+        else { char ip[16]; ip_to_string(r->addr, ip); vga_print(ip); for (int s = strlen(ip); s < 15; s++) vga_print(" "); }
+        vga_print("  ");
+        if (r->port == 0) vga_print("any"); else { int_to_str(r->port, b); vga_print(b); }
+        vga_print("\n");
+    }
+    if (!shown) vga_print("  (no rules)\n");
+    vga_print("  dropped="); int_to_str((int)firewall_dropped(), b); vga_print(b);
+    vga_print("  passed=");  int_to_str((int)firewall_passed(), b);  vga_print(b);
+    vga_print("\n\n");
+}
+
+static void cmd_firewall(int argc, char* argv[]) {
+    if (argc < 2) {
+        vga_print("  Usage:\n");
+        vga_print("    firewall list\n");
+        vga_print("    firewall on | off\n");
+        vga_print("    firewall default <accept|drop>\n");
+        vga_print("    firewall block|allow <proto> <ip|any> [port] [in|out]\n");
+        vga_print("    firewall del <#>   |   firewall clear\n");
+        vga_print("    (proto = tcp|udp|icmp|any)\n");
+        return;
+    }
+    /* Mutating the firewall requires root. */
+    bool is_query = (strcmp(argv[1], "list") == 0);
+    if (!is_query && !users_current_is_root()) {
+        vga_print_color("  Permission denied: only root may change the firewall.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        return;
+    }
+
+    if (strcmp(argv[1], "list") == 0) { cmd_firewall_list(); return; }
+    if (strcmp(argv[1], "on") == 0)  { firewall_set_enabled(true);  vga_print_color("  Firewall ENABLED\n", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK)); return; }
+    if (strcmp(argv[1], "off") == 0) { firewall_set_enabled(false); vga_print_color("  Firewall disabled\n", VGA_COLOR(VGA_YELLOW, VGA_BLACK)); return; }
+    if (strcmp(argv[1], "clear") == 0) { firewall_clear(); vga_print("  All rules cleared.\n"); return; }
+    if (strcmp(argv[1], "default") == 0) {
+        if (argc < 3) { vga_print("  Usage: firewall default <accept|drop>\n"); return; }
+        if (strcmp(argv[2], "drop") == 0) firewall_set_default(FW_DROP);
+        else if (strcmp(argv[2], "accept") == 0) firewall_set_default(FW_ACCEPT);
+        else { vga_print("  default must be 'accept' or 'drop'.\n"); return; }
+        vga_print("  Default policy set.\n"); return;
+    }
+    if (strcmp(argv[1], "del") == 0) {
+        if (argc < 3) { vga_print("  Usage: firewall del <#>\n"); return; }
+        int idx = 0; for (int i = 0; argv[2][i]; i++) idx = idx * 10 + (argv[2][i] - '0');
+        vga_print(firewall_del(idx) ? "  Rule removed.\n" : "  No such rule.\n");
+        return;
+    }
+    if (strcmp(argv[1], "block") == 0 || strcmp(argv[1], "allow") == 0) {
+        if (argc < 4) { vga_print("  Usage: firewall block|allow <proto> <ip|any> [port] [in|out]\n"); return; }
+        uint8_t action = (strcmp(argv[1], "block") == 0) ? FW_DROP : FW_ACCEPT;
+        uint8_t proto = fw_proto_from_str(argv[2]);
+        if (proto == 0xFF) { vga_print("  proto must be tcp|udp|icmp|any.\n"); return; }
+        uint32_t addr = (strcmp(argv[3], "any") == 0) ? 0 : ip_parse(argv[3]);
+        uint16_t port = 0;
+        uint8_t dir = FW_BOTH;
+        for (int i = 4; i < argc; i++) {
+            if (strcmp(argv[i], "in") == 0) dir = FW_IN;
+            else if (strcmp(argv[i], "out") == 0) dir = FW_OUT;
+            else { /* numeric port */ int p = 0; for (int j = 0; argv[i][j]; j++) p = p * 10 + (argv[i][j] - '0'); port = (uint16_t)p; }
+        }
+        int idx = firewall_add(action, dir, proto, addr, port);
+        if (idx < 0) { vga_print_color("  Rule table full.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK)); return; }
+        /* Auto-enable on first rule so a 'block' actually takes effect. */
+        if (!firewall_enabled()) firewall_set_enabled(true);
+        char b[12]; vga_print_color("  Rule #", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+        int_to_str(idx, b); vga_print(b);
+        vga_print(action == FW_DROP ? " (block) added; firewall enabled.\n" : " (allow) added; firewall enabled.\n");
+        return;
+    }
+    vga_print("  Unknown firewall subcommand. Try 'firewall' for usage.\n");
+}
+
 static void cmd_arp_show(void) {
     char buf[20];
     vga_print_color("\n  ARP Cache\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
@@ -928,7 +1118,7 @@ static void cmd_gui(void) {
 static void cmd_theme(int argc, char* argv[]) {
     if (argc < 2) {
         vga_print("  Usage: theme <name>\n");
-        vga_print("  Available: dark, light, retro, ocean\n");
+        vga_print("  Available: dark, light, retro, ocean, hicon\n");
         return;
     }
     if (theme_set_by_name(argv[1])) {
@@ -938,7 +1128,7 @@ static void cmd_theme(int argc, char* argv[]) {
     } else {
         vga_print_color("  Unknown theme: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
         vga_print(argv[1]);
-        vga_print("\n  Available: dark, light, retro, ocean\n");
+        vga_print("\n  Available: dark, light, retro, ocean, hicon\n");
     }
 }
 
@@ -1120,8 +1310,129 @@ static void cmd_uname(void) {
 }
 
 static void cmd_whoami(void) {
-    const char* user = env_get("USER");
-    vga_print("  "); vga_print(user ? user : "root"); vga_print("\n");
+    /* Phase 44: the real logged-in user (not the USER env var). */
+    vga_print("  "); vga_print((char*)users_current_name()); vga_print("\n");
+}
+
+/* ============================================================================
+ * Phase 44: Security commands
+ * ============================================================================ */
+
+static void cmd_id(void) {
+    char b[12];
+    vga_print("  uid=");
+    int_to_str((int)users_current_uid(), b); vga_print(b);
+    vga_print("("); vga_print((char*)users_current_name()); vga_print(")");
+    vga_print(users_current_is_root() ? "  [root/privileged]\n" : "  [standard user]\n");
+}
+
+static void cmd_users(void) {
+    char b[12];
+    vga_print_color("\n  Users\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  =====\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    vga_print_color("  UID    NAME\n", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    user_t* t = users_table();
+    for (int i = 0; i < USER_MAX; i++) {
+        if (!t[i].used) continue;
+        vga_print("  ");
+        int_to_str((int)t[i].uid, b); vga_print(b);
+        for (int s = strlen(b); s < 7; s++) vga_print(" ");
+        vga_print(t[i].name);
+        if (t[i].uid == users_current_uid()) vga_print_color("  (you)", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+        vga_print("\n");
+    }
+    vga_print("\n");
+}
+
+static void cmd_useradd(int argc, char* argv[]) {
+    if (!users_current_is_root()) {
+        vga_print_color("  Permission denied: only root may add users.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        return;
+    }
+    if (argc < 3) { vga_print("  Usage: useradd <username> <password>\n"); return; }
+    uint32_t uid = users_add(argv[1], argv[2]);
+    if (uid == UID_INVALID) {
+        vga_print_color("  Could not add user (exists or table full).\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        return;
+    }
+    char b[12];
+    vga_print_color("  Added user ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    vga_print(argv[1]); vga_print(" (uid="); int_to_str((int)uid, b); vga_print(b); vga_print(")\n");
+}
+
+static void cmd_userdel(int argc, char* argv[]) {
+    if (!users_current_is_root()) {
+        vga_print_color("  Permission denied: only root may remove users.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        return;
+    }
+    if (argc < 2) { vga_print("  Usage: userdel <username>\n"); return; }
+    if (users_del(argv[1])) {
+        vga_print_color("  Removed user ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+        vga_print(argv[1]); vga_print("\n");
+    } else {
+        vga_print_color("  Could not remove (not found, is root, or is the current user).\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+    }
+}
+
+static void cmd_passwd(int argc, char* argv[]) {
+    /* passwd <newpass>          -> change own password
+     * passwd <user> <newpass>   -> change another (root only) */
+    const char* target;
+    const char* newpass;
+    if (argc == 2) {
+        target = users_current_name();
+        newpass = argv[1];
+    } else if (argc >= 3) {
+        if (!users_current_is_root()) {
+            vga_print_color("  Permission denied: only root may change other users.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+            return;
+        }
+        target = argv[1];
+        newpass = argv[2];
+    } else {
+        vga_print("  Usage: passwd <newpass>   |   passwd <user> <newpass> (root)\n");
+        return;
+    }
+    if (users_set_password(target, newpass)) {
+        vga_print_color("  Password updated for ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+        vga_print((char*)target); vga_print("\n");
+    } else {
+        vga_print_color("  No such user.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+    }
+}
+
+static void cmd_chmod(int argc, char* argv[]) {
+    if (argc < 3) { vga_print("  Usage: chmod <octal-mode> <file>   (e.g. chmod 600 secret)\n"); return; }
+    /* parse octal mode */
+    uint16_t mode = 0;
+    for (int i = 0; argv[1][i]; i++) {
+        if (argv[1][i] < '0' || argv[1][i] > '7') { vga_print("  Mode must be octal (0-7 digits).\n"); return; }
+        mode = (uint16_t)(mode * 8 + (argv[1][i] - '0'));
+    }
+    fs_node_t* node = vfs_finddir(vfs_get_root(), argv[2]);
+    if (!node) { vga_print_color("  No such file.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK)); return; }
+    if (vfs_chmod(node, mode, users_current_uid()) != 0) {
+        vga_print_color("  Permission denied: not the owner.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        return;
+    }
+    char ms[12]; vfs_mode_string(node, ms);
+    vga_print("  ");
+    vga_print_color(ms, VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    vga_print("  "); vga_print(argv[2]); vga_print("\n");
+}
+
+static void cmd_chown(int argc, char* argv[]) {
+    if (argc < 3) { vga_print("  Usage: chown <user> <file>\n"); return; }
+    user_t* u = users_find(argv[1]);
+    if (!u) { vga_print_color("  No such user.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK)); return; }
+    fs_node_t* node = vfs_finddir(vfs_get_root(), argv[2]);
+    if (!node) { vga_print_color("  No such file.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK)); return; }
+    if (vfs_chown(node, u->uid, users_current_uid()) != 0) {
+        vga_print_color("  Permission denied: only root may chown.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        return;
+    }
+    vga_print_color("  Owner of ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    vga_print(argv[2]); vga_print(" -> "); vga_print(argv[1]); vga_print("\n");
 }
 
 /* --- Phase 34: Win32 Layer Commands --- */
@@ -1422,6 +1733,1088 @@ static void cmd_script(int argc, char* argv[]) {
 }
 
 /* --------------------------------------------------------------------------
+ * Phase 37: macOS Compatibility Shim commands
+ * -------------------------------------------------------------------------- */
+static void cmd_machoinfo(void) {
+    vga_print_color("\n  macOS Compatibility Shim - Phase 37\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  ===================================\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    vga_print("  "); vga_print((char*)macho_get_status()); vga_print("\n");
+    vga_print("  "); vga_print((char*)cocoa_get_status()); vga_print("\n");
+    char buf[12];
+    vga_print_color("  CF Objects: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    int_to_str(cocoa_object_count(), buf); vga_print(buf); vga_print(" live\n");
+    vga_print_color("  Commands:   ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("runmacho <file>   cocoademo\n\n");
+}
+
+static void cmd_runmacho(int argc, char* argv[]) {
+    if (argc < 2) { vga_print("  Usage: runmacho <file>\n"); return; }
+    const char* fname = argv[1];
+    fs_node_t* node = vfs_finddir(vfs_get_root(), fname);
+    if (!node || node->size == 0) {
+        vga_print_color("  File not found: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print((char*)fname); vga_print("\n");
+        return;
+    }
+    uint8_t* buf = (uint8_t*)kmalloc(node->size);
+    if (!buf) { vga_print("  Out of memory.\n"); return; }
+    int32_t rd = vfs_read(node, 0, node->size, buf);
+    if (rd != (int32_t)node->size) { vga_print("  Read error.\n"); kfree(buf); return; }
+
+    macho_info_t info;
+    if (!macho_get_info(buf, node->size, &info)) {
+        vga_print_color("  Not a valid i386 Mach-O executable.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        kfree(buf); return;
+    }
+    char b[12];
+    vga_print_color("  Mach-O ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK)); vga_print("i386 executable\n");
+    vga_print("    segments: "); int_to_str(info.nsegments, b); vga_print(b);
+    vga_print("   dylibs: ");    int_to_str(info.ndylibs, b);   vga_print(b);
+    vga_print("   entry: 0x");   hex_to_str(info.entry, b);     vga_print(b); vga_print("\n");
+    vga_print("  Loading and executing...\n");
+    macho_exec(buf, node->size, fname);   /* irets to ring 3 on success */
+    kfree(buf);
+}
+
+static void cmd_cocoademo(void) {
+    vga_print_color("  Launching Cocoa demo...\n", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    if (cocoa_demo() == 0)
+        vga_print("  NSWindow created. Type 'gui' to view it on the desktop.\n\n");
+    else
+        vga_print_color("  Cocoa demo failed (no free objects).\n\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+}
+
+/* --------------------------------------------------------------------------
+ * Phase 38: Sound — Audio Mixer + AC'97 commands
+ * -------------------------------------------------------------------------- */
+static int shell_atoi(const char* s) {
+    int v = 0; int sign = 1;
+    if (*s == '-') { sign = -1; s++; }
+    for (; *s >= '0' && *s <= '9'; s++) v = v * 10 + (*s - '0');
+    return v * sign;
+}
+
+static void cmd_sndinfo(void) {
+    char buf[12];
+    vga_print_color("\n  Sound Subsystem - Phase 38\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  ==========================\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    vga_print_color("  Driver:   ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print((char*)ac97_status()); vga_print("\n");
+    vga_print_color("  Mixer:    ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print((char*)audio_status()); vga_print("\n");
+    vga_print_color("  Output:   ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    int_to_str((int)audio_device_rate(), buf); vga_print(buf);
+    vga_print(" Hz, 16-bit stereo\n");
+    vga_print_color("  Voices:   ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    int_to_str(audio_active_voices(), buf); vga_print(buf);
+    vga_print(" active\n");
+    vga_print_color("  Commands: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("play <file.wav>  volume <0-100>  tone <hz> <ms>  mixer\n\n");
+}
+
+static void cmd_volume(int argc, char* argv[]) {
+    char buf[12];
+    if (argc < 2) {
+        vga_print_color("  Master volume: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+        int_to_str(audio_get_master_volume(), buf); vga_print(buf);
+        vga_print("%   (usage: volume <0-100>)\n");
+        return;
+    }
+    int v = shell_atoi(argv[1]);
+    if (v < 0) v = 0; if (v > 100) v = 100;
+    audio_set_master_volume((uint8_t)v);
+    vga_print_color("  Master volume set to ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    int_to_str(v, buf); vga_print(buf); vga_print("%\n");
+}
+
+static void cmd_tone(int argc, char* argv[]) {
+    int hz = (argc >= 2) ? shell_atoi(argv[1]) : 440;
+    int ms = (argc >= 3) ? shell_atoi(argv[2]) : 400;
+    if (hz < 20 || hz > 20000) { vga_print("  Usage: tone <20-20000 hz> <ms>\n"); return; }
+    if (ms < 1) ms = 400;
+    vga_print_color("  Playing tone ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    char b[12]; int_to_str(hz, b); vga_print(b); vga_print(" Hz...\n");
+    audio_play_tone((uint32_t)hz, (uint32_t)ms, 90);
+    vga_print("  Done.\n");
+}
+
+static void cmd_play(int argc, char* argv[]) {
+    const char* fname = (argc >= 2) ? argv[1] : "startup.wav";
+    fs_node_t* node = vfs_finddir(vfs_get_root(), fname);
+    if (!node || node->size == 0) {
+        vga_print_color("  File not found: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print((char*)fname);
+        vga_print("\n  (try 'play startup.wav')\n");
+        return;
+    }
+    uint8_t* buf = (uint8_t*)kmalloc(node->size);
+    if (!buf) { vga_print("  Out of memory.\n"); return; }
+    int32_t rd = vfs_read(node, 0, node->size, buf);
+    if (rd != (int32_t)node->size) { vga_print("  Read error.\n"); kfree(buf); return; }
+
+    wav_info_t w;
+    if (!wav_parse(buf, node->size, &w)) {
+        vga_print_color("  Not a valid PCM WAV file.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        kfree(buf); return;
+    }
+    char b[12];
+    vga_print_color("  WAV ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK)); vga_print((char*)fname);
+    vga_print(": "); int_to_str((int)w.rate, b); vga_print(b); vga_print(" Hz, ");
+    int_to_str(w.channels, b); vga_print(b); vga_print(" ch, ");
+    int_to_str(w.bits, b); vga_print(b); vga_print("-bit, ");
+    int_to_str((int)w.frames, b); vga_print(b); vga_print(" frames\n");
+    if (!audio_have_device())
+        vga_print_color("  (no AC'97 codec - playing to null sink)\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    vga_print("  Playing...\n");
+    audio_play_wav(buf, node->size, audio_get_master_volume());
+    vga_print("  Done.\n");
+    kfree(buf);
+}
+
+/* Build a small loopable mono buffer of whole cycles for `freq`. */
+static int16_t* mk_loop_tone(uint32_t freq, uint32_t rate, uint32_t* out_frames) {
+    uint32_t period = rate / freq; if (period == 0) period = 1;
+    uint32_t cycles = (rate / 20) / period; if (cycles == 0) cycles = 1;
+    uint32_t frames = period * cycles;          /* ~50 ms, whole cycles */
+    int16_t* b = (int16_t*)kmalloc(frames * sizeof(int16_t));
+    if (b) audio_gen_tone(b, frames, freq, rate, 45);
+    *out_frames = frames;
+    return b;
+}
+
+static void cmd_mixer(void) {
+    /* Demonstrate the software mixer: 3 simultaneous looping voices (C-E-G). */
+    uint32_t rate = audio_device_rate();
+    uint32_t fa, fb, fc;
+    int16_t* a = mk_loop_tone(262, rate, &fa);   /* C4 */
+    int16_t* b = mk_loop_tone(330, rate, &fb);   /* E4 */
+    int16_t* c = mk_loop_tone(392, rate, &fc);   /* G4 */
+    if (!a || !b || !c) {
+        vga_print("  Out of memory.\n");
+        if (a) kfree(a); if (b) kfree(b); if (c) kfree(c);
+        return;
+    }
+    audio_voice_clear();
+    audio_voice_add(a, fa, 1, rate, 90, true);
+    audio_voice_add(b, fb, 1, rate, 90, true);
+    audio_voice_add(c, fc, 1, rate, 90, true);
+
+    vga_print_color("  Mixing 3 voices ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    vga_print("(C-E-G major chord)...\n");
+    audio_mix_run(2000);
+    vga_print("  Done.\n");
+    kfree(a); kfree(b); kfree(c);
+}
+
+/* --------------------------------------------------------------------------
+ * Phase 39: Image Formats commands
+ * -------------------------------------------------------------------------- */
+static uint8_t* shell_read_file(const char* fname, uint32_t* out_size) {
+    fs_node_t* node = vfs_finddir(vfs_get_root(), (char*)fname);
+    if (!node || node->size == 0) return NULL;
+    uint8_t* buf = (uint8_t*)kmalloc(node->size);
+    if (!buf) return NULL;
+    if (vfs_read(node, 0, node->size, buf) != (int32_t)node->size) { kfree(buf); return NULL; }
+    *out_size = node->size;
+    return buf;
+}
+
+static void cmd_imginfo(void) {
+    static const char* names[] = { "icon.bmp", "logo.png", "photo.jpg", "anim.gif" };
+    vga_print_color("\n  Image Subsystem - Phase 39\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  ==========================\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    vga_print_color("  Formats:  ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("BMP (24/32)   PNG (inflate+filters)   JPEG (baseline)   GIF (LZW, animated)\n\n");
+
+    for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+        uint32_t size = 0;
+        uint8_t* buf = shell_read_file(names[i], &size);
+        vga_print("  ");
+        vga_print_color((char*)names[i], VGA_COLOR(VGA_WHITE, VGA_BLACK));
+        if (!buf) { vga_print("  (missing)\n"); continue; }
+        image_t img; char b[12];
+        if (image_decode(buf, size, &img)) {
+            vga_print("  "); vga_print((char*)img.format);
+            vga_print("  "); int_to_str(img.width, b); vga_print(b);
+            vga_print("x"); int_to_str(img.height, b); vga_print(b);
+            if (img.frames > 1) { vga_print("  frames="); int_to_str(img.frames, b); vga_print(b); }
+            uint32_t c = img.pixels[(img.height / 2) * img.width + (img.width / 2)];
+            vga_print("  center=0x"); hex_to_str(c & 0xFFFFFF, b); vga_print(b);
+            vga_print("\n");
+            image_free(&img);
+        } else {
+            vga_print_color("  decode failed\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        }
+        kfree(buf);
+    }
+    vga_print_color("\n  Commands: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("view <file>   (try: view logo.png)\n\n");
+}
+
+static void cmd_view(int argc, char* argv[]) {
+    const char* fname = (argc >= 2) ? argv[1] : "logo.png";
+    uint32_t size = 0;
+    uint8_t* buf = shell_read_file(fname, &size);
+    if (!buf) {
+        vga_print_color("  File not found: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print((char*)fname); vga_print("\n  (try 'view logo.png')\n");
+        return;
+    }
+    vga_print_color("  Opening ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    vga_print((char*)fname); vga_print(" ("); vga_print((char*)image_format_name(buf, size));
+    vga_print(")...\n");
+    image_view(buf, size, fname);
+    kfree(buf);
+}
+
+/* --------------------------------------------------------------------------
+ * Phase 40: Video Playback commands
+ * -------------------------------------------------------------------------- */
+static void cmd_vidinfo(int argc, char* argv[]) {
+    const uint8_t* d; uint32_t sz = 0; uint8_t* fbuf = NULL; const char* name;
+    if (argc >= 2) {
+        fbuf = shell_read_file(argv[1], &sz);
+        if (!fbuf) { vga_print_color("  File not found.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK)); return; }
+        d = fbuf; name = argv[1];
+    } else { d = video_demo(&sz); name = "demo.avi"; }
+
+    vga_print_color("\n  Video Subsystem - Phase 40\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  ==========================\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    vga_print_color("  Container: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("RIFF/AVI    Video: Motion-JPEG    Audio: PCM    Sync: audio clock\n\n");
+
+    avi_info_t in; char b[12];
+    vga_print("  "); vga_print_color((char*)name, VGA_COLOR(VGA_WHITE, VGA_BLACK));
+    if (avi_parse(d, sz, &in)) {
+        vga_print("  "); vga_print(in.vcodec);
+        vga_print("  "); int_to_str(in.width, b); vga_print(b);
+        vga_print("x"); int_to_str(in.height, b); vga_print(b);
+        vga_print("  "); int_to_str(in.frame_count, b); vga_print(b); vga_print(" frames");
+        uint32_t fps = in.us_per_frame ? 1000000u / in.us_per_frame : 0;
+        vga_print("  "); int_to_str((int)fps, b); vga_print(b); vga_print(" fps\n");
+        vga_print_color("  Audio:    ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+        if (in.has_audio) {
+            int_to_str(in.audio_rate, b); vga_print(b); vga_print(" Hz  ");
+            int_to_str(in.audio_channels, b); vga_print(b); vga_print(" ch  ");
+            int_to_str(in.audio_bits, b); vga_print(b); vga_print("-bit  ");
+            int_to_str(in.audio_chunks, b); vga_print(b); vga_print(" chunks\n");
+        } else { vga_print("none\n"); }
+    } else {
+        vga_print_color("  not a valid AVI\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+    }
+    vga_print_color("\n  Commands: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("mplay [file]   (no arg = bundled demo.avi)\n\n");
+    if (fbuf) kfree(fbuf);
+}
+
+static void cmd_mplay(int argc, char* argv[]) {
+    const uint8_t* d; uint32_t sz = 0; uint8_t* fbuf = NULL; const char* name;
+    if (argc >= 2) {
+        fbuf = shell_read_file(argv[1], &sz);
+        if (!fbuf) {
+            vga_print_color("  File not found: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+            vga_print(argv[1]); vga_print("\n  (run 'mplay' alone for the demo)\n");
+            return;
+        }
+        d = fbuf; name = argv[1];
+    } else { d = video_demo(&sz); name = "demo.avi"; }
+
+    vga_print_color("  Playing ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    vga_print((char*)name); vga_print("...\n");
+    video_play(d, sz, name);
+    vga_print("  Done.\n");
+    if (fbuf) kfree(fbuf);
+}
+
+/* --------------------------------------------------------------------------
+ * Phase 41: GPU Acceleration commands
+ * -------------------------------------------------------------------------- */
+static void print_label_num(const char* label, uint32_t v, const char* unit) {
+    char b[12];
+    vga_print((char*)label);
+    int_to_str((int)v, b); vga_print(b);
+    vga_print((char*)unit);
+}
+
+static void cmd_gpuinfo(void) {
+    gpu_info_t gi;
+    bool probed = gpu_get_info(&gi);
+    char b[12];
+
+    vga_print_color("\n  GPU Subsystem - Phase 41\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  ========================\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    vga_print_color("  Driver:   ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("VirtIO-GPU, modern virtio-pci transport (polled controlq)\n");
+    vga_print_color("  Device:   ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print((char*)gpu_status()); vga_print("\n");
+
+    if (probed) {
+        vga_print_color("  Scanout:  ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+        int_to_str(gi.width, b); vga_print(b); vga_print("x");
+        int_to_str(gi.height, b); vga_print(b);
+        vga_print(" B8G8R8X8");
+        print_label_num("  scanouts=", (uint32_t)gi.num_scanouts, "");
+        print_label_num("  ctrlq=", gi.queue_size, " entries\n");
+        vga_print_color("  Backing:  ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+        hex_to_str(gi.backing_addr, b); vga_print(b);
+        vga_print(" (kernel back buffer, zero-copy)");
+        print_label_num("  presents=", gi.presents, "\n");
+        vga_print_color("  Features: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+        hex_to_str(gi.features_hi, b); vga_print(b); vga_print(":");
+        hex_to_str(gi.features_lo, b); vga_print(b);
+        vga_print(" VERSION_1");
+        if (gi.features_lo & 0x2) vga_print(" EDID");
+        vga_print("\n");
+    }
+
+    vga_print_color("  Mode:     ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print(gpu_active() ? "virtio scanout active (VGA compat retired)\n"
+                           : "VESA framebuffer fallback\n");
+    vga_print_color("\n  Commands: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("gpubench   sprites\n\n");
+}
+
+/* Run fn() in a tight loop for at least min_ticks timer ticks (tick-edge
+ * aligned). Returns the iteration count; *ms_out gets the elapsed time. */
+static uint32_t bench_loop(void (*fn)(void), uint32_t min_ticks, uint32_t* ms_out) {
+    uint32_t t0 = system_ticks;
+    while (system_ticks == t0) { }
+    uint32_t start = system_ticks, n = 0;
+    while ((system_ticks - start) < min_ticks) { fn(); n++; }
+    *ms_out = (system_ticks - start) * 55;
+    if (*ms_out == 0) *ms_out = 1;
+    return n;
+}
+
+static uint32_t bench_tint;
+static void bf_present_full(void) { fb_flip(); }
+static void bf_present_rect(void) {
+    gpu_present((int)fb_get_width() / 2 - 32, (int)fb_get_height() / 2 - 32, 64, 64);
+}
+static void bf_legacy_flip(void)  { fb_flip_legacy(); }
+static void bf_gpu_fill(void) {
+    bench_tint ^= 0x003838;
+    gpu_fill(0, 0, (int)fb_get_width(), (int)fb_get_height(), 0x102870 ^ bench_tint);
+}
+static void bf_sw_fill(void) {
+    bench_tint ^= 0x003838;
+    fb_fill_rect(0, 0, (int)fb_get_width(), (int)fb_get_height(), 0x701028 ^ bench_tint);
+}
+static void bf_gpu_blit(void) {
+    gpu_blit((int)fb_get_width() / 4, (int)fb_get_height() / 4, 0, 0,
+             (int)fb_get_width() / 2, (int)fb_get_height() / 2);
+}
+
+static void bench_report(const char* name, uint32_t n, uint32_t ms, uint32_t kb_per_op) {
+    char b[12];
+    vga_print("  ");
+    vga_print_color((char*)name, VGA_COLOR(VGA_WHITE, VGA_BLACK));
+    int_to_str((int)n, b); vga_print("  "); vga_print(b); vga_print(" ops/");
+    int_to_str((int)ms, b); vga_print(b); vga_print("ms = ");
+    int_to_str((int)(n * 1000 / ms), b);
+    vga_print_color(b, VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    if (kb_per_op) {
+        vga_print(" fps  (");
+        int_to_str((int)(n * kb_per_op / 1024 * 1000 / ms), b); vga_print(b);
+        vga_print(" MB/s)");
+    } else {
+        vga_print(" fps");
+    }
+    vga_print("\n");
+}
+
+static void cmd_gpubench(void) {
+    if (!fb_is_vesa()) { vga_print("  gpubench needs VESA mode.\n"); return; }
+    bool gpu_on = gpu_active();
+    uint32_t sw = fb_get_width(), sh = fb_get_height();
+    uint32_t frame_kb = sw * sh * 4 / 1024;          /* 3072 KB at 1024x768 */
+
+    vga_print("  Benchmarking (screen will flicker)...\n");
+    vga_flush();
+
+    uint32_t n_full = 0,  ms_full = 1;
+    uint32_t n_rect = 0,  ms_rect = 1;
+    uint32_t n_leg  = 0,  ms_leg  = 1;
+    uint32_t n_gf   = 0,  ms_gf   = 1;
+    uint32_t n_sf   = 0,  ms_sf   = 1;
+    uint32_t n_bl   = 0,  ms_bl   = 1;
+
+    if (gpu_on) {
+        n_full = bench_loop(bf_present_full, 9, &ms_full);
+        n_rect = bench_loop(bf_present_rect, 9, &ms_rect);
+    }
+    n_leg = bench_loop(bf_legacy_flip, 9, &ms_leg);
+    n_gf  = bench_loop(bf_gpu_fill,    9, &ms_gf);
+    n_sf  = bench_loop(bf_sw_fill,     9, &ms_sf);
+    n_bl  = bench_loop(bf_gpu_blit,    9, &ms_bl);
+
+    vga_clear();
+    vga_print_color("\n  GPU Benchmark - Phase 41\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  ========================\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+
+    if (gpu_on) {
+        bench_report("Present full screen (GPU) : ", n_full, ms_full, 0);
+        bench_report("Present 64x64 dirty (GPU) : ", n_rect, ms_rect, 0);
+    } else {
+        vga_print("  GPU presents skipped (VirtIO-GPU inactive)\n");
+    }
+    bench_report("VESA flip (3MB memcpy)    : ", n_leg, ms_leg, 0);
+    bench_report("Fill screen (rep stosl)   : ", n_gf, ms_gf, frame_kb);
+    bench_report("Fill screen (per-pixel sw): ", n_sf, ms_sf, frame_kb);
+    bench_report("Blit 512x384 (rep movsl)  : ", n_bl, ms_bl, frame_kb / 4);
+
+    if (gpu_on) {
+        uint32_t fps = n_full * 1000 / ms_full;
+        vga_print_color("\n  60 fps desktop: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+        if (fps >= 60) {
+            char b[12]; int_to_str((int)fps, b);
+            vga_print_color("YES", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+            vga_print(" - full-frame present runs at "); vga_print(b); vga_print(" fps\n");
+        } else {
+            vga_print("below target\n");
+        }
+    }
+    vga_print("\n");
+}
+
+static uint32_t demo_rng;
+static uint32_t demo_rand(void) {
+    demo_rng = demo_rng * 1664525u + 1013904223u;
+    return demo_rng >> 8;
+}
+
+#define DEMO_BALLS 10
+static void cmd_sprites(void) {
+    if (!fb_is_vesa()) { vga_print("  sprites needs VESA mode.\n"); return; }
+    int sw = (int)fb_get_width(), sh = (int)fb_get_height();
+    static const uint32_t palette[DEMO_BALLS] = {
+        0xE5484D, 0x46A758, 0x3E63DD, 0xF5A524, 0x8E4EC6,
+        0x05A2C2, 0xE93D82, 0x99C24D, 0xF76B15, 0x00B4A0
+    };
+
+    int ids[DEMO_BALLS], px[DEMO_BALLS], py[DEMO_BALLS], vx[DEMO_BALLS], vy[DEMO_BALLS], dim[DEMO_BALLS];
+    demo_rng = system_ticks * 2654435761u + 1;
+    int made = 0;
+    for (int i = 0; i < DEMO_BALLS; i++) {
+        dim[made] = 32 + (int)(demo_rand() % 5) * 8;        /* 32..64 px */
+        ids[made] = sprite_create(dim[made], dim[made]);
+        if (ids[made] < 0) break;
+        sprite_paint_ball(ids[made], palette[i]);
+        sprite_set_z(ids[made], dim[made]);                  /* big = near = on top */
+        px[made] = (int)(demo_rand() % (uint32_t)(sw - dim[made]));
+        py[made] = (int)(demo_rand() % (uint32_t)(sh - dim[made]));
+        vx[made] = ((int)(demo_rand() % 5) + 2) * ((demo_rand() & 1) ? 1 : -1);
+        vy[made] = ((int)(demo_rand() % 5) + 2) * ((demo_rand() & 1) ? 1 : -1);
+        made++;
+    }
+    if (made == 0) { vga_print("  sprite pool/heap exhausted\n"); return; }
+
+    /* Animate until a key is pressed (or ~30s safety cap). */
+    uint32_t frames = 0, fps = 0, win_frames = 0;
+    uint32_t t_start = system_ticks, win_start = system_ticks;
+    char hud[96], b[12];
+
+    while ((system_ticks - t_start) < 545) {                 /* ~30 s cap */
+        if (keyboard_has_key()) { keyboard_getchar(); break; }
+
+        /* Vertical gradient backdrop in 4px bands (rep stosl fills). */
+        for (int y = 0; y < sh; y += 4) {
+            uint32_t r = 10 + (uint32_t)y * 50 / (uint32_t)sh;
+            uint32_t g = 8  + (uint32_t)y * 14 / (uint32_t)sh;
+            uint32_t bl = 42 + (uint32_t)y * 58 / (uint32_t)sh;
+            gpu_fill(0, y, sw, 4, FB_RGB(r, g, bl));
+        }
+
+        for (int i = 0; i < made; i++) {
+            px[i] += vx[i]; py[i] += vy[i];
+            if (px[i] <= 0)             { px[i] = 0;             vx[i] = -vx[i]; }
+            if (px[i] >= sw - dim[i])   { px[i] = sw - dim[i];   vx[i] = -vx[i]; }
+            if (py[i] <= 0)             { py[i] = 0;             vy[i] = -vy[i]; }
+            if (py[i] >= sh - dim[i])   { py[i] = sh - dim[i];   vy[i] = -vy[i]; }
+            sprite_move(ids[i], px[i], py[i]);
+        }
+        sprite_composite();
+
+        hud[0] = '\0';
+        strcat(hud, "Phase 41 sprite engine   ");
+        int_to_str(made, b); strcat(hud, b);
+        strcat(hud, " sprites   ");
+        int_to_str((int)fps, b); strcat(hud, b);
+        strcat(hud, " fps   (any key to exit)");
+        gfx_draw_text(16, 12, hud, FB_RGB(235, 235, 245), FB_RGB(10, 8, 42));
+
+        fb_flip();
+        frames++; win_frames++;
+
+        /* Refresh the fps readout every ~0.5s. */
+        if ((system_ticks - win_start) >= 9) {
+            fps = win_frames * 1000 / ((system_ticks - win_start) * 55);
+            win_frames = 0; win_start = system_ticks;
+        }
+    }
+
+    uint32_t total_ms = (system_ticks - t_start) * 55;
+    if (total_ms == 0) total_ms = 1;
+    sprite_destroy_all();
+    vga_clear();
+
+    vga_print_color("\n  Sprite demo - Phase 41\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  ======================\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    print_label_num("  Sprites:  ", (uint32_t)made, " alpha-blended, z-ordered\n");
+    print_label_num("  Frames:   ", frames, "");
+    print_label_num("  in ", total_ms, " ms = ");
+    char fb_[12]; int_to_str((int)(frames * 1000 / total_ms), fb_);
+    vga_print_color(fb_, VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    vga_print(" fps average\n");
+    vga_print_color("  Pipeline: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print(gpu_active() ? "gpu_fill -> sprite_composite -> VirtIO-GPU flush (zero-copy)\n\n"
+                           : "gpu_fill -> sprite_composite -> VESA memcpy flip\n\n");
+}
+
+/* --------------------------------------------------------------------------
+ * Phase 42: Gaming Framework commands
+ * -------------------------------------------------------------------------- */
+static void cmd_gameinfo(void) {
+    char b[12];
+    vga_print_color("\n  Gaming Framework - Phase 42\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  ===========================\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+
+    vga_print_color("  API:      ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("NexusSDL (game.h) - SDL-like kernel game API\n");
+    vga_print_color("  Video:    ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("256-color surface up to 320x240, integer-scaled to\n");
+    vga_print("            1024x768 via ");
+    vga_print(gpu_active() ? "VirtIO-GPU dirty-rect presents\n"
+                           : "VESA flip (GPU inactive)\n");
+    vga_print_color("  Input:    ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print((char*)gamepad_name());
+    vga_print(" - raw scancode hook, held-state + edges\n");
+    vga_print_color("  Timing:   ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("PIT tick-locked frames (~18 fps, deterministic 55 ms)\n");
+    vga_print_color("  Math:     ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("Q16.16 fixed point, idiv-based div, 1024-step LUT trig\n");
+    vga_print_color("  Sound:    ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("non-blocking speaker sfx + AC'97 jingles (audio.h)\n");
+
+    vga_print_color("\n  Pad map:  ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    for (int i = 0; i < PAD_BTN_COUNT; i++) {
+        vga_print((char*)gamepad_btn_name(i));
+        vga_print("=");
+        vga_print((char*)gamepad_btn_keys(i));
+        if (i == 5) vga_print("\n            ");
+        else if (i < PAD_BTN_COUNT - 1) vga_print("  ");
+    }
+    vga_print("\n");
+
+    vga_print_color("\n  Status:   ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print((char*)game_status()); vga_print("\n");
+    vga_print_color("  Games:    ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    int_to_str((int)game_sessions(), b); vga_print(b);
+    vga_print(" played this boot\n");
+    vga_print_color("\n  Commands: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("gamepad (input test)   doom (FPS)   breakout\n\n");
+}
+
+/* ============================================================================
+ * Phase 43: Accessibility commands
+ * ============================================================================ */
+
+static void cmd_accinfo(void) {
+    char b[12];
+    vga_print_color("\n  Accessibility - Phase 43\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  ========================\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+
+    vga_print_color("  Screen reader: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print(accessibility_reader_on() ? "ON  (PC-speaker earcons + spell-out)\n"
+                                        : "off (PC-speaker earcons + spell-out)\n");
+    vga_print_color("  High contrast: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print(accessibility_contrast_on() ? "ON  (hicon theme)\n" : "off (hicon theme)\n");
+    vga_print_color("  Text scale:    ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    int_to_str(accessibility_font_scale(), b); vga_print(b); vga_print("x  (1-4)\n");
+
+    vga_print_color("\n  Hotkeys (global):\n", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("    Alt+Shift+C  toggle high contrast\n");
+    vga_print("    Alt+Shift+S  toggle screen reader\n");
+    vga_print("    Alt+Shift+=  text larger    Alt+Shift+-  text smaller\n");
+    vga_print("    Alt+Shift+A  announce status\n");
+    vga_print_color("\n  Commands: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("fontsize <1-4>  contrast [on|off]  reader <on|off>  say <text>\n\n");
+}
+
+static void cmd_fontsize(int argc, char* argv[]) {
+    if (argc < 2) {
+        char b[12];
+        vga_print("  Usage: fontsize <1-4>\n  Current: ");
+        int_to_str(font_get_scale(), b); vga_print(b); vga_print("x\n");
+        return;
+    }
+    int n = 0;
+    for (int i = 0; argv[1][i]; i++) {
+        if (argv[1][i] < '0' || argv[1][i] > '9') { n = -1; break; }
+        n = n * 10 + (argv[1][i] - '0');
+    }
+    if (n < 1 || n > 4) {
+        vga_print_color("  Scale must be 1-4.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        return;
+    }
+    font_set_scale(n);
+    vga_print_color("  Text scale set to ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    char b[12]; int_to_str(n, b); vga_print(b); vga_print("x (affects desktop/GUI text)\n");
+}
+
+static void cmd_contrast(int argc, char* argv[]) {
+    if (argc >= 2) {
+        bool want_on = (strcmp(argv[1], "on") == 0);
+        bool want_off = (strcmp(argv[1], "off") == 0);
+        if (!want_on && !want_off) { vga_print("  Usage: contrast [on|off]\n"); return; }
+        if (want_on != accessibility_contrast_on()) accessibility_toggle_contrast();
+    } else {
+        accessibility_toggle_contrast();
+    }
+    vga_print_color("  High contrast: ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    vga_print(accessibility_contrast_on() ? "ON\n" : "off\n");
+}
+
+static void cmd_reader(int argc, char* argv[]) {
+    if (argc >= 2) {
+        if (strcmp(argv[1], "on") == 0) accessibility_set_reader(true);
+        else if (strcmp(argv[1], "off") == 0) accessibility_set_reader(false);
+        else { vga_print("  Usage: reader <on|off>\n"); return; }
+    } else {
+        accessibility_set_reader(!accessibility_reader_on());
+    }
+    vga_print_color("  Screen reader: ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    vga_print(accessibility_reader_on() ? "ON\n" : "off\n");
+}
+
+static void cmd_say(int argc, char* argv[]) {
+    if (argc < 2) { vga_print("  Usage: say <text>\n"); return; }
+    /* Reassemble the words into one phrase, then spell it audibly. */
+    static char phrase[128];
+    int p = 0;
+    for (int i = 1; i < argc && p < (int)sizeof(phrase) - 1; i++) {
+        if (i > 1 && p < (int)sizeof(phrase) - 1) phrase[p++] = ' ';
+        for (int j = 0; argv[i][j] && p < (int)sizeof(phrase) - 1; j++)
+            phrase[p++] = argv[i][j];
+    }
+    phrase[p] = '\0';
+    vga_print_color("  Speaking: ", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print(phrase); vga_print("\n");
+    acc_say_force(phrase);   /* always demonstrates, even if reader master is off */
+}
+
+/* --- Phase 46: AI Assistant -------------------------------------------------
+ * Reassemble argv[from..] into one phrase (the assistant takes free text). */
+static void shell_join_args(int argc, char* argv[], int from, char* out, int max) {
+    int p = 0;
+    for (int i = from; i < argc && p < max - 1; i++) {
+        if (i > from && p < max - 1) out[p++] = ' ';
+        for (int j = 0; argv[i][j] && p < max - 1; j++) out[p++] = argv[i][j];
+    }
+    out[p] = '\0';
+}
+
+static void cmd_ai(int argc, char* argv[]) {
+    static char topic[160];
+    shell_join_args(argc, argv, 1, topic, sizeof(topic));
+    assistant_help(topic[0] ? topic : 0);
+}
+
+static void cmd_ask(int argc, char* argv[]) {
+    if (argc < 2) {
+        vga_print("  Usage: ask <what you want in plain English>\n");
+        vga_print("  e.g.  ask show me the files    ask what time is it\n");
+        return;
+    }
+    static char q[200];
+    shell_join_args(argc, argv, 1, q, sizeof(q));
+    assistant_ask(q, true);   /* true = run the resolved command if confident */
+}
+
+static void cmd_find(int argc, char* argv[]) {
+    if (argc < 2) { vga_print("  Usage: find <query>\n"); return; }
+    static char q[160];
+    shell_join_args(argc, argv, 1, q, sizeof(q));
+    assistant_find(q);
+}
+
+/* --- Phase 47: Mobile / Embedded mode -------------------------------------- */
+static void cmd_gesture(int argc, char* argv[]) {
+    if (argc >= 2 && strcmp(argv[1], "on") == 0) {
+        mobile_set_touch(true);
+        vga_print_color("  Touch mode ON", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+        vga_print(" — drag/tap/swipe with the mouse; run 'gesture' to see the last one.\n");
+        if (!fb_is_vesa()) vga_print_color("  (best in the desktop/GUI; needs VESA mouse)\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    } else if (argc >= 2 && strcmp(argv[1], "off") == 0) {
+        mobile_set_touch(false);
+        vga_print_color("  Touch mode OFF\n", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    } else {
+        char n[12];
+        vga_print_color("\n  Touch / gestures\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+        vga_print("  Mode: "); vga_print(mobile_touch_on() ? "ON" : "OFF");
+        vga_print("   Last gesture: ");
+        vga_print_color(mobile_gesture_name(mobile_last_gesture()), VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+        vga_print("\n  Recognized this session: ");
+        int_to_str((int)mobile_gesture_count(), n); vga_print(n);
+        vga_print("\n  Usage: gesture on | off   (then tap/drag/swipe; gestures: tap,\n");
+        vga_print("         long-press, drag, swipe-up/down/left/right)\n\n");
+    }
+}
+
+static void cmd_orientation(int argc, char* argv[]) {
+    if (argc >= 2 && (strcmp(argv[1],"portrait")==0 || strcmp(argv[1],"p")==0)) {
+        mobile_set_orientation(ORIENT_PORTRAIT);
+    } else if (argc >= 2 && (strcmp(argv[1],"landscape")==0 || strcmp(argv[1],"l")==0)) {
+        mobile_set_orientation(ORIENT_LANDSCAPE);
+    } else if (argc >= 2 && strcmp(argv[1],"toggle")==0) {
+        mobile_set_orientation(mobile_is_portrait() ? ORIENT_LANDSCAPE : ORIENT_PORTRAIT);
+    } else if (argc >= 2) {
+        vga_print("  Usage: orientation portrait|landscape|toggle\n"); return;
+    }
+    char a[12], b[12];
+    vga_print_color("\n  Orientation: ", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color(mobile_is_portrait() ? "PORTRAIT" : "LANDSCAPE",
+                    VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    vga_print("\n  Logical screen: ");
+    int_to_str(mobile_screen_w(), a); int_to_str(mobile_screen_h(), b);
+    vga_print(a); vga_print(" x "); vga_print(b); vga_print("\n");
+    vga_print_color("  (logical model — layout-aware apps read mobile_screen_w/h;\n",
+                    VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    vga_print_color("   the physical framebuffer is not rotated)\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+}
+
+static void cmd_lowpower(int argc, char* argv[]) {
+    if (argc >= 2 && strcmp(argv[1],"on")==0)  mobile_set_lowpower(true);
+    else if (argc >= 2 && strcmp(argv[1],"off")==0) mobile_set_lowpower(false);
+    else if (argc >= 2) { vga_print("  Usage: lowpower on|off\n"); return; }
+    char n[12];
+    vga_print_color("\n  Low-power mode: ", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color(mobile_lowpower_on() ? "ON" : "OFF",
+                    mobile_lowpower_on() ? VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK)
+                                         : VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("\n  Idle redraw interval: ");
+    int_to_str(mobile_redraw_interval(), n); vga_print(n); vga_print(" ticks");
+    vga_print(mobile_lowpower_on() ? "  (~4s — CPU stays in HLT longer)\n\n"
+                                   : "  (~1s — normal)\n\n");
+}
+
+static void cmd_arm(void) { mobile_arm_status(); }
+
+static void cmd_mobileinfo(void) {
+    char a[12], b[12];
+    vga_print_color("\n  Mobile / Embedded Mode (Phase 47)\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  =================================\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    vga_print("  Touch mode:   "); vga_print(mobile_touch_on() ? "ON" : "OFF");
+    vga_print("   (gestures: tap/long-press/drag/swipe)\n");
+    vga_print("  Last gesture: "); vga_print(mobile_gesture_name(mobile_last_gesture()));
+    vga_print("   count="); int_to_str((int)mobile_gesture_count(), a); vga_print(a); vga_print("\n");
+    vga_print("  Orientation:  "); vga_print(mobile_is_portrait() ? "portrait" : "landscape");
+    vga_print("   logical "); int_to_str(mobile_screen_w(), a); int_to_str(mobile_screen_h(), b);
+    vga_print(a); vga_print("x"); vga_print(b); vga_print("\n");
+    vga_print("  Low-power:    "); vga_print(mobile_lowpower_on() ? "ON" : "OFF");
+    vga_print("   redraw every "); int_to_str(mobile_redraw_interval(), a); vga_print(a); vga_print(" ticks\n");
+    vga_print("  Build target: i686-elf (x86-32) — see 'arm' for ARM port notes\n");
+    vga_print_color("  Commands: ", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    vga_print("gesture  orientation  lowpower  arm\n\n");
+}
+
+/* --- Phase 48: Performance ------------------------------------------------- */
+static void cmd_perf(void)    { perf_run(); }
+static void cmd_smp(void)     { perf_smp_status(); }
+static void cmd_preempt(void) { perf_preempt_status(); }
+
+/* --- Phase 49: App Store & Ecosystem --------------------------------------- *
+ * Front-end over the package manager (pkg.c). Subcommands:
+ *   store                 featured rail (default)
+ *   store list            all apps, grouped by category
+ *   store category <c>    system|productivity|games|other
+ *   store search <term>   name/description/tagline match
+ *   store info <app>      detail page (rating, deps, sandbox, status)
+ *   store install <app>   install via the storefront (applies sandbox profile)
+ *   store update          check for updates (re-probe + version compare)
+ *   store upgrade         upgrade every outdated app
+ *   store sandbox <app>   show the cooperative sandbox profile
+ *   store sdk [install]   developer SDK docs / scaffold into the filesystem
+ */
+static void store_usage(void) {
+    vga_print_color("\n  store — NexusOS App Store (Phase 49)\n",
+                    VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  store", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("                  featured apps\n");
+    vga_print_color("  store list", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("             browse all apps by category\n");
+    vga_print_color("  store category <c>", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("     system | productivity | games | other\n");
+    vga_print_color("  store search <term>", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("    search the catalog\n");
+    vga_print_color("  store info <app>", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("       detail page\n");
+    vga_print_color("  store install <app>", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("    install (applies sandbox profile)\n");
+    vga_print_color("  store update", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("           check for app updates\n");
+    vga_print_color("  store upgrade", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("          upgrade all outdated apps\n");
+    vga_print_color("  store sandbox <app>", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("    show the cooperative sandbox profile\n");
+    vga_print_color("  store sdk [install]", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("    developer SDK docs / scaffold\n\n");
+}
+
+static void cmd_store(int argc, char* argv[]) {
+    if (argc < 2) { appstore_show_featured(); return; }
+
+    const char* sub = argv[1];
+    if (strcmp(sub, "help") == 0) {
+        store_usage();
+    } else if (strcmp(sub, "list") == 0) {
+        appstore_show_all();
+    } else if (strcmp(sub, "featured") == 0) {
+        appstore_show_featured();
+    } else if (strcmp(sub, "category") == 0) {
+        if (argc < 3) { vga_print("  Usage: store category <system|productivity|games|other>\n"); return; }
+        const char* c = argv[2];
+        if      (strcmp(c, "system") == 0)       appstore_show_category(APP_CAT_SYSTEM);
+        else if (strcmp(c, "productivity") == 0) appstore_show_category(APP_CAT_PRODUCTIVITY);
+        else if (strcmp(c, "games") == 0)        appstore_show_category(APP_CAT_GAMES);
+        else if (strcmp(c, "other") == 0)        appstore_show_category(APP_CAT_OTHER);
+        else vga_print("  Categories: system, productivity, games, other\n");
+    } else if (strcmp(sub, "search") == 0) {
+        if (argc < 3) { vga_print("  Usage: store search <term>\n"); return; }
+        appstore_search(argv[2]);
+    } else if (strcmp(sub, "info") == 0) {
+        if (argc < 3) { vga_print("  Usage: store info <app>\n"); return; }
+        appstore_show_detail(argv[2]);
+    } else if (strcmp(sub, "install") == 0) {
+        if (argc < 3) { vga_print("  Usage: store install <app>\n"); return; }
+        vga_print("\n");
+        appstore_install(argv[2]);
+        vga_print("\n");
+    } else if (strcmp(sub, "update") == 0) {
+        appstore_check_updates();
+    } else if (strcmp(sub, "upgrade") == 0) {
+        appstore_upgrade_all();
+    } else if (strcmp(sub, "sandbox") == 0) {
+        if (argc < 3) { vga_print("  Usage: store sandbox <app>\n"); return; }
+        appstore_sandbox_info(argv[2]);
+    } else if (strcmp(sub, "sdk") == 0) {
+        if (argc >= 3 && strcmp(argv[2], "install") == 0) appstore_sdk_install();
+        else appstore_sdk_docs();
+    } else {
+        vga_print_color("  Unknown store subcommand: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print((char*)sub); vga_print("\n");
+        store_usage();
+    }
+}
+
+/* --- Phase 50: v5.0 Grand Finale ------------------------------------------- *
+ * urun <file>      universal binary launcher (PE/ELF/Mach-O auto-detect)
+ * install [disk yes]  disk installer (dry-run plan, or real MBR+system write)
+ * finale | v5      the v5.0 release banner + footprint report card
+ */
+static void cmd_urun(int argc, char* argv[]) {
+    if (argc < 2) { vga_print("  Usage: urun <file>   (PE/ELF/Mach-O)\n"); return; }
+    finale_urun(argv[1]);
+}
+
+static void cmd_install(int argc, char* argv[]) {
+    /* `install` or `install plan` = dry run; `install disk yes` = real write. */
+    if (argc >= 3 && strcmp(argv[1], "disk") == 0 && strcmp(argv[2], "yes") == 0) {
+        finale_install_disk(true);
+    } else if (argc >= 2 && strcmp(argv[1], "disk") == 0) {
+        vga_print_color("\n  Confirm with 'install disk yes' to write to the IDE disk.\n",
+                        VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+        finale_install_plan();
+    } else {
+        finale_install_plan();
+    }
+}
+
+static void cmd_finale(void) { finale_show(); }
+
+/* --- Phase 51: NPFS journaling filesystem ---------------------------------- *
+ * npfs                 status / stats
+ * npfs format          lay down a fresh filesystem (explicit; never automatic)
+ * npfs mount           mount an existing filesystem + replay the journal
+ * npfs ls              list files
+ * npfs new <name>      create an empty file
+ * npfs write <n> <txt> write text to a file (journaled)
+ * npfs cat <name>      read a file back
+ * npfs rm <name>       delete a file (journaled)
+ * npfs stat            superblock + usage report
+ * npfs journal         journal head/tail + pending-txn status
+ * npfs crashtest       prove the journal recovers from a simulated crash
+ */
+static void npfs_usage(void) {
+    vga_print_color("\n  npfs — NexusOS Persistent File System (Phase 51)\n",
+                    VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  npfs format", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("            create a fresh journaling FS (explicit)\n");
+    vga_print_color("  npfs mount", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("             mount existing FS + replay journal\n");
+    vga_print_color("  npfs ls", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("                list files\n");
+    vga_print_color("  npfs new <name>", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("        create an empty file\n");
+    vga_print_color("  npfs write <n> <txt>", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("   write text (journaled)\n");
+    vga_print_color("  npfs cat <name>", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("        read a file\n");
+    vga_print_color("  npfs rm <name>", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("         delete a file (journaled)\n");
+    vga_print_color("  npfs stat", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("              superblock + usage report\n");
+    vga_print_color("  npfs journal", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("           journal status (pending txn?)\n");
+    vga_print_color("  npfs crashtest", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("         prove journal crash recovery\n\n");
+}
+
+static void cmd_npfs(int argc, char* argv[]) {
+    if (argc < 2) {
+        if (npfs_is_mounted()) npfs_show_stats();
+        else npfs_usage();
+        return;
+    }
+    const char* sub = argv[1];
+
+    if (strcmp(sub, "help") == 0) {
+        npfs_usage();
+    } else if (strcmp(sub, "format") == 0) {
+        int r = npfs_format();
+        if (r == NPFS_OK) {
+            vga_print_color("\n  NPFS formatted. ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+            vga_print("Journaling filesystem ready.\n\n");
+        } else {
+            vga_print_color("  format failed: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+            vga_print((char*)npfs_strerror(r)); vga_print("\n");
+        }
+    } else if (strcmp(sub, "mount") == 0) {
+        int r = npfs_mount();
+        if (r == NPFS_OK) vga_print_color("  NPFS mounted.\n", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+        else { vga_print_color("  mount failed: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+               vga_print((char*)npfs_strerror(r)); vga_print("\n"); }
+    } else if (strcmp(sub, "ls") == 0) {
+        npfs_list();
+    } else if (strcmp(sub, "stat") == 0) {
+        npfs_show_stats();
+    } else if (strcmp(sub, "journal") == 0) {
+        npfs_journal_status();
+    } else if (strcmp(sub, "crashtest") == 0) {
+        npfs_crashtest();
+    } else if (strcmp(sub, "new") == 0) {
+        if (argc < 3) { vga_print("  Usage: npfs new <name>\n"); return; }
+        int r = npfs_create(argv[2]);
+        if (r == NPFS_OK) { vga_print("  Created "); vga_print(argv[2]); vga_print("\n"); }
+        else { vga_print_color("  error: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+               vga_print((char*)npfs_strerror(r)); vga_print("\n"); }
+    } else if (strcmp(sub, "write") == 0) {
+        if (argc < 4) { vga_print("  Usage: npfs write <name> <text>\n"); return; }
+        char text[256];
+        shell_join_args(argc, argv, 3, text, sizeof(text));
+        /* Auto-create if missing, then write. */
+        if (npfs_create(argv[2]) == NPFS_ERR_TOOBIG) {
+            vga_print("  name too long.\n"); return;
+        }
+        int r = npfs_write(argv[2], (const uint8_t*)text, (uint32_t)strlen(text));
+        if (r == NPFS_OK) {
+            vga_print("  Wrote "); { char b[12]; int_to_str((int)strlen(text), b); vga_print(b); }
+            vga_print(" bytes to "); vga_print(argv[2]); vga_print(" (journaled)\n");
+        } else { vga_print_color("  error: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+                 vga_print((char*)npfs_strerror(r)); vga_print("\n"); }
+    } else if (strcmp(sub, "cat") == 0) {
+        if (argc < 3) { vga_print("  Usage: npfs cat <name>\n"); return; }
+        static uint8_t buf[8192];
+        uint32_t got = 0;
+        int r = npfs_read(argv[2], buf, sizeof(buf) - 1, &got);
+        if (r != NPFS_OK) { vga_print_color("  error: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+                            vga_print((char*)npfs_strerror(r)); vga_print("\n"); return; }
+        buf[got] = '\0';
+        vga_print("\n"); vga_print((char*)buf); vga_print("\n\n");
+    } else if (strcmp(sub, "rm") == 0) {
+        if (argc < 3) { vga_print("  Usage: npfs rm <name>\n"); return; }
+        int r = npfs_delete(argv[2]);
+        if (r == NPFS_OK) { vga_print("  Deleted "); vga_print(argv[2]); vga_print("\n"); }
+        else { vga_print_color("  error: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+               vga_print((char*)npfs_strerror(r)); vga_print("\n"); }
+    } else {
+        vga_print_color("  Unknown npfs subcommand: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print((char*)sub); vga_print("\n");
+        npfs_usage();
+    }
+}
+
+static void cmd_gamepad(void) {
+    if (!fb_is_vesa()) { vga_print("  gamepad needs VESA mode.\n"); return; }
+    if (!game_open(320, 200, "Game Controller Test - Phase 42 (Esc quits)")) {
+        vga_print("  gamepad: could not open game surface.\n");
+        return;
+    }
+
+    /* button box layout: x, y, w, h per PAD_* id (SNES-ish arrangement) */
+    static const int box[PAD_BTN_COUNT][4] = {
+        {  52,  62, 28, 22 },   /* UP     */
+        {  52, 110, 28, 22 },   /* DOWN   */
+        {  20,  86, 28, 22 },   /* LEFT   */
+        {  84,  86, 28, 22 },   /* RIGHT  */
+        { 272,  86, 28, 22 },   /* A      */
+        { 238, 110, 28, 22 },   /* B      */
+        { 238,  62, 28, 22 },   /* X      */
+        { 204,  86, 28, 22 },   /* Y      */
+        {  20,  30, 44, 16 },   /* L      */
+        { 256,  30, 44, 16 },   /* R      */
+        { 174, 150, 52, 16 },   /* START  */
+        {  94, 150, 52, 16 },   /* SELECT */
+    };
+
+    uint32_t events = 0;
+    uint32_t t_start = game_ms();
+    pad_event_t ev;
+    char b[12], line[36];
+
+    while ((game_ms() - t_start) < 60000) {
+        gamepad_poll();
+        if (gamepad_key_held(0x01, false)) break;      /* Esc exits */
+        while (gamepad_next_event(&ev)) events++;
+
+        game_clear(game_ramp(RAMP_GRAY, 15));
+        game_text_center(8, "12-BUTTON VIRTUAL GAME PAD", 15);
+        game_text_center(18, "PRESS KEYS - BOXES LIGHT UP - ESC EXITS", 7);
+
+        for (int i = 0; i < PAD_BTN_COUNT; i++) {
+            bool on = gamepad_held(i);
+            uint8_t fill = on ? game_ramp(RAMP_GREEN, 2) : game_ramp(RAMP_GRAY, 12);
+            uint8_t edge = on ? game_ramp(RAMP_GREEN, 0) : game_ramp(RAMP_GRAY, 8);
+            game_fill(box[i][0], box[i][1], box[i][2], box[i][3], fill);
+            game_rect(box[i][0], box[i][1], box[i][2], box[i][3], edge);
+            int tx = box[i][0] + (box[i][2] - (int)strlen(gamepad_btn_name(i)) * 8) / 2;
+            game_text(tx, box[i][1] + (box[i][3] - 8) / 2,
+                      gamepad_btn_name(i), on ? 0 : 15);
+        }
+
+        strcpy(line, "HELD ");
+        int held = 0;
+        for (int i = 0; i < PAD_BTN_COUNT; i++) if (gamepad_held(i)) held++;
+        int_to_str(held, b); strcat(line, b);
+        strcat(line, "   EVENTS "); int_to_str((int)events, b); strcat(line, b);
+        game_text(20, 180, line, 14);
+        strcpy(line, "FPS "); int_to_str((int)game_fps(), b); strcat(line, b);
+        game_text(264, 180, line, 7);
+
+        game_present();
+        game_sync();
+    }
+
+    game_close();
+    vga_clear();
+    vga_print_color("\n  Game controller test - Phase 42\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  ===============================\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    vga_print("  Source:   "); vga_print((char*)gamepad_name()); vga_print("\n");
+    print_label_num("  Events:   ", events, " press/release transitions captured\n");
+    vga_print("\n");
+}
+
+/* --------------------------------------------------------------------------
  * shell_pipe_redirect: Handle |, >, < operators
  * Returns true if handled (caller should not execute_command)
  * -------------------------------------------------------------------------- */
@@ -1603,7 +2996,7 @@ static void execute_command(char* input) {
     else if (strcmp(argv[0], "echo")     == 0) cmd_echo(argc, argv);
     else if (strcmp(argv[0], "color")    == 0) cmd_color(argc, argv);
     else if (strcmp(argv[0], "history")  == 0) cmd_history_show();
-    else if (strcmp(argv[0], "ls")       == 0) cmd_ls();
+    else if (strcmp(argv[0], "ls")       == 0) cmd_ls(argc, argv);
     else if (strcmp(argv[0], "cat")      == 0) cmd_cat(argc, argv);
     else if (strcmp(argv[0], "head")     == 0) cmd_head(argc, argv);
     else if (strcmp(argv[0], "tail")     == 0) cmd_tail(argc, argv);
@@ -1764,6 +3157,132 @@ static void execute_command(char* input) {
             rshell_start();
         }
     }
+    /* ===================== Phase 45: Cloud & Sync ===================== */
+    else if (strcmp(argv[0], "vnc") == 0) {
+        if (argc >= 2 && strcmp(argv[1], "stop") == 0) {
+            vnc_stop();
+        } else if (argc >= 2 && strcmp(argv[1], "serve") == 0) {
+            /* Interactive serve loop: start the server and pump it until Esc,
+             * exactly like the ping/doom blocking-command pattern. */
+            if (!vnc_is_running()) vnc_start();
+            vga_print_color("\n  VNC server running on port 5900.\n",
+                            VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+            vga_print("  Connect from the host:  vncviewer 127.0.0.1:5900\n");
+            vga_print_color("  Press Esc to return to the shell (server keeps running).\n\n",
+                            VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+            for (;;) {
+                net_poll();
+                vnc_poll();
+                if (keyboard_has_key()) {
+                    char k = keyboard_getchar();
+                    if (k == 27) break;        /* Esc */
+                }
+                __asm__ volatile("hlt");
+            }
+            vga_print("  (VNC still serving in the background.)\n");
+        } else if (argc >= 2 && strcmp(argv[1], "status") == 0) {
+            vga_print("\n  VNC: ");
+            vga_print(vnc_is_running() ? "running" : "stopped");
+            if (vnc_is_running()) {
+                vga_print(vnc_client_connected() ? ", client connected" : ", waiting for client");
+                char num[12]; int_to_str((int)vnc_frames_sent(), num);
+                vga_print("\n  Frames sent: "); vga_print(num);
+            }
+            vga_print("\n\n");
+        } else {
+            vnc_start();
+        }
+    }
+    else if (strcmp(argv[0], "sync") == 0) {
+        if (argc >= 2 && strcmp(argv[1], "serve") == 0) {
+            sync_server_start();
+        } else if (argc >= 2 && strcmp(argv[1], "stop") == 0) {
+            sync_server_stop();
+        } else if (argc >= 3 && strcmp(argv[1], "list") == 0) {
+            sync_client_list(ip_parse(argv[2]));
+        } else if (argc >= 4 && strcmp(argv[1], "pull") == 0) {
+            sync_client_pull(ip_parse(argv[2]), argv[3]);
+        } else if (argc >= 4 && strcmp(argv[1], "push") == 0) {
+            sync_client_push(ip_parse(argv[2]), argv[3]);
+        } else if (argc >= 3 && strcmp(argv[1], "pullall") == 0) {
+            sync_client_pull_all(ip_parse(argv[2]));
+        } else if (argc >= 2 && strcmp(argv[1], "status") == 0) {
+            char num[12];
+            vga_print("\n  Sync server: ");
+            vga_print(sync_server_running() ? "running (port 7070)" : "stopped");
+            vga_print("\n  Files sent: "); int_to_str((int)sync_files_sent(), num); vga_print(num);
+            vga_print("   recv: ");        int_to_str((int)sync_files_recv(), num); vga_print(num);
+            vga_print("\n\n");
+        } else {
+            vga_print_color("\n  Cloud Sync (NexusOS file sync, port 7070)\n",
+                            VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+            vga_print("  Usage:\n");
+            vga_print("    sync serve              start the sync server\n");
+            vga_print("    sync stop               stop it\n");
+            vga_print("    sync list <ip>          list a peer's files\n");
+            vga_print("    sync pull <ip> <file>   download one file\n");
+            vga_print("    sync push <ip> <file>   upload one file\n");
+            vga_print("    sync pullall <ip>       download every file\n");
+            vga_print("    sync status             show stats\n\n");
+            vga_print_color("  Tip: ", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+            vga_print("loopback peer is 10.0.2.15 (or host via hostfwd)\n\n");
+        }
+    }
+    else if (strcmp(argv[0], "synccfg") == 0) {
+        if (argc >= 2 && strcmp(argv[1], "save") == 0) {
+            int n = settings_save(argc >= 3 ? argv[2] : NULL);
+            if (n >= 0) {
+                char num[12]; int_to_str(n, num);
+                vga_print_color("  Settings saved (", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+                vga_print(num); vga_print(" bytes) to settings.cfg\n");
+            } else vga_print_color("  Save failed\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        } else if (argc >= 2 && strcmp(argv[1], "load") == 0) {
+            if (settings_load(argc >= 3 ? argv[2] : NULL) == 0)
+                vga_print_color("  Settings loaded and applied\n", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+            else vga_print_color("  No settings.cfg (run 'synccfg save' first)\n", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+        } else {
+            char buf[256];
+            settings_serialize(buf, sizeof(buf));
+            vga_print_color("\n  Current settings:\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+            vga_print(buf);
+            vga_print("\n  (synccfg save | synccfg load)\n\n");
+        }
+    }
+    else if (strcmp(argv[0], "clipsync") == 0) {
+        /* Direct clipboard get/set — the local half of clipboard sync. The
+         * VNC link carries it automatically; this exposes it on the CLI. */
+        if (argc >= 3 && strcmp(argv[1], "set") == 0) {
+            clipboard_copy(argv[2]);
+            vga_print_color("  Clipboard set\n", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+        } else {
+            const char* c = clipboard_paste();
+            vga_print_color("\n  Clipboard: ", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+            vga_print((c && *c) ? c : "(empty)");
+            vga_print("\n\n");
+        }
+    }
+    /* ===================== Phase 46: AI Assistant ===================== */
+    else if (strcmp(argv[0], "ai")   == 0) cmd_ai(argc, argv);
+    else if (strcmp(argv[0], "ask")  == 0) cmd_ask(argc, argv);
+    else if (strcmp(argv[0], "find") == 0) cmd_find(argc, argv);
+    /* ===================== Phase 47: Mobile / Embedded ===================== */
+    else if (strcmp(argv[0], "gesture")     == 0) cmd_gesture(argc, argv);
+    else if (strcmp(argv[0], "orientation") == 0) cmd_orientation(argc, argv);
+    else if (strcmp(argv[0], "lowpower")    == 0) cmd_lowpower(argc, argv);
+    else if (strcmp(argv[0], "arm")         == 0) cmd_arm();
+    else if (strcmp(argv[0], "mobileinfo")  == 0) cmd_mobileinfo();
+    /* ===================== Phase 48: Performance ===================== */
+    else if (strcmp(argv[0], "perf")        == 0) cmd_perf();
+    else if (strcmp(argv[0], "smp")         == 0) cmd_smp();
+    else if (strcmp(argv[0], "preempt")     == 0) cmd_preempt();
+    /* ===================== Phase 49: App Store ====================== */
+    else if (strcmp(argv[0], "store")       == 0) cmd_store(argc, argv);
+    /* ===================== Phase 50: Grand Finale =================== */
+    else if (strcmp(argv[0], "urun")        == 0) cmd_urun(argc, argv);
+    else if (strcmp(argv[0], "install")     == 0) cmd_install(argc, argv);
+    else if (strcmp(argv[0], "finale")      == 0 || strcmp(argv[0], "v5") == 0) cmd_finale();
+    /* ===================== Phase 51: NPFS journaling FS ============= */
+    else if (strcmp(argv[0], "npfs")        == 0) cmd_npfs(argc, argv);
     /* Phase 32: Dynamic linking commands */
     else if (strcmp(argv[0], "ldd") == 0) {
         int count = dynlink_get_lib_count();
@@ -1905,6 +3424,46 @@ static void execute_command(char* input) {
     else if (strcmp(argv[0], "npkg") == 0) cmd_npkg(argc, argv);
     /* === Phase 36: Scripting Engine === */
     else if (strcmp(argv[0], "script") == 0) cmd_script(argc, argv);
+    /* === Phase 37: macOS Compatibility Shim === */
+    else if (strcmp(argv[0], "machoinfo") == 0) cmd_machoinfo();
+    else if (strcmp(argv[0], "runmacho") == 0) cmd_runmacho(argc, argv);
+    else if (strcmp(argv[0], "cocoademo") == 0) cmd_cocoademo();
+    /* === Phase 38: Sound — Audio Mixer + AC'97 === */
+    else if (strcmp(argv[0], "sndinfo") == 0) cmd_sndinfo();
+    else if (strcmp(argv[0], "play") == 0) cmd_play(argc, argv);
+    else if (strcmp(argv[0], "volume") == 0) cmd_volume(argc, argv);
+    else if (strcmp(argv[0], "tone") == 0) cmd_tone(argc, argv);
+    else if (strcmp(argv[0], "mixer") == 0) cmd_mixer();
+    /* === Phase 39: Image Formats === */
+    else if (strcmp(argv[0], "imginfo") == 0) cmd_imginfo();
+    else if (strcmp(argv[0], "view") == 0) cmd_view(argc, argv);
+    /* === Phase 40: Video Playback === */
+    else if (strcmp(argv[0], "vidinfo") == 0) cmd_vidinfo(argc, argv);
+    else if (strcmp(argv[0], "mplay") == 0) cmd_mplay(argc, argv);
+    /* === Phase 41: GPU Acceleration === */
+    else if (strcmp(argv[0], "gpuinfo") == 0) cmd_gpuinfo();
+    else if (strcmp(argv[0], "gpubench") == 0) cmd_gpubench();
+    else if (strcmp(argv[0], "sprites") == 0) cmd_sprites();
+    /* === Phase 42: Gaming Framework === */
+    else if (strcmp(argv[0], "gameinfo") == 0) cmd_gameinfo();
+    else if (strcmp(argv[0], "gamepad") == 0) cmd_gamepad();
+    else if (strcmp(argv[0], "doom") == 0) doom_run();
+    else if (strcmp(argv[0], "breakout") == 0) breakout_run();
+    /* === Phase 43: Accessibility === */
+    else if (strcmp(argv[0], "accinfo") == 0) cmd_accinfo();
+    else if (strcmp(argv[0], "fontsize") == 0) cmd_fontsize(argc, argv);
+    else if (strcmp(argv[0], "contrast") == 0) cmd_contrast(argc, argv);
+    else if (strcmp(argv[0], "reader") == 0) cmd_reader(argc, argv);
+    else if (strcmp(argv[0], "say") == 0) cmd_say(argc, argv);
+    /* === Phase 44: Security === */
+    else if (strcmp(argv[0], "id") == 0) cmd_id();
+    else if (strcmp(argv[0], "users") == 0) cmd_users();
+    else if (strcmp(argv[0], "useradd") == 0) cmd_useradd(argc, argv);
+    else if (strcmp(argv[0], "userdel") == 0) cmd_userdel(argc, argv);
+    else if (strcmp(argv[0], "passwd") == 0) cmd_passwd(argc, argv);
+    else if (strcmp(argv[0], "chmod") == 0) cmd_chmod(argc, argv);
+    else if (strcmp(argv[0], "chown") == 0) cmd_chown(argc, argv);
+    else if (strcmp(argv[0], "firewall") == 0 || strcmp(argv[0], "fw") == 0) cmd_firewall(argc, argv);
     else {
         int len = strlen(argv[0]);
         if (len > 4 && 
@@ -1922,12 +3481,24 @@ static void execute_command(char* input) {
 /* --------------------------------------------------------------------------
  * shell_run: Main shell loop
  * -------------------------------------------------------------------------- */
+/* Phase 45: pump backgrounded network servers while the shell idles at the
+ * prompt (installed as the keyboard idle hook). Keeps a VNC remote desktop or
+ * the cloud-sync server alive without the GUI desktop running. */
+static void shell_idle_pump(void) {
+    net_poll();
+    vnc_poll();
+    sync_poll();
+    mobile_poll();   /* Phase 47: recognize touch gestures while idle */
+}
+
 void shell_run(void) {
     char input[INPUT_MAX];
 
     vga_print("\n");
-    vga_print_color("  Welcome to NexusOS Shell v20.0!\n", VGA_COLOR(VGA_WHITE, VGA_BLACK));
+    vga_print_color("  Welcome to NexusOS Shell v36.0!\n", VGA_COLOR(VGA_WHITE, VGA_BLACK));
     vga_print_color("  Type 'help' for commands. 'gui' for desktop.\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+
+    keyboard_set_idle_hook(shell_idle_pump);
 
     while (1) {
         print_prompt();
