@@ -9,6 +9,7 @@
 #include "vga.h"
 #include "string.h"
 #include "rtc.h"
+#include "appui.h"
 
 typedef struct {
     char msg[SLOG_MSG_MAX];
@@ -42,16 +43,16 @@ int syslog_count(void) { return slog_total; }
 
 static void sl_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
-    const theme_t* t = theme_get();
-    uint8_t tc = t->win_content, bg = (tc >> 4) & 0xF;
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
+    appui_theme_t ui = appui_theme();
+    uint8_t tc = ui.text, bg = ui.bg;
+    uint8_t dim = ui.muted;
     uint8_t time_col = VGA_COLOR(VGA_YELLOW, bg);
 
-    int row = cy;
-    char hdr[24]; strcpy(hdr, "\xFE System Log [");
+    char hdr[24]; strcpy(hdr, "");
     char n[4]; int_to_str(slog_total, n); strcat(hdr, n); strcat(hdr, "]");
-    gui_draw_text(cx, row, hdr, accent); row++;
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "System Log", hdr);
+    int row = cy + 3;
 
     /* Show entries newest first */
     int shown = 0;
@@ -77,7 +78,8 @@ static void sl_draw(int id, int cx, int cy, int cw, int ch) {
         row++; shown++;
     }
 
-    if (shown == 0) gui_draw_text(cx + 2, row, "No log entries", dim);
+    if (shown == 0) appui_text(cx + 2, row, "No log entries", cw - 4, dim);
+    appui_status(cx, cy + ch - 1, cw, "Up/Down Scroll");
     (void)cw; (void)ch;
 }
 
@@ -89,5 +91,5 @@ static void sl_key(int id, char key) {
 
 int syslog_open(void) {
     sl_scroll = 0;
-    return window_create("System Log", 14, 2, 42, 16, sl_draw, sl_key);
+    return window_create("System Log", 14, 4, 54, 22, sl_draw, sl_key);
 }
