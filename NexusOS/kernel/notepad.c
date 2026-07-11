@@ -14,6 +14,7 @@
 #include "vfs.h"
 #include "clipboard.h"
 #include "notify.h"
+#include "appui.h"
 
 #define NP_LINES    16
 #define NP_COLS     36
@@ -75,24 +76,20 @@ static void np_save(void) {
 
 static void np_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
-    const theme_t* t = theme_get();
-    uint8_t tc = t->win_content;
-    uint8_t bg = (tc >> 4) & 0x0F;
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
+    appui_theme_t ui = appui_theme();
+    uint8_t tc = ui.text;
     uint8_t cursor_col = VGA_COLOR(VGA_BLACK, VGA_WHITE);
 
-    /* Status line */
-    gui_draw_text(cx, cy, np_dirty ? "\x0F Notepad *" : "\x0F Notepad", accent);
+    appui_fill(cx, cy, cw, ch, ui.panel);
     char pos[16]; char n1[6]; char n2[6];
     int_to_str(np_cursor_y + 1, n1);
     int_to_str(np_cursor_x + 1, n2);
     strcpy(pos, "L"); strcat(pos, n1); strcat(pos, ":C"); strcat(pos, n2);
-    gui_draw_text(cx + cw - strlen(pos) - 1, cy, pos, dim);
+    appui_header(cx, cy, cw, np_dirty ? "Notepad *" : "Notepad", pos);
 
     /* Text area */
-    int text_y = cy + 1;
-    int vis_lines = ch - 2;
+    int text_y = cy + 3;
+    int vis_lines = ch - 4;
     for (int i = 0; i < vis_lines && i < np_line_count; i++) {
         int j = 0;
         while (np_buf[i][j] && j < cw - 1) {
@@ -108,7 +105,7 @@ static void np_draw(int id, int cx, int cy, int cw, int ch) {
     }
 
     /* Bottom hint */
-    gui_draw_text(cx, cy + ch - 1, "Ctrl+S:Save Ctrl+V:Paste", dim);
+    appui_status(cx, cy + ch - 1, cw, "Ctrl+S Save   Ctrl+V Paste");
 }
 
 static void np_key(int id, char key) {
@@ -202,5 +199,5 @@ static void np_key(int id, char key) {
 
 int notepad_open(void) {
     np_init();
-    return window_create("Notepad", 20, 2, 38, 20, np_draw, np_key);
+    return window_create("Notepad", 20, 4, 48, 24, np_draw, np_key);
 }
