@@ -14,6 +14,7 @@
 #include "string.h"
 #include "rtc.h"
 #include "wallpaper.h"
+#include "appui.h"
 
 /* System tick counter */
 extern volatile uint32_t system_ticks;
@@ -29,22 +30,21 @@ static int wp_cursor = 0;
 static void settings_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
     const theme_t* t = theme_get();
-    uint8_t text_color = t->win_content;
-    uint8_t bg = (text_color >> 4) & 0x0F;
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
-    uint8_t val_col = VGA_COLOR(VGA_WHITE, bg);
+    appui_theme_t ui = appui_theme();
+    uint8_t text_color = ui.text;
+    uint8_t bg = ui.bg;
+    uint8_t accent = ui.accent;
+    uint8_t dim = ui.muted;
+    uint8_t val_col = ui.text;
     uint8_t sel_col = t->menu_highlight;
 
-    int row = cy;
-
-    /* Title */
-    gui_draw_text(cx + 1, row, "\xF0 Settings", accent);
-    row++;
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "Settings", "Personalize NexusOS");
 
     /* Tab bar */
     const char* tabs[] = { " Theme ", " System ", " About " };
     int tab_x = cx;
+    int row = cy + 2;
     for (int i = 0; i < 3; i++) {
         uint8_t tab_col = (i == settings_tab) ? sel_col : dim;
         gui_draw_text(tab_x, row, tabs[i], tab_col);
@@ -53,8 +53,7 @@ static void settings_draw(int id, int cx, int cy, int cw, int ch) {
     row++;
 
     /* Separator */
-    for (int i = 0; i < cw - 1 && cx + i < GUI_WIDTH; i++)
-        gui_putchar(cx + i, row, (char)0xC4, dim);
+    appui_hline(cx, row, cw, dim);
     row++;
 
     if (settings_tab == 0) {
@@ -80,10 +79,8 @@ static void settings_draw(int id, int cx, int cy, int cw, int ch) {
         }
 
         row++;
-        gui_draw_text(cx + 1, row, "Up/Down: Select", dim);
-        row++;
-        gui_draw_text(cx + 1, row, "Enter: Apply theme", dim);
-        row++;
+        appui_status(cx, cy + ch - 1, cw, "Up/Down Select   Enter Apply   W Wallpaper");
+        row += 3;
         row++;
 
         /* Wallpaper section */
@@ -234,5 +231,5 @@ int settings_open(void) {
     settings_tab = 0;
     theme_cursor = 0;
     wp_cursor = wallpaper_get();
-    return window_create("Settings", 18, 2, 34, 22, settings_draw, settings_key);
+    return window_create("Settings", 18, 4, 48, 24, settings_draw, settings_key);
 }
