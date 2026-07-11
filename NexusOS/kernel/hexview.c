@@ -11,6 +11,7 @@
 #include "vga.h"
 #include "string.h"
 #include "vfs.h"
+#include "appui.h"
 
 #define HV_BUF 512
 static uint8_t hv_data[HV_BUF];
@@ -33,17 +34,16 @@ static void hv_load_first_file(void) {
 
 static void hv_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
-    const theme_t* t = theme_get();
-    uint8_t tc = t->win_content, bg = (tc >> 4) & 0xF;
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
+    appui_theme_t ui = appui_theme();
+    uint8_t bg = ui.bg;
+    uint8_t dim = ui.muted;
     uint8_t addr_col = VGA_COLOR(VGA_LIGHT_CYAN, bg);
     uint8_t hex_col = VGA_COLOR(VGA_YELLOW, bg);
     uint8_t asc_col = VGA_COLOR(VGA_LIGHT_GREEN, bg);
 
-    int row = cy;
-    char hdr[40]; strcpy(hdr, "\xE8 "); strcat(hdr, hv_fname);
-    gui_draw_text(cx, row, hdr, VGA_COLOR(VGA_LIGHT_CYAN, bg));
-    row++;
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "Hex Viewer", hv_fname);
+    int row = cy + 3;
 
     /* Column header */
     gui_draw_text(cx, row, "ADDR", dim);
@@ -82,7 +82,7 @@ static void hv_draw(int id, int cx, int cy, int cw, int ch) {
 
     char info[30]; strcpy(info, "Size:");
     char n[8]; int_to_str(hv_size, n); strcat(info, n); strcat(info, "B");
-    gui_draw_text(cx, cy + ch - 1, info, dim);
+    appui_status(cx, cy + ch - 1, cw, info);
     (void)cw;
 }
 
@@ -112,5 +112,5 @@ static void hv_key(int id, char key) {
 int hexview_open(void) {
     hv_scroll = 0;
     hv_load_first_file();
-    return window_create("Hex Viewer", 10, 2, 40, 18, hv_draw, hv_key);
+    return window_create("Hex Viewer", 10, 4, 46, 22, hv_draw, hv_key);
 }
