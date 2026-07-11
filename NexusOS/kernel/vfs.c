@@ -7,6 +7,7 @@
 #include "vfs.h"
 #include "vga.h"
 #include "string.h"
+#include "users.h"
 
 static fs_node_t* fs_root = NULL;
 
@@ -30,6 +31,8 @@ void vfs_init(void) {
  * -------------------------------------------------------------------------- */
 int32_t vfs_read(fs_node_t* node, uint32_t offset, uint32_t size, uint8_t* buffer) {
     if (node == NULL || node->read == NULL) return -1;
+    /* Phase 44: enforce read permission for the current user (root bypasses). */
+    if (!vfs_check_perm(node, users_current_uid(), ACC_READ)) return -1;
     return node->read(node, offset, size, buffer);
 }
 
@@ -38,6 +41,8 @@ int32_t vfs_read(fs_node_t* node, uint32_t offset, uint32_t size, uint8_t* buffe
  * -------------------------------------------------------------------------- */
 int32_t vfs_write(fs_node_t* node, uint32_t offset, uint32_t size, const uint8_t* buffer) {
     if (node == NULL || node->write == NULL) return -1;
+    /* Phase 44: enforce write permission for the current user (root bypasses). */
+    if (!vfs_check_perm(node, users_current_uid(), ACC_WRITE)) return -1;
     return node->write(node, offset, size, buffer);
 }
 
@@ -103,3 +108,63 @@ fs_node_t* vfs_resolve_mount(const char* path) {
 }
 
 int vfs_mount_count(void) { return num_mounts; }
+
+/* ============================================================================
+ * Phase 44: permissions
+ * ============================================================================ */
+
+bool vfs_check_perm(fs_node_t* node, uint32_t uid, uint16_t access) {
+    if (node == NULL) return false;
+    if (uid == UID_ROOT) return true;          /* root bypasses all checks   */
+    /* NOTE: do NOT treat mode 0 as "world-accessible" — `chmod 000` is a real,
+     * deliberate lockdown. Every node created via ramfs_create gets a non-zero
+     * default mode from vfs_init_perms, so a mode-0 node genuinely means "no
+     * permissions for non-owners". */
+
+    uint16_t bits;
+    if (uid == node->uid) {
+        /* owner bits, shifted down to the low 3 so we can test with ACC_* */
+        bits = (uint16_t)((node->mode >> 6) & 7);
+    } else {
+        bits = (uint16_t)(node->mode & 7);     /* "other" bits */
+    }
+    return (bits & access) != 0;
+}
+
+void vfs_init_perms(fs_node_t* node) {
+    if (!node) return;
+    node->uid = users_current_uid();
+    node->gid = node->uid;
+    node->mode = (node->type == FS_DIRECTORY) ? PERM_DEFAULT_DIR : PERM_DEFAULT_FILE;
+}
+
+int vfs_chmod(fs_node_t* node, uint16_t mode, uint32_t caller_uid) {
+    if (!node) return -1;
+    if (caller_uid != UID_ROOT && caller_uid != node->uid) return -1; /* EPERM */
+    node->mode = (uint16_t)(mode & 0777);
+    return 0;
+}
+
+int vfs_chown(fs_node_t* node, uint32_t new_uid, uint32_t caller_uid) {
+    if (!node) return -1;
+    if (caller_uid != UID_ROOT) return -1;     /* only root may chown */
+    node->uid = new_uid;
+    node->gid = new_uid;
+    return 0;
+}
+
+void vfs_mode_string(const fs_node_t* node, char* buf) {
+    if (!node || !buf) return;
+    uint16_t m = node->mode;
+    buf[0] = (node->type == FS_DIRECTORY) ? 'd' : '-';
+    buf[1] = (m & PERM_OR) ? 'r' : '-';
+    buf[2] = (m & PERM_OW) ? 'w' : '-';
+    buf[3] = (m & PERM_OX) ? 'x' : '-';
+    buf[4] = (m & PERM_GR) ? 'r' : '-';
+    buf[5] = (m & PERM_GW) ? 'w' : '-';
+    buf[6] = (m & PERM_GX) ? 'x' : '-';
+    buf[7] = (m & PERM_TR) ? 'r' : '-';
+    buf[8] = (m & PERM_TW) ? 'w' : '-';
+    buf[9] = (m & PERM_TX) ? 'x' : '-';
+    buf[10] = '\0';
+}
