@@ -8,6 +8,7 @@
 #include "theme.h"
 #include "vga.h"
 #include "string.h"
+#include "appui.h"
 
 static int cp_fg = VGA_WHITE, cp_bg = VGA_BLACK;
 static int cp_mode = 0; /* 0=fg, 1=bg */
@@ -20,13 +21,14 @@ static const char* color_names[] = {
 
 static void cp_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
-    const theme_t* t = theme_get();
-    uint8_t tc = t->win_content, bg = (tc >> 4) & 0xF;
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
+    appui_theme_t ui = appui_theme();
+    uint8_t bg = ui.bg;
+    uint8_t dim = ui.muted;
+    uint8_t accent = ui.accent;
 
-    int row = cy;
-    gui_draw_text(cx, row, "\xFE Color Picker", accent); row++;
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "Color Picker", cp_mode == 0 ? "Mode: foreground" : "Mode: background");
+    int row = cy + 3;
     gui_draw_text(cx, row, cp_mode == 0 ? "Mode: Foreground" : "Mode: Background",
         VGA_COLOR(VGA_YELLOW, bg)); row++;
 
@@ -61,7 +63,7 @@ static void cp_draw(int id, int cx, int cy, int cw, int ch) {
     char bg_s[20]; strcpy(bg_s, "BG: "); strcat(bg_s, color_names[cp_bg]);
     gui_draw_text(cx, row, bg_s, VGA_COLOR(cp_bg, bg)); row++;
 
-    gui_draw_text(cx, cy + ch - 1, "Tab:FG/BG Enter:Set", dim);
+    appui_status(cx, cy + ch - 1, cw, "Arrows Select   Tab FG/BG   Enter Set");
     (void)cw; (void)ch;
 }
 
@@ -77,5 +79,5 @@ static void cp_key(int id, char key) {
 
 int colorpick_open(void) {
     cp_sel = 0; cp_mode = 0;
-    return window_create("Color Picker", 20, 3, 28, 16, cp_draw, cp_key);
+    return window_create("Color Picker", 20, 4, 36, 18, cp_draw, cp_key);
 }
