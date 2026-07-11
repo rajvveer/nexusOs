@@ -255,3 +255,27 @@ void mouse_clear_events(void) {
 bool mouse_has_event(void) {
     return state.moved || state.clicked;
 }
+
+/* --------------------------------------------------------------------------
+ * mouse_inject: Drive the cursor from an external source (Phase 45 VNC).
+ * Sets the absolute pixel position and button mask directly, mirroring what
+ * the IRQ12 handler would produce, and raises moved/clicked so the desktop
+ * event loop processes it on its next iteration.
+ * -------------------------------------------------------------------------- */
+void mouse_inject(int px, int py, uint8_t buttons) {
+    if (px < 0) px = 0;
+    if (py < 0) py = 0;
+    if (px >= (int)fb_get_width())  px = fb_get_width() - 1;
+    if (py >= (int)fb_get_height()) py = fb_get_height() - 1;
+
+    if (px != state.px || py != state.py) state.moved = true;
+    state.px = px;
+    state.py = py;
+    /* Keep the character-cell coordinates in sync for VGA/GUI hit-testing. */
+    state.x = px / 8;
+    state.y = py / 16;
+
+    uint8_t old = state.buttons;
+    state.buttons = buttons & 0x07;
+    if (state.buttons && state.buttons != old) state.clicked = true;
+}

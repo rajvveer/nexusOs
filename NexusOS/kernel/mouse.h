@@ -38,4 +38,11 @@ void mouse_clear_events(void);
 /* Check if there are pending mouse events */
 bool mouse_has_event(void);
 
+/* Phase 45: inject an absolute pointer event (used by the VNC server to drive
+ * the local cursor from a remote client). px/py are pixel coordinates
+ * (0..1023, 0..767); buttons is a MOUSE_LEFT|RIGHT|MIDDLE mask. Updates the
+ * shared mouse state exactly as a real PS/2 packet would, so the desktop and
+ * GUI hit-testing see remote input transparently. */
+void mouse_inject(int px, int py, uint8_t buttons);
+
 #endif /* MOUSE_H */
