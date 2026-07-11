@@ -40,7 +40,8 @@ typedef struct {
 #define THEME_NEXUS_LIGHT  1
 #define THEME_RETRO        2
 #define THEME_OCEAN        3
-#define THEME_COUNT        4
+#define THEME_HICON        4   /* Phase 43: high-contrast accessibility theme */
+#define THEME_COUNT        5
 
 /* Set theme by ID */
 void theme_set(int id);

@@ -109,6 +109,35 @@ static const theme_t themes[THEME_COUNT] = {
         .cursor_color       = VGA_COLOR(VGA_BLUE, VGA_WHITE),
 
         .name = "ocean"
+    },
+
+    /* === High Contrast — Phase 43 accessibility (max-contrast B/W + yellow) ===
+     * Pure white-on-black content with bold yellow accents on titles/active
+     * elements. Every fg/bg pair is a maximum-luminance-difference combination
+     * (white↔black, yellow↔black) so low-vision users get the strongest edges
+     * the 16-color VGA palette can produce. */
+    {
+        .desktop_bg         = VGA_COLOR(VGA_WHITE, VGA_BLACK),
+        .desktop_fg         = VGA_COLOR(VGA_WHITE, VGA_BLACK),
+        .desktop_char       = ' ',                 /* plain black field — no busy pattern */
+
+        .win_border         = VGA_COLOR(VGA_YELLOW, VGA_BLACK),
+        .win_title_active   = VGA_COLOR(VGA_BLACK, VGA_YELLOW),   /* black on bright yellow */
+        .win_title_inactive = VGA_COLOR(VGA_BLACK, VGA_WHITE),    /* black on white */
+        .win_content        = VGA_COLOR(VGA_WHITE, VGA_BLACK),
+        .win_text           = VGA_COLOR(VGA_WHITE, VGA_BLACK),
+
+        .taskbar_bg         = VGA_COLOR(VGA_WHITE, VGA_BLACK),
+        .taskbar_text       = VGA_COLOR(VGA_WHITE, VGA_BLACK),
+        .taskbar_active     = VGA_COLOR(VGA_BLACK, VGA_YELLOW),
+        .taskbar_clock      = VGA_COLOR(VGA_YELLOW, VGA_BLACK),
+
+        .menu_bg            = VGA_COLOR(VGA_WHITE, VGA_BLACK),
+        .menu_highlight     = VGA_COLOR(VGA_BLACK, VGA_YELLOW),
+
+        .cursor_color       = VGA_COLOR(VGA_BLACK, VGA_WHITE),
+
+        .name = "hicon"
     }
 };
 
