@@ -12,6 +12,7 @@
 #include "string.h"
 #include "rtc.h"
 #include "speaker.h"
+#include "appui.h"
 
 extern volatile uint32_t system_ticks;
 
@@ -44,17 +45,16 @@ static void draw_big(int x, int y, int digit, uint8_t col) {
 
 static void clk_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
-    const theme_t* t = theme_get();
-    uint8_t tc = t->win_content, bg = (tc >> 4) & 0xF;
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
+    appui_theme_t ui = appui_theme();
+    uint8_t bg = ui.bg;
+    uint8_t dim = ui.muted;
+    uint8_t accent = ui.accent;
     uint8_t val = VGA_COLOR(VGA_YELLOW, bg);
 
-    int row = cy;
     const char* modes[] = {"Clock", "Stopwatch", "Timer"};
-    gui_draw_text(cx, row, "\x0F ", accent);
-    gui_draw_text(cx + 2, row, modes[clk_mode], accent);
-    row += 2;
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, modes[clk_mode], "Clock, stopwatch, and timer");
+    int row = cy + 3;
 
     if (clk_mode == 0) {
         /* Clock: big digits */
@@ -113,7 +113,7 @@ static void clk_draw(int id, int cx, int cy, int cw, int ch) {
         gui_draw_text(cx, row, "Space:Go +/-:Adjust R:Reset", dim);
     }
 
-    gui_draw_text(cx, cy + ch - 1, "Tab:Mode", dim);
+    appui_status(cx, cy + ch - 1, cw, "Tab Mode   Space Start/Stop   R Reset");
     (void)cw; (void)ch;
 }
 
@@ -142,5 +142,5 @@ static void clk_key(int id, char key) {
 int clock_open(void) {
     clk_mode = 0; sw_running = false; sw_elapsed = 0;
     tmr_running = false; tmr_seconds = 60;
-    return window_create("Clock", 12, 3, 32, 12, clk_draw, clk_key);
+    return window_create("Clock", 12, 4, 38, 16, clk_draw, clk_key);
 }
