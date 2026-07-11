@@ -8,6 +8,7 @@
 #include "heap.h"
 #include "string.h"
 #include "vga.h"
+#include "users.h"
 
 /* Process table */
 static process_t proc_table[MAX_PROCESSES];
@@ -79,6 +80,9 @@ process_t* process_create(const char* name, void (*entry)(void)) {
     proc->pending_signals = 0;
     proc->pgid = proc->pid; /* Default: own process group */
     proc->ppid = current_process ? current_process->pid : 0;
+
+    /* Phase 44: inherit the owner from the parent, else the logged-in user. */
+    proc->uid = current_process ? current_process->uid : users_current_uid();
     for (int i = 0; i < MAX_SIGNALS; i++) {
         proc->signal_handlers[i] = SIG_DFL;
     }
@@ -114,6 +118,27 @@ void process_terminate(uint32_t pid) {
             return;
         }
     }
+}
+
+/* Phase 44: permission-checked terminate. */
+int process_terminate_as(uint32_t pid, uint32_t caller_uid) {
+    for (int i = 0; i < MAX_PROCESSES; i++) {
+        if (proc_table[i].pid == pid && proc_table[i].state != PROC_UNUSED) {
+            /* Only the owner or root may kill a process; pid 1 (shell/init) is
+             * extra-protected from non-root. */
+            if (caller_uid != UID_ROOT &&
+                (proc_table[i].uid != caller_uid || pid == 1)) {
+                return -2;  /* permission denied */
+            }
+            proc_table[i].state = PROC_TERMINATED;
+            if (proc_table[i].stack_base != 0) {
+                kfree((void*)proc_table[i].stack_base);
+                proc_table[i].stack_base = 0;
+            }
+            return 0;
+        }
+    }
+    return -1;  /* not found */
 }
 
 /* --------------------------------------------------------------------------

@@ -68,6 +68,10 @@ typedef struct process {
     bool          is_user;      /* True if ring 3 process */
     uint32_t      user_stack;   /* User-mode stack top */
 
+    /* Phase 44: ownership (cooperative security — same address space, but the
+     * uid gates who may kill/signal this process). */
+    uint32_t      uid;          /* owning user id */
+
     /* Phase 22: Signals */
     uint32_t      pending_signals;              /* Bitmask of pending signals */
     sig_handler_t signal_handlers[MAX_SIGNALS]; /* Per-signal handlers */
@@ -87,6 +91,10 @@ void        process_init(void);
 process_t*  process_create(const char* name, void (*entry)(void));
 void        process_exit(void);
 void        process_terminate(uint32_t pid);
+/* Phase 44: permission-checked terminate. Returns 0 on success, -1 if the
+ * target doesn't exist, -2 if `caller_uid` may not kill it (not owner, not
+ * root). pid 1 (the shell/init) is protected from non-root kills. */
+int         process_terminate_as(uint32_t pid, uint32_t caller_uid);
 process_t*  process_get_current(void);
 void        process_set_current(process_t* proc);
 process_t*  process_get_by_pid(uint32_t pid);
