@@ -53,6 +53,11 @@ void gfx_set_font_size(FontSize size) {
     font_set_size(size);
 }
 
+/* Phase 43: global accessibility text scale (1..4) — see font_set_scale(). */
+void gfx_set_font_scale(int scale) {
+    font_set_scale(scale);
+}
+
 void gfx_clear(uint32_t color) {
     fb_clear(color);
 }

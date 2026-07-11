@@ -30,6 +30,7 @@ void gfx_draw_text(int x, int y, const char* str, uint32_t fg, uint32_t bg);
 void gfx_draw_text_scaled(int x, int y, const char* str, uint32_t fg, uint32_t bg, int scale);
 void gfx_draw_text_aa(int x, int y, const char* str, uint32_t fg, uint32_t bg);
 void gfx_set_font_size(FontSize size);
+void gfx_set_font_scale(int scale);   /* Phase 43: global accessibility text scale */
 
 /* --------------------------------------------------------------------------
  * Phase 16: Lines
