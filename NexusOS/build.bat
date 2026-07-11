@@ -158,6 +158,7 @@ echo [BUILD] Linking kernel...
     kernel\dock.o ^
     kernel\clipmgr.o ^
     kernel\shortcuts.o ^
+    kernel\appui.o ^
     kernel\appearance.o ^
     kernel\fileops.o ^
     kernel\framebuffer.o ^
@@ -205,7 +206,34 @@ echo [BUILD] Linking kernel...
     kernel\registry.o ^
     kernel\win32.o ^
     kernel\pkg.o ^
-    kernel\script.o
+    kernel\script.o ^
+    kernel\macho.o ^
+    kernel\cocoa.o ^
+    kernel\audio.o ^
+    kernel\ac97.o ^
+    kernel\image.o ^
+    kernel\png.o ^
+    kernel\gif.o ^
+    kernel\jpeg.o ^
+    kernel\video.o ^
+    kernel\virtio.o ^
+    kernel\gpu.o ^
+    kernel\sprite.o ^
+    kernel\gamepad.o ^
+    kernel\game.o ^
+    kernel\doom.o ^
+    kernel\breakout.o ^
+    kernel\accessibility.o ^
+    kernel\users.o ^
+    kernel\firewall.o ^
+    kernel\vnc.o ^
+    kernel\sync.o ^
+    kernel\assistant.o ^
+    kernel\mobile.o ^
+    kernel\perf.o ^
+    kernel\appstore.o ^
+    kernel\finale.o ^
+    kernel\npfs.o
 if errorlevel 1 (echo [FAIL] Linking & exit /b 1)
 
 REM --- Create OS image ---
@@ -215,6 +243,22 @@ if errorlevel 1 (echo [FAIL] Image creation & exit /b 1)
 
 REM --- Pad to 1.44MB floppy size ---
 powershell -Command "$f = [System.IO.File]::Open('nexus.img', 'Open'); $size = $f.Length; $f.SetLength(1474560); $f.Close(); Write-Host ('Image size: ' + $size + ' bytes -> padded to 1474560 bytes')"
+
+REM --- Phase 50: bootable ISO generation (El Torito floppy emulation) ---
+echo [BUILD] Creating bootable ISO image...
+where xorriso >nul 2>&1
+if not errorlevel 1 (
+    xorriso -as mkisofs -o nexus.iso -b nexus.img -no-emul-boot -boot-load-size 4 -V NEXUSOS nexus.img >nul 2>&1
+    if not errorlevel 1 (echo [OK] nexus.iso via xorriso & goto :iso_done)
+)
+where mkisofs >nul 2>&1
+if not errorlevel 1 (
+    mkisofs -o nexus.iso -b nexus.img -no-emul-boot -V NEXUSOS . >nul 2>&1
+    if not errorlevel 1 (echo [OK] nexus.iso via mkisofs & goto :iso_done)
+)
+python mkiso.py nexus.img nexus.iso
+if errorlevel 1 (echo [WARN] ISO generation skipped ^(no tool/python^))
+:iso_done
 
 echo.
 echo ========================================
@@ -242,7 +286,7 @@ if not exist disk.img (
         fsutil file createnew disk.img 16777216 >nul 2>&1
     )
 )
-"%QEMU%" -m 256 -drive file=nexus.img,format=raw,if=floppy -drive file=disk.img,format=raw,if=ide -boot a -vga std -serial file:serial.log -netdev user,id=net0,hostfwd=tcp::8080-:8080,hostfwd=tcp::2323-:2323 -device rtl8139,netdev=net0
+"%QEMU%" -m 2048 -drive file=nexus.img,format=raw,if=floppy -drive file=disk.img,format=raw,if=ide -boot a -vga none -device virtio-vga -serial file:serial.log -netdev user,id=net0,hostfwd=tcp::8080-:8080,hostfwd=tcp::2323-:2323,hostfwd=tcp::5900-:5900,hostfwd=tcp::7070-:7070 -device rtl8139,netdev=net0 -audiodev dsound,id=snd0 -device AC97,audiodev=snd0
 goto :eof
 
 :build_and_debug
@@ -253,7 +297,7 @@ if "%QEMU%"=="" (
     echo [ERROR] QEMU not found.
     exit /b 1
 )
-"%QEMU%" -m 256 -drive file=nexus.img,format=raw,if=floppy -drive file=disk.img,format=raw,if=ide -boot a -vga std -d int -no-reboot -no-shutdown -serial file:serial.log -netdev user,id=net0 -device rtl8139,netdev=net0
+"%QEMU%" -m 2048 -drive file=nexus.img,format=raw,if=floppy -drive file=disk.img,format=raw,if=ide -boot a -vga none -device virtio-vga -d int -no-reboot -no-shutdown -serial file:serial.log -netdev user,id=net0 -device rtl8139,netdev=net0 -audiodev dsound,id=snd0 -device AC97,audiodev=snd0
 goto :eof
 
 :clean
