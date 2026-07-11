@@ -10,6 +10,7 @@
 #include "theme.h"
 #include "vga.h"
 #include "string.h"
+#include "appui.h"
 
 static int help_section = 0;
 static int help_scroll = 0;
@@ -153,13 +154,15 @@ static int section_line_count(int s) {
 static void help_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
     const theme_t* t = theme_get();
-    uint8_t tc = t->win_content;
-    uint8_t bg = (tc >> 4) & 0x0F;
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
+    appui_theme_t ui = appui_theme();
+    uint8_t tc = ui.text;
+    uint8_t accent = ui.accent;
+    uint8_t dim = ui.muted;
     uint8_t hi = t->menu_highlight;
 
-    int row = cy;
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "Help", "Documentation and shortcuts");
+    int row = cy + 2;
 
     /* Tab bar */
     int tx = cx;
@@ -176,7 +179,7 @@ static void help_draw(int id, int cx, int cy, int cw, int ch) {
     row++;
 
     /* Separator */
-    for (int i = 0; i < cw - 1; i++) gui_putchar(cx + i, row, (char)0xC4, dim);
+    appui_hline(cx, row, cw, dim);
     row++;
 
     /* Content */
@@ -189,7 +192,7 @@ static void help_draw(int id, int cx, int cy, int cw, int ch) {
         const char* line = sections[help_section][help_scroll + i];
         int j = 0;
         while (line[j] && j < cw - 2) {
-            gui_putchar(cx + j, row + i, line[j], tc); j++;
+            gui_putchar(cx + j + 1, row + i, line[j], tc); j++;
         }
     }
 
@@ -202,7 +205,7 @@ static void help_draw(int id, int cx, int cy, int cw, int ch) {
         }
     }
 
-    gui_draw_text(cx, cy + ch - 1, "Tab:section Up/Dn:scroll", dim);
+    appui_status(cx, cy + ch - 1, cw, "Tab Section   Up/Down Scroll");
 }
 
 static void help_key(int id, char key) {
@@ -214,5 +217,5 @@ static void help_key(int id, char key) {
 
 int help_open(void) {
     help_section = 0; help_scroll = 0;
-    return window_create("Help", 16, 1, 36, 20, help_draw, help_key);
+    return window_create("Help", 16, 4, 52, 24, help_draw, help_key);
 }
