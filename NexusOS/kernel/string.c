@@ -78,23 +78,64 @@ char* strcat(char* dest, const char* src) {
 /* --------------------------------------------------------------------------
  * memcpy: Copy n bytes from src to dest
  * -------------------------------------------------------------------------- */
+/* Phase 48: rep-string accelerated memcpy. The hot caller is fb_flip_legacy's
+ * ~3 MB framebuffer copy (4-byte aligned), where a byte loop is ~4x slower.
+ * Correctness over speed for the edge cases:
+ *   - Overlap: only one caller passes overlapping regions (tcp.c shifts the RX
+ *     buffer left, dst < src). A FORWARD copy is safe when dst <= src (we read
+ *     each source byte before it could be overwritten). If dst > src we copy
+ *     BACKWARD (byte loop) so a future overlapping caller can't corrupt.
+ *   - Speed path: when dst <= src AND both are 4-byte aligned, use `rep movsl`
+ *     for the bulk and a byte tail. cld guarantees forward direction. */
 void* memcpy(void* dest, const void* src, size_t n) {
     uint8_t* d = (uint8_t*)dest;
     const uint8_t* s = (const uint8_t*)src;
-    while (n--) {
-        *d++ = *s++;
+
+    /* Backward copy for dst > src overlap (defensive; no current caller hits it). */
+    if (d > s && d < s + n) {
+        for (size_t i = n; i-- > 0; ) d[i] = s[i];
+        return dest;
     }
+
+    /* Aligned fast path: rep movsl for whole dwords, then a byte tail. */
+    if ((((uint32_t)d | (uint32_t)s) & 3u) == 0) {
+        size_t words = n >> 2;
+        size_t tail  = n & 3u;
+        if (words) {
+            __asm__ volatile("cld; rep movsl"
+                             : "+D"(d), "+S"(s), "+c"(words)
+                             :
+                             : "memory");
+        }
+        while (tail--) *d++ = *s++;
+        return dest;
+    }
+
+    /* Unaligned / tiny: plain forward byte loop. */
+    while (n--) *d++ = *s++;
     return dest;
 }
 
 /* --------------------------------------------------------------------------
- * memset: Fill n bytes of dest with value val
+ * memset: Fill n bytes of dest with value val (Phase 48: rep stosl fast path)
  * -------------------------------------------------------------------------- */
 void* memset(void* dest, int val, size_t n) {
     uint8_t* d = (uint8_t*)dest;
-    while (n--) {
-        *d++ = (uint8_t)val;
+    uint8_t  b = (uint8_t)val;
+
+    if (((uint32_t)d & 3u) == 0 && n >= 4) {
+        uint32_t word = (uint32_t)b * 0x01010101u;   /* broadcast byte -> dword */
+        size_t words = n >> 2;
+        size_t tail  = n & 3u;
+        __asm__ volatile("cld; rep stosl"
+                         : "+D"(d), "+c"(words)
+                         : "a"(word)
+                         : "memory");
+        while (tail--) *d++ = b;
+        return dest;
     }
+
+    while (n--) *d++ = b;
     return dest;
 }
 
