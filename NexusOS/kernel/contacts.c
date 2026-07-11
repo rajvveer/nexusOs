@@ -8,6 +8,7 @@
 #include "theme.h"
 #include "vga.h"
 #include "string.h"
+#include "appui.h"
 
 #define CT_MAX 8
 #define CT_NAME 20
@@ -23,42 +24,36 @@ static char ct_name_buf[CT_NAME];
 
 static void ct_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
-    const theme_t* t = theme_get();
-    uint8_t tc = t->win_content, bg = (tc >> 4) & 0xF;
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
-    uint8_t hi = t->menu_highlight;
+    appui_theme_t ui = appui_theme();
 
-    int row = cy;
     int total = 0; for (int i = 0; i < CT_MAX; i++) if (ct_list[i].used) total++;
-    char hdr[20]; strcpy(hdr, "\x02 Contacts [");
-    char n[4]; int_to_str(total, n); strcat(hdr, n); strcat(hdr, "]");
-    gui_draw_text(cx, row, hdr, accent); row++;
-    for (int i = 0; i < cw - 1; i++) gui_putchar(cx + i, row, (char)0xC4, dim);
-    row++;
+    char hdr[24]; char n[4]; int_to_str(total, n);
+    strcpy(hdr, n); strcat(hdr, " contacts");
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "Contacts", hdr);
 
+    int row = cy + 3;
     if (ct_adding) {
-        gui_draw_text(cx, row, ct_field == 0 ? "Name:" : "Info:", accent); row++;
-        for (int i = 0; i < ct_blen; i++) gui_putchar(cx + 1 + i, row, ct_buf[i], tc);
-        gui_putchar(cx + 1 + ct_blen, row, '_', VGA_COLOR(VGA_WHITE, bg)); row++;
-        gui_draw_text(cx, row + 1, "Enter:next Esc:cancel", dim);
+        appui_text(cx + 1, row, ct_field == 0 ? "Name" : "Info", cw - 2, ui.accent); row += 2;
+        appui_input(cx + 1, row, cw - 2, ct_buf, ct_blen, true);
+        appui_status(cx, cy + ch - 1, cw, "Enter Next   Esc Cancel");
     } else {
         int vis = 0;
         for (int i = 0; i < CT_MAX && row < cy + ch - 2; i++) {
             if (!ct_list[i].used) continue;
             bool sel = (vis == ct_sel);
-            uint8_t col = sel ? hi : tc;
-            if (sel) for (int j = cx; j < cx + cw - 1; j++) gui_putchar(j, row, ' ', hi);
-            gui_putchar(cx + 1, row, '\x02', VGA_COLOR(VGA_LIGHT_GREEN, sel ? ((hi >> 4) & 0xF) : bg));
-            gui_draw_text(cx + 3, row, ct_list[i].name, col); row++;
+            uint8_t col = sel ? ui.selected : ui.text;
+            appui_row(cx, row, cw, sel, ui.panel, ui.selected);
+            gui_putchar(cx + 1, row, '@', sel ? ui.selected : ui.good);
+            appui_text(cx + 3, row, ct_list[i].name, cw - 4, col); row++;
             if (sel) {
-                gui_draw_text(cx + 3, row, ct_list[i].info, VGA_COLOR(VGA_DARK_GREY, sel ? ((hi >> 4) & 0xF) : bg));
+                appui_text(cx + 3, row, ct_list[i].info, cw - 4, ui.muted);
                 row++;
             }
             vis++;
         }
-        if (total == 0) gui_draw_text(cx + 2, row, "No contacts. A:Add", dim);
-        gui_draw_text(cx, cy + ch - 1, "A:Add D:Delete", dim);
+        if (total == 0) appui_text(cx + 2, row, "No contacts yet", cw - 4, ui.muted);
+        appui_status(cx, cy + ch - 1, cw, "A Add Contact   D Delete");
     }
     (void)cw; (void)ch;
 }
@@ -100,5 +95,5 @@ static void ct_key(int id, char key) {
 
 int contacts_open(void) {
     ct_sel = 0; ct_adding = false;
-    return window_create("Contacts", 18, 2, 30, 16, ct_draw, ct_key);
+    return window_create("Contacts", 18, 4, 42, 18, ct_draw, ct_key);
 }
