@@ -11,25 +11,28 @@
 #include "vga.h"
 #include "string.h"
 #include "wallpaper.h"
+#include "appui.h"
 
 static int ap_section = 0; /* 0=theme, 1=wallpaper, 2=preview */
 static int ap_sel = 0;
 
-static const char* theme_names[] = { "Dark", "Light", "Retro", "Ocean" };
+static const char* theme_names[] = { "Dark", "Light", "Retro", "Ocean", "HighContrast" };
 static const char* wp_patterns[] = { "Dots", "Lines", "Grid", "Gradient", "Stars", "Waves" };
-#define THEME_COUNT 4
+#define THEME_COUNT 5
 #define WP_COUNT 6
 
 static void ap_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
     const theme_t* t = theme_get();
-    uint8_t tc = t->win_content, bg = (tc >> 4) & 0xF;
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
+    appui_theme_t ui = appui_theme();
+    uint8_t tc = ui.text, bg = ui.bg;
+    uint8_t dim = ui.muted;
+    uint8_t accent = ui.accent;
     uint8_t hi = t->menu_highlight;
 
-    int row = cy;
-    gui_draw_text(cx, row, "\xFE Appearance", accent); row++;
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "Appearance", "Themes, wallpaper, and color preview");
+    int row = cy + 3;
 
     /* Section tabs */
     const char* tabs[] = {"Theme", "Wallpaper", "Preview"};
@@ -46,24 +49,24 @@ static void ap_draw(int id, int cx, int cy, int cw, int ch) {
         for (int i = 0; i < THEME_COUNT; i++) {
             bool sel = (i == ap_sel);
             uint8_t col = sel ? hi : tc;
-            if (sel) for (int j = cx; j < cx + cw - 1; j++) gui_putchar(j, row, ' ', hi);
+            if (sel) appui_row(cx, row, cw, true, ui.panel, hi);
             gui_putchar(cx + 1, row, sel ? '\x10' : ' ', VGA_COLOR(VGA_LIGHT_CYAN, sel ? ((hi >> 4) & 0xF) : bg));
             gui_draw_text(cx + 3, row, theme_names[i], col);
             row++;
         }
-        gui_draw_text(cx, cy + ch - 1, "Enter:Apply Tab:Section", dim);
+        appui_status(cx, cy + ch - 1, cw, "Enter Apply   Tab Section");
     }
     else if (ap_section == 1) {
         gui_draw_text(cx, row, "Wallpaper Pattern:", accent); row++;
         for (int i = 0; i < WP_COUNT; i++) {
             bool sel = (i == ap_sel);
             uint8_t col = sel ? hi : tc;
-            if (sel) for (int j = cx; j < cx + cw - 1; j++) gui_putchar(j, row, ' ', hi);
+            if (sel) appui_row(cx, row, cw, true, ui.panel, hi);
             gui_putchar(cx + 1, row, sel ? '\x10' : ' ', VGA_COLOR(VGA_LIGHT_CYAN, sel ? ((hi >> 4) & 0xF) : bg));
             gui_draw_text(cx + 3, row, wp_patterns[i], col);
             row++;
         }
-        gui_draw_text(cx, cy + ch - 1, "Enter:Apply Tab:Section", dim);
+        appui_status(cx, cy + ch - 1, cw, "Enter Apply   Tab Section");
     }
     else {
         gui_draw_text(cx, row, "Current Settings:", accent); row++;
@@ -96,7 +99,10 @@ static void ap_key(int id, char key) {
 
     if (key == '\n') {
         if (ap_section == 0 && ap_sel < THEME_COUNT) {
-            theme_set_by_name(theme_names[ap_sel]);
+            /* theme_names[] is index-aligned with the themes[] table; select by
+             * index (theme_set_by_name expects the lowercase canonical name,
+             * not these display-capitalized strings). */
+            theme_set(ap_sel);
         }
         else if (ap_section == 1 && ap_sel < WP_COUNT) {
             wallpaper_set(ap_sel);
@@ -106,5 +112,5 @@ static void ap_key(int id, char key) {
 
 int appearance_open(void) {
     ap_section = 0; ap_sel = 0;
-    return window_create("Appearance", 16, 3, 34, 16, ap_draw, ap_key);
+    return window_create("Appearance", 16, 4, 46, 20, ap_draw, ap_key);
 }
