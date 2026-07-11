@@ -10,6 +10,7 @@
 #include "theme.h"
 #include "vga.h"
 #include "string.h"
+#include "appui.h"
 
 #define MS_W 10
 #define MS_H 8
@@ -78,20 +79,17 @@ static const uint8_t num_colors[] = {
 };
 
 static void ms_draw(int id, int cx, int cy, int cw, int ch) {
-    (void)id; (void)cw; (void)ch;
-    const theme_t* t = theme_get();
-    uint8_t tc = t->win_content;
-    uint8_t bg = (tc >> 4) & 0x0F;
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
+    (void)id;
+    appui_theme_t ui = appui_theme();
+    uint8_t tc = ui.text;
+    uint8_t bg = ui.bg;
 
-    int row = cy;
-    /* Title + mine count */
-    char info[24]; strcpy(info, "\x0F Minesweeper ");
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    char info[24]; strcpy(info, "Mines left: ");
     char mn[4]; int_to_str(MS_MINES - ms_flags_placed, mn);
-    strcat(info, "["); strcat(info, mn); strcat(info, "]");
-    gui_draw_text(cx, row, info, accent);
-    row++;
+    strcat(info, mn);
+    appui_header(cx, cy, cw, "Minesweeper", info);
+    int row = cy + 3;
 
     /* Grid */
     for (int y = 0; y < MS_H && row < cy + ch - 1; y++) {
@@ -109,7 +107,7 @@ static void ms_draw(int id, int cx, int cy, int cw, int ch) {
             } else {
                 ch_c = (char)0xFE; col = VGA_COLOR(VGA_LIGHT_GREY, bg);
             }
-            if (at_cursor) col = VGA_COLOR(col & 0x0F, VGA_WHITE);
+            if (at_cursor) col = VGA_COLOR((col & 0x0F), VGA_WHITE);
             gui_putchar(cx + x * 2, row, ch_c, col);
             gui_putchar(cx + x * 2 + 1, row, ' ', at_cursor ? VGA_COLOR(VGA_BLACK, VGA_WHITE) : tc);
         }
@@ -121,7 +119,7 @@ static void ms_draw(int id, int cx, int cy, int cw, int ch) {
         gui_draw_text(cx, row, ms_won ? "YOU WIN! R:Restart" : "BOOM! R:Restart",
             ms_won ? VGA_COLOR(VGA_LIGHT_GREEN, bg) : VGA_COLOR(VGA_LIGHT_RED, bg));
     } else {
-        gui_draw_text(cx, row, "Spc:Reveal F:Flag R:New", dim);
+        appui_status(cx, cy + ch - 1, cw, "Space Reveal   F Flag   R New");
     }
 }
 
@@ -155,5 +153,5 @@ static void ms_key(int id, char key) {
 
 int minesweeper_open(void) {
     ms_init_board();
-    return window_create("Minesweeper", 18, 3, MS_W * 2 + 3, MS_H + 5, ms_draw, ms_key);
+    return window_create("Minesweeper", 18, 4, MS_W * 2 + 8, MS_H + 8, ms_draw, ms_key);
 }
