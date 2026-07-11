@@ -11,6 +11,7 @@
 #include "vga.h"
 #include "string.h"
 #include "vfs.h"
+#include "appui.h"
 
 #define SR_MAX 10
 #define SR_QUERY_MAX 24
@@ -55,36 +56,29 @@ static void sr_search(void) {
 
 static void sr_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
-    const theme_t* t = theme_get();
-    uint8_t tc = t->win_content, bg = (tc >> 4) & 0xF;
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
-    uint8_t hi = t->menu_highlight;
+    appui_theme_t ui = appui_theme();
 
-    int row = cy;
-    gui_draw_text(cx, row, "\x0F File Search", accent); row++;
-
-    gui_putchar(cx, row, '\x10', accent);
-    for (int i = 0; i < sr_qlen && i < cw - 4; i++) gui_putchar(cx + 2 + i, row, sr_query[i], tc);
-    gui_putchar(cx + 2 + sr_qlen, row, '_', VGA_COLOR(VGA_WHITE, bg));
-    row++;
-
-    for (int i = 0; i < cw - 1; i++) gui_putchar(cx + i, row, (char)0xC4, dim); row++;
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "Search", "Find files in RamFS");
+    int row = cy + 3;
+    appui_input(cx + 1, row, cw - 2, sr_query, sr_qlen, true);
+    row += 2;
 
     char cnt[16]; strcpy(cnt, "Found: ");
     char n[4]; int_to_str(sr_count, n); strcat(cnt, n);
-    gui_draw_text(cx, row, cnt, dim); row++;
+    appui_text(cx + 1, row, cnt, cw - 2, ui.muted); row++;
+    appui_hline(cx, row, cw, ui.muted); row++;
 
     for (int i = 0; i < sr_count && row < cy + ch - 1; i++) {
         bool sel = (i == sr_sel);
-        uint8_t col = sel ? hi : tc;
-        if (sel) for (int j = cx; j < cx + cw - 1; j++) gui_putchar(j, row, ' ', hi);
-        gui_putchar(cx + 1, row, '\xE8', VGA_COLOR(VGA_YELLOW, sel ? ((hi >> 4) & 0xF) : bg));
-        gui_draw_text(cx + 3, row, sr_results[i], col);
+        uint8_t col = sel ? ui.selected : ui.text;
+        appui_row(cx, row, cw, sel, ui.panel, ui.selected);
+        gui_putchar(cx + 1, row, '*', sel ? ui.selected : ui.warn);
+        appui_text(cx + 3, row, sr_results[i], cw - 4, col);
         row++;
     }
 
-    if (sr_count == 0) gui_draw_text(cx + 2, row, "No files found", dim);
+    if (sr_count == 0) appui_text(cx + 2, row, "No files found", cw - 4, ui.muted);
     (void)cw; (void)ch;
 }
 
@@ -101,5 +95,5 @@ static void sr_key(int id, char key) {
 int search_open(void) {
     sr_qlen = 0; sr_query[0] = '\0'; sr_count = 0; sr_sel = 0;
     sr_search();
-    return window_create("Search", 18, 2, 30, 16, sr_draw, sr_key);
+    return window_create("Search", 18, 4, 44, 18, sr_draw, sr_key);
 }
