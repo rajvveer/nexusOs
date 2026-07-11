@@ -1,0 +1,21 @@
+kernel\win32.c: In function 'ExitProcess':
+kernel\win32.c:167:5: error: too many arguments to function 'process_exit'
+     process_exit((int)uExitCode);
+     ^~~~~~~~~~~~
+In file included from kernel\win32.c:19:0:
+kernel\process.h:88:13: note: declared here
+ void        process_exit(void);
+             ^~~~~~~~~~~~
+kernel\win32.c: In function 'GetCurrentProcessId':
+kernel\win32.c:276:31: error: 'process_t {aka struct process}' has no member named 'id'; did you mean 'pid'?
+     return current ? current->id : 0;
+                               ^~
+                               pid
+kernel\win32.c: In function 'UpdateWindow':
+kernel\win32.c:394:9: warning: variable 'msg' set but not used [-Wunused-but-set-variable]
+     MSG msg;
+         ^~~
+kernel\win32.c: In function 'GetCurrentProcessId':
+kernel\win32.c:277:1: warning: control reaches end of non-void function [-Wreturn-type]
+ }
+ ^
