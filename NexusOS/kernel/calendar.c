@@ -11,6 +11,7 @@
 #include "vga.h"
 #include "string.h"
 #include "rtc.h"
+#include "appui.h"
 
 extern volatile uint32_t system_ticks;
 
@@ -43,11 +44,11 @@ static int get_days(int m, int y) {
 
 static void cal_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
-    const theme_t* t = theme_get();
-    uint8_t tc = t->win_content;
-    uint8_t bg = (tc >> 4) & 0x0F;
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
+    appui_theme_t ui = appui_theme();
+    uint8_t tc = ui.text;
+    uint8_t bg = ui.bg;
+    uint8_t accent = ui.accent;
+    uint8_t dim = ui.muted;
     uint8_t today_col = VGA_COLOR(VGA_BLACK, VGA_LIGHT_CYAN);
     uint8_t val_col = VGA_COLOR(VGA_WHITE, bg);
 
@@ -58,7 +59,9 @@ static void cal_draw(int id, int cx, int cy, int cw, int ch) {
     int cur_y = cal_year > 0 ? cal_year : 2000 + now.year;
     int cur_d = now.day;
 
-    int row = cy;
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "Calendar", "Month view and current time");
+    int row = cy + 3;
 
     /* Large clock */
     char time_buf[12];
@@ -80,7 +83,7 @@ static void cal_draw(int id, int cx, int cy, int cw, int ch) {
     row++;
 
     /* Separator */
-    for (int i = 0; i < cw - 1; i++) gui_putchar(cx + i, row, (char)0xC4, dim);
+    appui_hline(cx, row, cw, dim);
     row++;
 
     /* Day headers */
@@ -122,7 +125,7 @@ static void cal_draw(int id, int cx, int cy, int cw, int ch) {
 
     /* Bottom hint */
     int hint_row = cy + ch - 1;
-    gui_draw_text(cx + 1, hint_row, "</>: Change month", dim);
+    appui_status(cx, hint_row, cw, "</> Change month   T Today");
     (void)ch;
 }
 
@@ -146,5 +149,5 @@ static void cal_key(int id, char key) {
 
 int calendar_open(void) {
     cal_month = 0; cal_year = 0;
-    return window_create("Calendar", 26, 3, 24, 14, cal_draw, cal_key);
+    return window_create("Calendar", 26, 4, 34, 18, cal_draw, cal_key);
 }
