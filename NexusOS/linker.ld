@@ -2,15 +2,18 @@
  * NexusOS Linker Script
  * ============================================================================
  * Defines the memory layout of the kernel binary.
- * The kernel is loaded at 0x10000 by the Stage 2 bootloader.
+ * The kernel is loaded at 0x100000 (1MB) by the Stage 2 bootloader, which
+ * bounce-buffers BIOS reads below 640KB and copies chunks high in brief
+ * protected-mode hops (the old in-place load at 0x10000 capped the kernel
+ * at 576KB — the VGA hole at 0xA0000).
  * ============================================================================ */
 
 ENTRY(_start)
 
 SECTIONS
 {
-    /* Kernel starts at 0x10000 (64KB, above bootloader) */
-    . = 0x10000;
+    /* Kernel starts at 0x100000 (1MB; heap begins at 0x200000) */
+    . = 0x100000;
 
     _kernel_start = .;
 
