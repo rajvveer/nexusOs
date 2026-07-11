@@ -10,6 +10,7 @@
 #include "string.h"
 #include "vfs.h"
 #include "ramfs.h"
+#include "appui.h"
 
 #define FO_NAME_MAX 28
 
@@ -63,33 +64,27 @@ int fileops_duplicate(const char* name) {
 
 static void fo_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
-    const theme_t* t = theme_get();
-    uint8_t tc = t->win_content, bg = (tc >> 4) & 0xF;
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
-    uint8_t hi = t->menu_highlight;
+    appui_theme_t ui = appui_theme();
 
-    int row = cy;
-    gui_draw_text(cx, row, "\xE8 File Operations", accent); row++;
-    for (int i = 0; i < cw - 1; i++) gui_putchar(cx + i, row, (char)0xC4, dim);
-    row++;
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "File Operations", "Rename, duplicate, or delete files");
+    int row = cy + 3;
 
     if (fo_renaming) {
-        gui_draw_text(cx, row, "New name:", accent); row++;
-        for (int i = 0; i < fo_blen; i++) gui_putchar(cx + 1 + i, row, fo_buf[i], tc);
-        gui_putchar(cx + 1 + fo_blen, row, '_', VGA_COLOR(VGA_WHITE, bg)); row++;
-        gui_draw_text(cx, row + 1, "Enter:save Esc:cancel", dim);
+        appui_text(cx + 1, row, "New name", cw - 2, ui.accent); row += 2;
+        appui_input(cx + 1, row, cw - 2, fo_buf, fo_blen, true);
+        appui_status(cx, cy + ch - 1, cw, "Enter Save   Esc Cancel");
     } else {
         for (int i = 0; i < fo_count && row < cy + ch - 2; i++) {
             bool sel = (i == fo_sel);
-            uint8_t col = sel ? hi : tc;
-            if (sel) for (int j = cx; j < cx + cw - 1; j++) gui_putchar(j, row, ' ', hi);
-            gui_putchar(cx + 1, row, '\xE8', VGA_COLOR(VGA_YELLOW, sel ? ((hi >> 4) & 0xF) : bg));
-            gui_draw_text(cx + 3, row, fo_files[i], col);
+            uint8_t col = sel ? ui.selected : ui.text;
+            appui_row(cx, row, cw, sel, ui.panel, ui.selected);
+            gui_putchar(cx + 1, row, '*', sel ? ui.selected : ui.warn);
+            appui_text(cx + 3, row, fo_files[i], cw - 4, col);
             row++;
         }
-        if (fo_count == 0) gui_draw_text(cx + 2, row, "No files", dim);
-        gui_draw_text(cx, cy + ch - 1, "R:Rename D:Dup X:Del", dim);
+        if (fo_count == 0) appui_text(cx + 2, row, "No files", cw - 4, ui.muted);
+        appui_status(cx, cy + ch - 1, cw, "R Rename   D Duplicate   X Delete");
     }
     (void)cw; (void)ch;
 }
@@ -125,5 +120,5 @@ static void fo_key(int id, char key) {
 int fileops_open(void) {
     fo_sel = 0; fo_renaming = false; fo_blen = 0;
     fo_refresh();
-    return window_create("File Ops", 18, 2, 34, 14, fo_draw, fo_key);
+    return window_create("File Ops", 18, 4, 44, 18, fo_draw, fo_key);
 }
