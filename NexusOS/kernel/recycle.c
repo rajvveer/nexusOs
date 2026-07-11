@@ -11,6 +11,7 @@
 #include "vga.h"
 #include "string.h"
 #include "ramfs.h"
+#include "appui.h"
 
 typedef struct {
     bool    used;
@@ -71,28 +72,28 @@ const char* recycle_get_name(int index) {
 static void rb_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
     const theme_t* t = theme_get();
-    uint8_t tc = t->win_content;
-    uint8_t bg = (tc >> 4) & 0x0F;
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
+    appui_theme_t ui = appui_theme();
+    uint8_t tc = ui.text;
+    uint8_t bg = ui.bg;
+    uint8_t dim = ui.muted;
     uint8_t hi = t->menu_highlight;
     uint8_t warn = VGA_COLOR(VGA_YELLOW, bg);
 
-    int row = cy;
-    char title[24]; strcpy(title, "\xE8 Recycle Bin [");
+    char title[24]; strcpy(title, "");
     char cn[4]; int_to_str(recycle_count(), cn);
-    strcat(title, cn); strcat(title, "]");
-    gui_draw_text(cx, row, title, accent);
-    row += 2;
+    strcat(title, cn); strcat(title, " deleted items");
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "Recycle Bin", title);
+    int row = cy + 3;
 
     int vis = 0;
     for (int i = 0; i < TRASH_MAX && row < cy + ch - 2; i++) {
         if (!trash[i].used) continue;
         bool sel = (vis == rb_selected);
         uint8_t col = sel ? hi : tc;
-        if (sel) for (int j = cx; j < cx + cw - 1; j++) gui_putchar(j, row, ' ', hi);
-        gui_putchar(cx + 1, row, '\xE8', warn);
-        gui_draw_text(cx + 3, row, trash[i].name, col);
+        if (sel) appui_row(cx, row, cw, true, ui.panel, hi);
+        gui_putchar(cx + 1, row, 'x', warn);
+        appui_text(cx + 3, row, trash[i].name, cw - 10, col);
 
         char sz[10]; int_to_str(trash[i].size, sz);
         strcat(sz, "B");
@@ -101,10 +102,10 @@ static void rb_draw(int id, int cx, int cy, int cw, int ch) {
     }
 
     if (vis == 0) {
-        gui_draw_text(cx + 2, row, "Trash is empty", dim);
+        appui_text(cx + 2, row, "Trash is empty", cw - 4, dim);
     }
 
-    gui_draw_text(cx, cy + ch - 1, "R:Restore E:Empty", dim);
+    appui_status(cx, cy + ch - 1, cw, "R Restore   E Empty");
     (void)cw; (void)ch;
 }
 
@@ -126,5 +127,5 @@ static void rb_key(int id, char key) {
 
 int recycle_open(void) {
     rb_selected = 0;
-    return window_create("Recycle Bin", 20, 3, 30, 14, rb_draw, rb_key);
+    return window_create("Recycle Bin", 20, 4, 42, 18, rb_draw, rb_key);
 }
