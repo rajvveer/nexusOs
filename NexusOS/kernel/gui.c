@@ -84,7 +84,7 @@ void gui_clear(char ch, uint8_t color) {
                 for (int x = 0; x < GUI_WIDTH; x++) {
                     int px = GUI_OFFSET_X + x * GUI_CELL_W;
                     int py = GUI_OFFSET_Y + y * GUI_CELL_H;
-                    font_draw_char(px, py, (uint8_t)ch, fg, bg);
+                    font_draw_char_fixed(px, py, (uint8_t)ch, fg, bg);
                 }
             }
         }
@@ -104,7 +104,7 @@ void gui_putchar(int x, int y, char ch, uint8_t color) {
         int py = GUI_OFFSET_Y + y * GUI_CELL_H;
         uint32_t fg = vga_attr_fg(color);
         uint32_t bg = vga_attr_bg(color);
-        font_draw_char(px, py, (uint8_t)ch, fg, bg);
+        font_draw_char_fixed(px, py, (uint8_t)ch, fg, bg);
     }
 }
 
