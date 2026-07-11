@@ -13,6 +13,7 @@
 #include "memory.h"
 #include "process.h"
 #include "rtc.h"
+#include "appui.h"
 
 extern volatile uint32_t system_ticks;
 
@@ -20,54 +21,38 @@ static int si_scroll = 0;
 
 static void si_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
-    const theme_t* t = theme_get();
-    uint8_t tc = t->win_content;
-    uint8_t bg = (tc >> 4) & 0x0F;
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
-    uint8_t val = VGA_COLOR(VGA_YELLOW, bg);
-    uint8_t check = VGA_COLOR(VGA_LIGHT_GREEN, bg);
+    appui_theme_t ui = appui_theme();
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "System Information", "Hardware, kernel, and runtime");
 
-    int row = cy;
-
-    gui_draw_text(cx, row, "\x0F System Information", accent);
-    row += 2;
+    int row = cy + 3;
 
     /* System */
-    gui_draw_text(cx, row, "OS:", dim);
-    gui_draw_text(cx + 12, row, "NexusOS v1.0.0", val); row++;
-    gui_draw_text(cx, row, "Kernel:", dim);
-    gui_draw_text(cx + 12, row, "Phase 10", val); row++;
-    gui_draw_text(cx, row, "Arch:", dim);
-    gui_draw_text(cx + 12, row, "x86 (i386)", val); row++;
-    gui_draw_text(cx, row, "Mode:", dim);
-    gui_draw_text(cx + 12, row, "32-bit Protected", val); row++;
+    appui_kv(cx + 1, row, "OS", "NexusOS", cx + 14, cw - 15); row++;
+    appui_kv(cx + 1, row, "Kernel", "Phase 34 desktop", cx + 14, cw - 15); row++;
+    appui_kv(cx + 1, row, "Arch", "x86 (i386)", cx + 14, cw - 15); row++;
+    appui_kv(cx + 1, row, "Mode", "32-bit protected", cx + 14, cw - 15); row++;
 
     row++;
     /* Memory */
     char mb[20]; char mn[10];
-    gui_draw_text(cx, row, "Total Mem:", dim);
     int_to_str(pmm_get_total_pages() * 4, mn); strcpy(mb, mn); strcat(mb, " KB");
-    gui_draw_text(cx + 12, row, mb, val); row++;
-    gui_draw_text(cx, row, "Free Mem:", dim);
+    appui_kv(cx + 1, row, "Total Mem", mb, cx + 14, cw - 15); row++;
     int_to_str(pmm_get_free_pages() * 4, mn); strcpy(mb, mn); strcat(mb, " KB");
-    gui_draw_text(cx + 12, row, mb, val); row++;
-    gui_draw_text(cx, row, "Used Mem:", dim);
+    appui_kv(cx + 1, row, "Free Mem", mb, cx + 14, cw - 15); row++;
     int_to_str(pmm_get_used_pages() * 4, mn); strcpy(mb, mn); strcat(mb, " KB");
-    gui_draw_text(cx + 12, row, mb, val); row++;
+    appui_kv(cx + 1, row, "Used Mem", mb, cx + 14, cw - 15); row++;
 
     row++;
     /* Processes */
-    gui_draw_text(cx, row, "Processes:", dim);
     int_to_str(process_count(), mn);
-    gui_draw_text(cx + 12, row, mn, val); row++;
-    gui_draw_text(cx, row, "Uptime:", dim);
+    appui_kv(cx + 1, row, "Processes", mn, cx + 14, cw - 15); row++;
     int_to_str(system_ticks / 18, mn); strcpy(mb, mn); strcat(mb, " sec");
-    gui_draw_text(cx + 12, row, mb, val); row++;
+    appui_kv(cx + 1, row, "Uptime", mb, cx + 14, cw - 15); row++;
 
     row++;
     /* Features */
-    gui_draw_text(cx, row, "Features:", accent); row++;
+    appui_text(cx + 1, row, "Features", cw - 2, ui.accent); row++;
     const char* feats[] = {
         "GUI Window Manager",
         "Virtual Filesystem",
@@ -79,8 +64,8 @@ static void si_draw(int id, int cx, int cy, int cw, int ch) {
         NULL
     };
     for (int i = 0; feats[i] && row < cy + ch - 1; i++) {
-        gui_putchar(cx + 1, row, '\xFB', check);
-        gui_draw_text(cx + 3, row, feats[i], tc);
+        gui_putchar(cx + 1, row, '+', ui.good);
+        appui_text(cx + 3, row, feats[i], cw - 4, ui.text);
         row++;
     }
 
@@ -95,5 +80,5 @@ static void si_key(int id, char key) {
 
 int sysinfo_open(void) {
     si_scroll = 0;
-    return window_create("System Info", 16, 1, 34, 22, si_draw, si_key);
+    return window_create("System Info", 16, 4, 46, 24, si_draw, si_key);
 }
