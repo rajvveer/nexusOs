@@ -29,6 +29,14 @@
 #define KEY_LEFT       0x4B
 #define KEY_RIGHT      0x4D
 
+/* Raw scancode hook (Phase 42 gaming) — sees every make/break code before
+ * ASCII translation. `ext` = E0-prefixed. Return true to consume the key
+ * (it is then NOT translated into the character buffer). Runs in IRQ1
+ * context — keep it short. Modifier state (shift/ctrl/caps) is tracked
+ * regardless of consumption so the shell is consistent afterwards. */
+typedef bool (*keyboard_raw_hook_t)(uint8_t scancode, bool ext, bool released);
+void keyboard_set_raw_hook(keyboard_raw_hook_t hook);
+
 /* Initialize keyboard (register IRQ1 handler) */
 void keyboard_init(void);
 
@@ -40,5 +48,16 @@ bool keyboard_has_key(void);
 
 /* Read a line of input into buffer (blocks until Enter) */
 int keyboard_readline(char* buffer, int max_len);
+
+/* Phase 45: inject a translated character into the key buffer as if typed
+ * locally (used by the VNC server to deliver remote KeyEvents). */
+void keyboard_inject_char(char c);
+
+/* Phase 45: idle hook invoked while keyboard_getchar() blocks waiting for a
+ * key. The shell installs one that pumps backgrounded network servers
+ * (net_poll/vnc_poll/sync_poll) so remote desktop / sync stay alive at the
+ * text prompt. Pass NULL to clear. Keep the hook short and non-blocking. */
+typedef void (*keyboard_idle_hook_t)(void);
+void keyboard_set_idle_hook(keyboard_idle_hook_t hook);
 
 #endif /* KEYBOARD_H */

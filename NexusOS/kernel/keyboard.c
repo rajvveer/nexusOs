@@ -48,6 +48,13 @@ static bool caps_lock = false;
 static bool ctrl_pressed = false;
 static bool e0_prefix = false;  /* Extended scancode prefix (0xE0) */
 
+/* Raw scancode observer (Phase 42 gaming framework) */
+static keyboard_raw_hook_t raw_hook = NULL;
+
+void keyboard_set_raw_hook(keyboard_raw_hook_t hook) {
+    raw_hook = hook;
+}
+
 /* --------------------------------------------------------------------------
  * buffer_put: Add a character to the circular key buffer
  * -------------------------------------------------------------------------- */
@@ -57,6 +64,25 @@ static void buffer_put(char c) {
         key_buffer[buffer_head] = c;
         buffer_head = next;
     }
+}
+
+/* --------------------------------------------------------------------------
+ * keyboard_inject_char: Push a translated character into the key buffer as if
+ * it had been typed locally (Phase 45 — VNC KeyEvent injection). Goes through
+ * the same circular buffer that keyboard_getchar() drains, so remote keys are
+ * indistinguishable from local ones to the shell and apps.
+ * -------------------------------------------------------------------------- */
+void keyboard_inject_char(char c) {
+    /* buffer_put() is a non-atomic read-modify-write on buffer_head and the
+     * IRQ1 handler is the other producer. We run in task context (from
+     * vnc_poll), so guard the critical section by disabling interrupts around
+     * the put — save/restore EFLAGS rather than a bare sti so we don't enable
+     * interrupts if a caller had them off. The ISR path itself already runs
+     * with interrupts masked, so it needs no guard. */
+    uint32_t flags;
+    __asm__ volatile("pushf; pop %0; cli" : "=r"(flags) :: "memory");
+    buffer_put(c);
+    __asm__ volatile("push %0; popf" :: "r"(flags) : "memory", "cc");
 }
 
 /* --------------------------------------------------------------------------
@@ -73,12 +99,20 @@ static void keyboard_callback(struct registers* regs) {
         return;
     }
 
-    /* Handle extended (E0-prefixed) scancodes */
-    if (e0_prefix) {
-        e0_prefix = false;
+    bool ext = e0_prefix;
+    e0_prefix = false;
 
+    /* Raw observer (gaming framework) sees every make/break code */
+    bool consumed = false;
+    if (raw_hook) {
+        consumed = raw_hook(scancode & 0x7F, ext, (scancode & 0x80) != 0);
+    }
+
+    /* Handle extended (E0-prefixed) scancodes */
+    if (ext) {
         /* Ignore extended key releases */
         if (scancode & 0x80) return;
+        if (consumed) return;
 
         /* Extended key presses: arrow keys */
         switch (scancode) {
@@ -90,7 +124,7 @@ static void keyboard_callback(struct registers* regs) {
         }
     }
 
-    /* Key release (bit 7 set) */
+    /* Key release (bit 7 set) — modifier state updates even when consumed */
     if (scancode & 0x80) {
         uint8_t released = scancode & 0x7F;
         if (released == KEY_LSHIFT || released == KEY_RSHIFT) {
@@ -123,6 +157,9 @@ static void keyboard_callback(struct registers* regs) {
         default:
             break;
     }
+
+    /* A game has claimed the keyboard — skip character translation */
+    if (consumed) return;
 
     /* Ctrl+key combos (Ctrl+A=1, Ctrl+Q=17, Ctrl+S=19, etc.) */
     if (ctrl_pressed && scancode < sizeof(scancode_ascii)) {
@@ -182,8 +219,19 @@ bool keyboard_has_key(void) {
 /* --------------------------------------------------------------------------
  * keyboard_getchar: Get next character (blocks until available)
  * -------------------------------------------------------------------------- */
+/* Optional idle hook (Phase 45): called once per wait iteration while blocked
+ * in keyboard_getchar(). Lets the shell pump backgrounded network servers
+ * (net_poll/vnc_poll/sync_poll) while idle at the prompt, so a remote desktop
+ * or sync client stays serviced without the desktop running. */
+static keyboard_idle_hook_t idle_hook = NULL;
+
+void keyboard_set_idle_hook(keyboard_idle_hook_t hook) {
+    idle_hook = hook;
+}
+
 char keyboard_getchar(void) {
     while (!keyboard_has_key()) {
+        if (idle_hook) idle_hook();
         __asm__ volatile("hlt");  /* Wait for interrupt */
     }
     char c = key_buffer[buffer_tail];
