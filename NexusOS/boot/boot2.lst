@@ -1,0 +1,351 @@
+     1                                  ; ============================================================================
+     2                                  ; NexusOS Stage 2 Bootloader — Phase 14 (high-load rework: Phase 42)
+     3                                  ; ============================================================================
+     4                                  ; Loaded at 0x7E00 by Stage 1
+     5                                  ; Sets VESA 1024x768x32 mode, enables A20, then loads the kernel HIGH:
+     6                                  ; BIOS-reads 32KB chunks into a bounce buffer at 0x10000 and copies each
+     7                                  ; chunk to 0x100000+ during a brief protected-mode hop. This lifts the old
+     8                                  ; 576KB kernel ceiling (real-mode load at 0x10000 ran into the VGA hole at
+     9                                  ; 0xA0000 once the kernel outgrew it — Phase 42 did).
+    10                                  ; ============================================================================
+    11                                  
+    12                                  [bits 16]
+    13                                  [org 0x7E00]
+    14                                  
+    15                                  KERNEL_OFFSET  equ 0x100000     ; kernel's final home (1MB; heap starts at 2MB)
+    16                                  KERNEL_SECTORS equ 1440         ; up to 720KB of kernel
+    17                                  CHUNK_SECTORS  equ 64           ; 32KB bounce buffer per protected-mode copy
+    18                                  BOUNCE_SEG     equ 0x1000       ; bounce buffer at linear 0x10000
+    19                                  
+    20                                  ; Floppy geometry
+    21                                  SECTORS_PER_TRACK equ 18
+    22                                  HEADS equ 2
+    23                                  
+    24                                  ; ============================================================================
+    25                                  ; Entry Point
+    26                                  ; ============================================================================
+    27                                  stage2_start:
+    28 00000000 BE[3802]                    mov si, MSG_STAGE2
+    29 00000003 E8DC01                      call print_string_16
+    30                                  
+    31                                      ; --- SET VESA MODE BEFORE ANYTHING ELSE ---
+    32 00000006 E82700                      call setup_vesa
+    33                                  
+    34                                      ; Enable A20 first — the kernel is copied above 1MB during loading
+    35 00000009 E8C901                      call enable_a20
+    36 0000000C BE[7202]                    mov si, MSG_A20
+    37 0000000F E8D001                      call print_string_16
+    38                                  
+    39                                      ; Load kernel from disk (chunked high load)
+    40 00000012 E8B600                      call load_kernel
+    41 00000015 BE[5702]                    mov si, MSG_KERNEL_LOADED
+    42 00000018 E8C701                      call print_string_16
+    43                                  
+    44                                      ; Switch to Protected Mode
+    45 0000001B FA                          cli
+    46 0000001C 0F0116[1A02]                lgdt [gdt_descriptor]
+    47 00000021 0F20C0                      mov eax, cr0
+    48 00000024 6683C801                    or eax, 1
+    49 00000028 0F22C0                      mov cr0, eax
+    50 0000002B EA[2002]0800                jmp 0x08:protected_mode_entry
+    51                                  
+    52                                  ; ============================================================================
+    53                                  ; setup_vesa: Set 1024x768x32 using VBE BIOS calls
+    54                                  ; Stores FB info at physical address 0x9000 for the kernel
+    55                                  ; ============================================================================
+    56                                  setup_vesa:
+    57 00000030 60                          pusha
+    58                                  
+    59                                      ; Clear the info area at 0x9000
+    60 00000031 BF0090                      mov di, 0x9000
+    61 00000034 31C0                        xor ax, ax
+    62 00000036 B91000                      mov cx, 16
+    63 00000039 F3AB                        rep stosw
+    64                                  
+    65                                      ; Step 1: Get mode info for mode 0x118 (1024x768x32bpp)
+    66                                      ; VBE function 0x4F01: Return VBE Mode Information
+    67                                      ; ES:DI = pointer to 256-byte ModeInfoBlock
+    68 0000003B B8014F                      mov ax, 0x4F01
+    69 0000003E B91801                      mov cx, 0x0118          ; Mode 0x118 = 1024x768x32
+    70 00000041 BF0080                      mov di, 0x8000          ; Store mode info at 0x8000 (temporary)
+    71 00000044 CD10                        int 0x10
+    72 00000046 83F84F                      cmp ax, 0x004F
+    73 00000049 7544                        jne .try_alt_mode
+    74                                  
+    75                                      ; Verify resolution and bpp from mode info
+    76 0000004B 813E12800004                cmp word [0x8000 + 18], 1024    ; XResolution at offset 18
+    77 00000051 753C                        jne .try_alt_mode
+    78 00000053 813E14800003                cmp word [0x8000 + 20], 768     ; YResolution at offset 20
+    79 00000059 7534                        jne .try_alt_mode
+    80                                  
+    81                                      ; Get framebuffer physical address from offset 40
+    82 0000005B 66A12880                    mov eax, [0x8000 + 40]         ; PhysBasePtr
+    83 0000005F 66A30090                    mov [0x9000], eax              ; Store FB address for kernel
+    84                                  
+    85                                      ; Store pitch (bytes per scanline) from offset 16
+    86 00000063 A11080                      mov ax, [0x8000 + 16]
+    87 00000066 A30490                      mov [0x9004], ax
+    88                                  
+    89                                      ; Store resolution
+    90 00000069 C70606900004                mov word [0x9006], 1024
+    91 0000006F C70608900003                mov word [0x9008], 768
+    92                                  
+    93                                      ; Store BPP from offset 25
+    94 00000075 A01980                      mov al, [0x8000 + 25]
+    95 00000078 A20B90                      mov [0x900B], al
+    96                                  
+    97                                      ; Step 2: Set the mode
+    98                                      ; VBE function 0x4F02: Set VBE Mode
+    99                                      ; BX = mode number | 0x4000 (bit 14 = use LFB)
+   100 0000007B B8024F                      mov ax, 0x4F02
+   101 0000007E BB1841                      mov bx, 0x4118          ; Mode 0x118 + LFB bit
+   102 00000081 CD10                        int 0x10
+   103 00000083 83F84F                      cmp ax, 0x004F
+   104 00000086 7507                        jne .try_alt_mode
+   105                                  
+   106                                      ; Success! Set flag
+   107 00000088 C6060A9001                  mov byte [0x900A], 1           ; VESA active flag
+   108 0000008D 61                          popa
+   109 0000008E C3                          ret
+   110                                  
+   111                                  .try_alt_mode:
+   112                                      ; Try alternative: mode 0x0105 might map differently
+   113                                      ; Or just try setting 0x4118 directly without checking
+   114 0000008F B8024F                      mov ax, 0x4F02
+   115 00000092 BB1841                      mov bx, 0x4118
+   116 00000095 CD10                        int 0x10
+   117 00000097 83F84F                      cmp ax, 0x004F
+   118 0000009A 7522                        jne .vesa_failed
+   119                                  
+   120                                      ; Set defaults even without proper mode query
+   121 0000009C 66C7060090000000FD          mov dword [0x9000], 0xFD000000  ; Default QEMU FB address
+   122 000000A5 C70604900010                mov word [0x9004], 4096         ; Default pitch
+   123 000000AB C70606900004                mov word [0x9006], 1024
+   124 000000B1 C70608900003                mov word [0x9008], 768
+   125 000000B7 C6060A9001                  mov byte [0x900A], 1
+   126 000000BC 61                          popa
+   127 000000BD C3                          ret
+   128                                  
+   129                                  .vesa_failed:
+   130 000000BE BE[A302]                    mov si, MSG_VESA_FAIL
+   131 000000C1 E81E01                      call print_string_16
+   132 000000C4 C6060A9000                  mov byte [0x900A], 0           ; VESA not active
+   133 000000C9 61                          popa
+   134 000000CA C3                          ret
+   135                                  
+   136                                  ; ============================================================================
+   137                                  ; load_kernel — chunked high load
+   138                                  ; Reads CHUNK_SECTORS at a time into the bounce buffer (real mode, BIOS),
+   139                                  ; then hops into protected mode to rep-movsd the chunk up to [dest_phys].
+   140                                  ; ============================================================================
+   141                                  load_kernel:
+   142 000000CB C706[C901]0500              mov word [cur_lba], 5
+   143 000000D1 C706[CB01]A005              mov word [sectors_left], KERNEL_SECTORS
+   144 000000D7 66C706[D101]000010-         mov dword [dest_phys], KERNEL_OFFSET
+   144 000000DF 00                 
+   145                                  
+   146                                  .chunk_loop:
+   147 000000E0 833E[CB01]00                cmp word [sectors_left], 0
+   148 000000E5 746F                        je .done
+   149                                  
+   150                                      ; chunk = min(CHUNK_SECTORS, sectors_left)
+   151 000000E7 A1[CB01]                    mov ax, [sectors_left]
+   152 000000EA 83F840                      cmp ax, CHUNK_SECTORS
+   153 000000ED 7603                        jbe .have_count
+   154 000000EF B84000                      mov ax, CHUNK_SECTORS
+   155                                  .have_count:
+   156 000000F2 A3[CD01]                    mov [chunk_count], ax
+   157 000000F5 2906[CB01]                  sub [sectors_left], ax
+   158 000000F9 C706[CF01]0000              mov word [dest_offset], 0x0000
+   159                                  
+   160                                  .read_loop:
+   161 000000FF 833E[CD01]00                cmp word [chunk_count], 0
+   162 00000104 744B                        je .chunk_read_done
+   163 00000106 A1[C901]                    mov ax, [cur_lba]
+   164 00000109 31D2                        xor dx, dx
+   165 0000010B BB1200                      mov bx, SECTORS_PER_TRACK
+   166 0000010E F7F3                        div bx
+   167 00000110 FEC2                        inc dl
+   168 00000112 88D1                        mov cl, dl
+   169 00000114 31D2                        xor dx, dx
+   170 00000116 BB0200                      mov bx, HEADS
+   171 00000119 F7F3                        div bx
+   172 0000011B 88C5                        mov ch, al
+   173 0000011D 88D6                        mov dh, dl
+   174 0000011F B200                        mov dl, 0x00
+   175 00000121 B80010                      mov ax, BOUNCE_SEG
+   176 00000124 8EC0                        mov es, ax
+   177 00000126 8B1E[CF01]                  mov bx, [dest_offset]
+   178 0000012A B402                        mov ah, 0x02
+   179 0000012C B001                        mov al, 1
+   180 0000012E BF0300                      mov di, 3
+   181                                  .retry:
+   182 00000131 60                          pusha
+   183 00000132 CD13                        int 0x13
+   184 00000134 730A                        jnc .read_ok
+   185 00000136 61                          popa
+   186 00000137 4F                          dec di
+   187 00000138 7421                        jz .disk_err
+   188 0000013A 30E4                        xor ah, ah
+   189 0000013C CD13                        int 0x13
+   190 0000013E EBF1                        jmp .retry
+   191                                  .read_ok:
+   192 00000140 61                          popa
+   193 00000141 8106[CF01]0002              add word [dest_offset], 512
+   194 00000147 FF06[C901]                  inc word [cur_lba]
+   195 0000014B FF0E[CD01]                  dec word [chunk_count]
+   196 0000014F EBAE                        jmp .read_loop
+   197                                  
+   198                                  .chunk_read_done:
+   199 00000151 E80F00                      call pm_copy_chunk
+   200 00000154 EB8A                        jmp .chunk_loop
+   201                                  
+   202                                  .done:
+   203 00000156 31C0                        xor ax, ax
+   204 00000158 8EC0                        mov es, ax
+   205 0000015A C3                          ret
+   206                                  .disk_err:
+   207 0000015B BE[8B02]                    mov si, MSG_DISK_ERR
+   208 0000015E E88100                      call print_string_16
+   209 00000161 EBFE                        jmp $
+   210                                  
+   211                                  ; ----------------------------------------------------------------------------
+   212                                  ; pm_copy_chunk: copy [dest_offset] bytes from the bounce buffer (0x10000)
+   213                                  ; to [dest_phys], advancing it. Brief PM hop; SS:SP untouched throughout.
+   214                                  ; ----------------------------------------------------------------------------
+   215                                  pm_copy_chunk:
+   216 00000163 FA                          cli
+   217 00000164 1E                          push ds
+   218 00000165 06                          push es
+   219 00000166 0F0116[1A02]                lgdt [gdt_descriptor]
+   220 0000016B 0F20C0                      mov eax, cr0
+   221 0000016E 6683C801                    or eax, 1
+   222 00000172 EBFE                        jmp $                        ; DEBUG MARKER 0.5 (before PE set)
+   223 00000174 0F22C0                      mov cr0, eax
+   224 00000177 EA[7C01]0800                jmp 0x08:.pm32
+   225                                  
+   226                                  [bits 32]
+   227                                  .pm32:
+   228 0000017C 66B81000                    mov ax, 0x10                 ; flat 32-bit data
+   229 00000180 8ED8                        mov ds, ax
+   230 00000182 8EC0                        mov es, ax
+   231 00000184 EBFE                        jmp $                        ; DEBUG MARKER 1
+   232 00000186 BE00000100                  mov esi, BOUNCE_SEG * 16
+   233 0000018B 8B3D[D1010000]              mov edi, [dest_phys]
+   234 00000191 0FB70D[CF010000]            movzx ecx, word [dest_offset]
+   235 00000198 010D[D1010000]              add [dest_phys], ecx
+   236 0000019E C1E902                      shr ecx, 2
+   237 000001A1 FC                          cld
+   238 000001A2 F3A5                        rep movsd
+   239 000001A4 EA[AB010000]1800            jmp 0x18:.pm16               ; 16-bit protected code segment
+   240                                  
+   241                                  [bits 16]
+   242                                  .pm16:
+   243 000001AB B82000                      mov ax, 0x20                 ; 16-bit data: restore 64KB-limit caches
+   244 000001AE 8ED8                        mov ds, ax
+   245 000001B0 8EC0                        mov es, ax
+   246 000001B2 0F20C0                      mov eax, cr0
+   247 000001B5 6683E0FE                    and eax, 0xFFFFFFFE
+   248 000001B9 0F22C0                      mov cr0, eax
+   249 000001BC EA[C101]0000                jmp 0x0000:.real
+   250                                  .real:
+   251 000001C1 31C0                        xor ax, ax
+   252 000001C3 8ED8                        mov ds, ax
+   253 000001C5 07                          pop es
+   254 000001C6 1F                          pop ds
+   255 000001C7 FB                          sti
+   256 000001C8 C3                          ret
+   257                                  
+   258 000001C9 0000                    cur_lba:       dw 0
+   259 000001CB 0000                    sectors_left:  dw 0
+   260 000001CD 0000                    chunk_count:   dw 0
+   261 000001CF 0000                    dest_offset:   dw 0
+   262 000001D1 00000000                dest_phys:     dd 0
+   263                                  
+   264                                  ; ============================================================================
+   265                                  ; enable_a20
+   266                                  ; ============================================================================
+   267                                  enable_a20:
+   268 000001D5 E492                        in al, 0x92
+   269 000001D7 A802                        test al, 2
+   270 000001D9 7506                        jnz .done
+   271 000001DB 0C02                        or al, 2
+   272 000001DD 24FE                        and al, 0xFE
+   273 000001DF E692                        out 0x92, al
+   274                                  .done:
+   275 000001E1 C3                          ret
+   276                                  
+   277                                  ; ============================================================================
+   278                                  ; print_string_16
+   279                                  ; ============================================================================
+   280                                  print_string_16:
+   281 000001E2 60                          pusha
+   282                                  .loop:
+   283 000001E3 AC                          lodsb
+   284 000001E4 3C00                        cmp al, 0
+   285 000001E6 7408                        je .done
+   286 000001E8 B40E                        mov ah, 0x0E
+   287 000001EA B700                        mov bh, 0
+   288 000001EC CD10                        int 0x10
+   289 000001EE EBF3                        jmp .loop
+   290                                  .done:
+   291 000001F0 61                          popa
+   292 000001F1 C3                          ret
+   293                                  
+   294                                  ; ============================================================================
+   295                                  ; GDT
+   296                                  ; ============================================================================
+   297                                  gdt_start:
+   298 000001F2 0000000000000000        gdt_null:   dq 0
+   299 000001FA FFFF0000                gdt_code:   dw 0xFFFF, 0x0000              ; 0x08: 32-bit flat code
+   300 000001FE 009ACF00                            db 0x00, 10011010b, 11001111b, 0x00
+   301 00000202 FFFF0000                gdt_data:   dw 0xFFFF, 0x0000              ; 0x10: 32-bit flat data
+   302 00000206 0092CF00                            db 0x00, 10010010b, 11001111b, 0x00
+   303 0000020A FFFF0000                gdt_code16: dw 0xFFFF, 0x0000              ; 0x18: 16-bit code (PM->real hop)
+   304 0000020E 009A0000                            db 0x00, 10011010b, 00000000b, 0x00
+   305 00000212 FFFF0000                gdt_data16: dw 0xFFFF, 0x0000              ; 0x20: 16-bit data (PM->real hop)
+   306 00000216 00920000                            db 0x00, 10010010b, 00000000b, 0x00
+   307                                  gdt_end:
+   308                                  
+   309                                  gdt_descriptor:
+   310 0000021A 2700                        dw gdt_end - gdt_start - 1
+   311 0000021C [F2010000]                  dd gdt_start
+   312                                  
+   313                                  ; ============================================================================
+   314                                  ; 32-bit Protected Mode Entry
+   315                                  ; ============================================================================
+   316                                  [bits 32]
+   317                                  protected_mode_entry:
+   318 00000220 66B81000                    mov ax, 0x10
+   319 00000224 8ED8                        mov ds, ax
+   320 00000226 8EC0                        mov es, ax
+   321 00000228 8EE0                        mov fs, ax
+   322 0000022A 8EE8                        mov gs, ax
+   323 0000022C 8ED0                        mov ss, ax
+   324 0000022E BC00000900                  mov esp, 0x90000
+   325 00000233 E9(00001000)                jmp KERNEL_OFFSET
+   326                                  
+   327                                  ; ============================================================================
+   328                                  ; Messages
+   329                                  ; ============================================================================
+   330 00000238 5B4E657875734F535D-     MSG_STAGE2:         db '[NexusOS] Stage 2 loading...', 13, 10, 0
+   330 00000241 205374616765203220-
+   330 0000024A 6C6F6164696E672E2E-
+   330 00000253 2E0D0A00           
+   331 00000257 5B4E657875734F535D-     MSG_KERNEL_LOADED:  db '[NexusOS] Kernel loaded!', 13, 10, 0
+   331 00000260 204B65726E656C206C-
+   331 00000269 6F61646564210D0A00 
+   332 00000272 5B4E657875734F535D-     MSG_A20:            db '[NexusOS] A20 enabled!', 13, 10, 0
+   332 0000027B 2041323020656E6162-
+   332 00000284 6C6564210D0A00     
+   333 0000028B 5B4E657875734F535D-     MSG_DISK_ERR:       db '[NexusOS] Disk error!', 13, 10, 0
+   333 00000294 204469736B20657272-
+   333 0000029D 6F72210D0A00       
+   334 000002A3 5B4E657875734F535D-     MSG_VESA_FAIL:      db '[NexusOS] VESA fallback to text mode', 13, 10, 0
+   334 000002AC 20564553412066616C-
+   334 000002B5 6C6261636B20746F20-
+   334 000002BE 74657874206D6F6465-
+   334 000002C7 0D0A00             
+   335                                  
+   336                                  ; Pad to 2048 bytes
+   337 000002CA 00<rep 536h>            times 2048 - ($ - $$) db 0
