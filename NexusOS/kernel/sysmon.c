@@ -16,6 +16,7 @@
 #include "rtc.h"
 #include "string.h"
 #include "framebuffer.h"
+#include "appui.h"
 
 #ifndef FB_RGB
 #define FB_RGB(r, g, b) (((0xFF & r) << 16) | ((0xFF & g) << 8) | (0xFF & b))
@@ -84,25 +85,20 @@ static void draw_bar(int cx, int row, int bar_w, uint32_t used, uint32_t total,
 static void sysmon_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
     const theme_t* t = theme_get();
-    uint8_t text_color = t->win_content;
-    uint8_t bg = (text_color >> 4) & 0x0F;
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
-    uint8_t val_col = VGA_COLOR(VGA_WHITE, bg);
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
+    (void)t;
+    appui_theme_t ui = appui_theme();
+    uint8_t text_color = ui.text;
+    uint8_t bg = ui.bg;
+    uint8_t accent = ui.accent;
+    uint8_t val_col = ui.text;
+    uint8_t dim = ui.muted;
     uint8_t bar_fill = VGA_COLOR(VGA_LIGHT_GREEN, bg);
     uint8_t bar_empty = VGA_COLOR(VGA_DARK_GREY, bg);
     uint8_t warn_col = VGA_COLOR(VGA_YELLOW, bg);
 
-    int row = cy;
-
-    /* Title */
-    gui_draw_text(cx + 1, row, "\x04 System Monitor", accent);
-    row++;
-
-    /* Separator */
-    for (int i = 0; i < cw - 1 && cx + i < GUI_WIDTH; i++)
-        gui_putchar(cx + i, row, (char)0xC4, dim);
-    row++;
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "System Monitor", "Live CPU, memory, and processes");
+    int row = cy + 3;
 
     /* Uptime */
     uint32_t seconds = system_ticks / 18;
@@ -245,5 +241,5 @@ static void sysmon_key(int id, char key) {
  * sysmon_open: Create a system monitor window
  * -------------------------------------------------------------------------- */
 int sysmon_open(void) {
-    return window_create("System Monitor", 20, 1, 38, 22, sysmon_draw, sysmon_key);
+    return window_create("System Monitor", 14, 4, 50, 26, sysmon_draw, sysmon_key);
 }
