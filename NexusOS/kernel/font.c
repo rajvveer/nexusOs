@@ -13,6 +13,20 @@
 /* Active font size state */
 static FontSize active_font_size = FONT_SIZE_8x16;
 
+/* Phase 43 (accessibility): global integer text-scale factor (1..FONT_MAX_SCALE).
+ * Applied by the non-scaled draw/measure helpers so that ALL UI text — window
+ * titles, labels, taskbar, dialogs — enlarges uniformly when a low-vision user
+ * raises it. Explicit *_scaled() callers compose with this via the active size,
+ * not this global, so games/HUDs that request an exact scale are unaffected. */
+static int global_font_scale = 1;
+
+void font_set_scale(int scale) {
+    if (scale < 1) scale = 1;
+    if (scale > FONT_MAX_SCALE) scale = FONT_MAX_SCALE;
+    global_font_scale = scale;
+}
+int font_get_scale(void) { return global_font_scale; }
+
 /* 8x16 VGA font data — 256 glyphs */
 static const uint8_t font_data[256][16] = {
     /* 0x00 NULL - blank */
@@ -360,7 +374,11 @@ int font_get_active_height(void) {
 /* --------------------------------------------------------------------------
  * font_draw_char: Render a single character at pixel position
  * -------------------------------------------------------------------------- */
-void font_draw_char(int x, int y, uint8_t c, uint32_t fg, uint32_t bg) {
+/* Always-1x glyph draw — IGNORES the global accessibility scale. The raw VESA
+ * text console (vga.c) draws on a fixed character grid and must use this, or a
+ * raised global scale would render oversized glyphs on a 1x grid and overlap
+ * into garbage. GUI text uses font_draw_char (which honors the scale). */
+void font_draw_char_fixed(int x, int y, uint8_t c, uint32_t fg, uint32_t bg) {
     if (!fb_is_vesa()) return;
     uint32_t fb_w = fb_get_width();
     uint32_t fb_h = fb_get_height();
@@ -386,11 +404,24 @@ void font_draw_char(int x, int y, uint8_t c, uint32_t fg, uint32_t bg) {
     }
 }
 
+/* GUI glyph draw — honors the global accessibility scale. */
+void font_draw_char(int x, int y, uint8_t c, uint32_t fg, uint32_t bg) {
+    if (global_font_scale > 1) {
+        font_draw_char_scaled(x, y, c, fg, bg, global_font_scale);
+        return;
+    }
+    font_draw_char_fixed(x, y, c, fg, bg);
+}
+
 /* --------------------------------------------------------------------------
  * font_draw_char_transparent: Render character, skip bg pixels
  * -------------------------------------------------------------------------- */
 void font_draw_char_transparent(int x, int y, uint8_t c, uint32_t fg) {
     if (!fb_is_vesa()) return;
+    if (global_font_scale > 1) {
+        font_draw_char_scaled_transparent(x, y, c, fg, global_font_scale);
+        return;
+    }
     uint32_t fb_w = fb_get_width();
     uint32_t fb_h = fb_get_height();
     int h = font_get_active_height();
@@ -420,9 +451,10 @@ void font_draw_char_transparent(int x, int y, uint8_t c, uint32_t fg) {
  * -------------------------------------------------------------------------- */
 void font_draw_string(int x, int y, const char* str, uint32_t fg, uint32_t bg) {
     int px = x;
+    int adv = FONT_WIDTH * global_font_scale;   /* honor global accessibility scale */
     while (*str) {
         font_draw_char(px, y, (uint8_t)*str, fg, bg);
-        px += FONT_WIDTH;
+        px += adv;
         str++;
     }
 }
@@ -433,7 +465,9 @@ void font_draw_string(int x, int y, const char* str, uint32_t fg, uint32_t bg) {
 
 void font_draw_char_scaled(int x, int y, uint8_t c, uint32_t fg, uint32_t bg, int scale) {
     if (!fb_is_vesa() || scale < 1 || scale > FONT_MAX_SCALE) return;
-    if (scale == 1) { font_draw_char(x, y, c, fg, bg); return; }
+    /* Explicit scale=1 means exactly 1x — use the fixed draw so the global
+     * accessibility scale is not re-applied (and to avoid recursing back in). */
+    if (scale == 1) { font_draw_char_fixed(x, y, c, fg, bg); return; }
 
     uint32_t fb_w = fb_get_width();
     uint32_t fb_h = fb_get_height();
@@ -519,6 +553,12 @@ static inline uint32_t blend_colors(uint32_t fg, uint32_t bg, int coverage) {
 
 void font_draw_char_aa(int x, int y, uint8_t c, uint32_t fg, uint32_t bg) {
     if (!fb_is_vesa()) return;
+    /* When global scaling is active, prefer crisp integer scaling over AA so the
+     * enlarged glyph stays sharp for low-vision users (AA softens edges). */
+    if (global_font_scale > 1) {
+        font_draw_char_scaled(x, y, c, fg, bg, global_font_scale);
+        return;
+    }
     uint32_t fb_w = fb_get_width();
     uint32_t fb_h = fb_get_height();
     int h = font_get_active_height();
@@ -554,9 +594,10 @@ void font_draw_char_aa(int x, int y, uint8_t c, uint32_t fg, uint32_t bg) {
 
 void font_draw_string_aa(int x, int y, const char* str, uint32_t fg, uint32_t bg) {
     int px = x;
+    int adv = FONT_WIDTH * global_font_scale;   /* honor global accessibility scale */
     while (*str) {
         font_draw_char_aa(px, y, (uint8_t)*str, fg, bg);
-        px += FONT_WIDTH;
+        px += adv;
         str++;
     }
 }
@@ -568,7 +609,7 @@ void font_draw_string_aa(int x, int y, const char* str, uint32_t fg, uint32_t bg
 int font_measure_string(const char* str) {
     int len = 0;
     while (*str) { len++; str++; }
-    return len * FONT_WIDTH;
+    return len * FONT_WIDTH * global_font_scale;   /* width grows with the global scale */
 }
 
 int font_measure_string_scaled(const char* str, int scale) {

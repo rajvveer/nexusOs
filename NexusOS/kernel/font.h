@@ -42,9 +42,23 @@ void font_set_size(FontSize size);
 /* Get current active font size */
 FontSize font_get_size(void);
 
-/* Get active font dimensions */
+/* Get active font dimensions (UNSCALED base glyph size — the global
+ * accessibility scale is NOT folded in here, because the renderers use these
+ * as the base from which they compute scaled output. Layout code that wants
+ * on-screen pixel extents should multiply by font_get_scale()). */
 int font_get_active_width(void);
 int font_get_active_height(void);
+
+/* --------------------------------------------------------------------------
+ * Phase 43: Global accessibility text scale (1..FONT_MAX_SCALE)
+ * --------------------------------------------------------------------------
+ * Sets a system-wide integer magnification applied automatically by the
+ * non-scaled draw/measure helpers (font_draw_char/string, _transparent, _aa,
+ * font_measure_string). Raising it enlarges ALL UI text for low-vision users.
+ * The explicit *_scaled() calls are NOT affected (they request an exact
+ * scale). Out-of-range values are clamped. */
+void font_set_scale(int scale);
+int  font_get_scale(void);
 
 /* --------------------------------------------------------------------------
  * Core rendering (uses active font size)
@@ -55,6 +69,11 @@ const uint8_t* font_get_glyph(uint8_t c);
 
 /* Draw a single character at pixel position (x, y) to framebuffer */
 void font_draw_char(int x, int y, uint8_t c, uint32_t fg, uint32_t bg);
+
+/* Like font_draw_char but ALWAYS 1x — ignores the global accessibility scale.
+ * For fixed-grid renderers (the raw VESA text console in vga.c) that would
+ * otherwise overlap if the global scale were >1. */
+void font_draw_char_fixed(int x, int y, uint8_t c, uint32_t fg, uint32_t bg);
 
 /* Draw a null-terminated string at pixel position (x, y) */
 void font_draw_string(int x, int y, const char* str, uint32_t fg, uint32_t bg);
