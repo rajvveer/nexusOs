@@ -12,6 +12,7 @@
 #include "string.h"
 #include "speaker.h"
 #include "keyboard.h"
+#include "appui.h"
 
 extern volatile uint32_t system_ticks;
 
@@ -107,25 +108,26 @@ static uint32_t mus_next_tick = 0;
 static void mus_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
     const theme_t* t = theme_get();
-    uint8_t tc = t->win_content;
-    uint8_t bg = (tc >> 4) & 0x0F;
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
+    appui_theme_t ui = appui_theme();
+    uint8_t tc = ui.text;
+    uint8_t bg = ui.bg;
+    uint8_t accent = ui.accent;
+    uint8_t dim = ui.muted;
     uint8_t hi = t->menu_highlight;
     uint8_t play_col = VGA_COLOR(VGA_LIGHT_GREEN, bg);
 
-    int row = cy;
-    gui_draw_text(cx + 1, row, "\x0E Music Player", accent);
-    row += 2;
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "Music", mus_playing ? "Playing through PC speaker" : "Select a track");
+    int row = cy + 3;
 
     /* Track list */
     for (int i = 0; i < TRACK_COUNT && row < cy + ch - 4; i++) {
         bool sel = (i == mus_track);
         uint8_t col = sel ? hi : tc;
-        if (sel) for (int j = cx; j < cx + cw - 1; j++) gui_putchar(j, row, ' ', hi);
-        gui_putchar(cx + 1, row, sel ? '\x10' : ' ', col);
-        gui_draw_text(cx + 3, row, tracks[i].name, col);
-        if (sel && mus_playing) gui_draw_text(cx + cw - 4, row, "\x0E", play_col);
+        if (sel) appui_row(cx, row, cw, true, ui.panel, hi);
+        gui_putchar(cx + 1, row, sel ? '>' : ' ', col);
+        appui_text(cx + 3, row, tracks[i].name, cw - 6, col);
+        if (sel && mus_playing) gui_draw_text(cx + cw - 4, row, ">>", play_col);
         row++;
     }
 
@@ -152,7 +154,7 @@ static void mus_draw(int id, int cx, int cy, int cw, int ch) {
     }
 
     int hint_row = cy + ch - 1;
-    gui_draw_text(cx + 1, hint_row, "Space:Play/Stop  Up/Dn", dim);
+    appui_status(cx, hint_row, cw, "Space Play/Stop   Up/Down Track");
     (void)cw;
 }
 
@@ -189,5 +191,5 @@ static void mus_key(int id, char key) {
 
 int music_open(void) {
     mus_track = 0; mus_playing = false; mus_note_idx = 0;
-    return window_create("Music Player", 22, 3, 30, 16, mus_draw, mus_key);
+    return window_create("Music Player", 22, 4, 42, 20, mus_draw, mus_key);
 }
