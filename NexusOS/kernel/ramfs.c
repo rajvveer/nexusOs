@@ -9,6 +9,7 @@
 #include "heap.h"
 #include "string.h"
 #include "vga.h"
+#include "users.h"
 
 /* External: set VFS root */
 extern void vfs_set_root(fs_node_t* root);
@@ -129,6 +130,9 @@ fs_node_t* ramfs_create(const char* name, uint8_t type) {
     node->readdir = (type == FS_DIRECTORY) ? ramfs_readdir_fn : NULL;
     node->finddir = (type == FS_DIRECTORY) ? ramfs_finddir_fn : NULL;
 
+    /* Phase 44: default ownership (creator) + mode (0644 file / 0755 dir) */
+    vfs_init_perms(node);
+
     /* Add to root's children (prepend) */
     node->next = root_node.children;
     root_node.children = node;
@@ -146,6 +150,12 @@ int ramfs_delete(const char* name) {
 
     while (current != NULL) {
         if (strcmp(current->name, name) == 0) {
+            /* Phase 44: only the owner or root may delete a file (delete is a
+             * change to the file's existence — gate on ownership, not mode). */
+            uint32_t cu = users_current_uid();
+            if (cu != UID_ROOT && current->uid != cu)
+                return -2;  /* permission denied */
+
             /* Unlink from list */
             if (prev == NULL) {
                 root_node.children = current->next;
