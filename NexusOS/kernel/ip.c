@@ -13,6 +13,7 @@
 #include "net.h"
 #include "vga.h"
 #include "string.h"
+#include "firewall.h"
 
 /* Network configuration (QEMU user-mode defaults) */
 static net_config_t config = {
@@ -97,6 +98,20 @@ void ip_handle_packet(const void* data, uint16_t len) {
     const uint8_t* payload = (const uint8_t*)data + hdr_len;
     uint16_t payload_len = total_len - hdr_len;
 
+    /* Phase 44: firewall ingress filter. For TCP/UDP the remote port we filter
+     * on is the packet's DESTINATION port (the local service being reached);
+     * the source IP is the remote end. */
+    {
+        uint16_t dport = 0;
+        if ((hdr->protocol == IP_PROTO_TCP || hdr->protocol == IP_PROTO_UDP)
+            && payload_len >= 4) {
+            dport = ntohs(*(const uint16_t*)(payload + 2)); /* dst_port */
+        }
+        if (firewall_check(FW_IN, hdr->protocol, ntohl(hdr->src_ip), dport)) {
+            return; /* dropped by firewall */
+        }
+    }
+
     /* Learn sender's MAC→IP mapping via ARP */
     /* (The Ethernet header has already been stripped by net layer) */
 
@@ -123,6 +138,18 @@ int ip_send_packet(uint32_t dst_ip, uint8_t protocol,
                    const void* payload, uint16_t payload_len) {
     net_device_t* dev = net_get_device(0);
     if (!dev) return -1;
+
+    /* Phase 44: firewall egress filter (remote = dst_ip, port = dst port). */
+    {
+        uint16_t dport = 0;
+        if ((protocol == IP_PROTO_TCP || protocol == IP_PROTO_UDP)
+            && payload && payload_len >= 4) {
+            dport = ntohs(*(const uint16_t*)((const uint8_t*)payload + 2));
+        }
+        if (firewall_check(FW_OUT, protocol, dst_ip, dport)) {
+            return -1; /* blocked by firewall */
+        }
+    }
 
     uint16_t total_len = IP_HEADER_LEN + payload_len;
     if (total_len > ETH_MTU) return -1; /* Too large (no fragmentation) */
