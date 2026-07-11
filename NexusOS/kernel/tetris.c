@@ -11,6 +11,7 @@
 #include "vga.h"
 #include "string.h"
 #include "speaker.h"
+#include "appui.h"
 
 extern volatile uint32_t system_ticks;
 
@@ -101,13 +102,15 @@ static void t_update(void) {
 }
 
 static void t_draw(int id, int cx, int cy, int cw, int ch) {
-    (void)id; (void)cw; (void)ch;
-    const theme_t* t = theme_get();
-    uint8_t tc = t->win_content, bg = (tc >> 4) & 0xF;
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
+    (void)id;
+    appui_theme_t ui = appui_theme();
+    uint8_t tc = ui.text, bg = ui.bg;
+    uint8_t dim = ui.muted;
 
     t_update();
-    int row = cy;
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "Tetris", "Score, lines, level, and next piece");
+    int row = cy + 3;
 
     /* Board */
     for (int y = 0; y < TH && row < cy + ch - 2; y++) {
@@ -151,7 +154,7 @@ static void t_draw(int id, int cx, int cy, int cw, int ch) {
     row++;
 
     if (t_over) gui_draw_text(cx, row, "GAME OVER! R:Restart", VGA_COLOR(VGA_LIGHT_RED, bg));
-    else gui_draw_text(cx, row, "\x1B\x1A:Move \x18:Rot Spc:Drop", dim);
+    else appui_status(cx, cy + ch - 1, cw, "Left/Right Move   Up Rotate   Space Drop   R Restart");
 }
 
 static void t_key(int id, char key) {
@@ -170,5 +173,5 @@ static void t_key(int id, char key) {
 
 int tetris_open(void) {
     t_init();
-    return window_create("Tetris", 14, 2, TW + 14, TH + 4, t_draw, t_key);
+    return window_create("Tetris", 14, 4, TW + 18, TH + 8, t_draw, t_key);
 }
