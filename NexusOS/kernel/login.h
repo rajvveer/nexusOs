@@ -7,7 +7,10 @@
 #ifndef LOGIN_H
 #define LOGIN_H
 
-/* Run the login screen. Returns when user logs in successfully. */
-void login_run(void);
+#include "types.h"
+
+/* Run the login screen. Loops until valid credentials are entered (Phase 44),
+ * sets the current user, and returns the authenticated uid. */
+uint32_t login_run(void);
 
 #endif /* LOGIN_H */

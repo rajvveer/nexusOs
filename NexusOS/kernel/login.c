@@ -11,6 +11,7 @@
 #include "string.h"
 #include "port.h"
 #include "speaker.h"
+#include "users.h"
 
 /* System tick counter */
 extern volatile uint32_t system_ticks;
@@ -86,7 +87,7 @@ static int read_input(char* buf, int max, bool masked) {
 /* --------------------------------------------------------------------------
  * login_run: Main login screen
  * -------------------------------------------------------------------------- */
-void login_run(void) {
+uint32_t login_run(void) {
     /* Hide cursor during splash */
     port_byte_out(0x3D4, 0x0A);
     port_byte_out(0x3D5, 0x20);
@@ -131,26 +132,46 @@ void login_run(void) {
 
     draw_centered(9, "Please log in to continue", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
 
+    draw_centered(19, "(try root/root or guest/guest)", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+
     /* Re-enable cursor */
     port_byte_out(0x3D4, 0x0A);
     port_byte_out(0x3D5, 14);
     port_byte_out(0x3D4, 0x0B);
     port_byte_out(0x3D5, 15);
 
-    /* Username */
+    /* Phase 44: real authentication — loop until credentials verify. */
     char username[32];
-    vga_set_cursor(11, 25);
-    vga_print_color("Username: ", VGA_COLOR(VGA_WHITE, VGA_BLACK));
-    read_input(username, 32, false);
-
-    /* Password */
     char password[32];
-    vga_set_cursor(12, 25);
-    vga_print_color("Password: ", VGA_COLOR(VGA_WHITE, VGA_BLACK));
-    read_input(password, 32, true);
+    uint32_t uid = UID_INVALID;
+    while (uid == UID_INVALID) {
+        /* Clear any prior input/error rows */
+        for (int r = 11; r <= 13; r++) {
+            vga_set_cursor(r, 0);
+            for (int c = 0; c < 80; c++) vga_print(" ");
+        }
 
-    /* Accept any credentials */
-    (void)password;
+        vga_set_cursor(11, 25);
+        vga_print_color("Username: ", VGA_COLOR(VGA_WHITE, VGA_BLACK));
+        read_input(username, 32, false);
+
+        vga_set_cursor(12, 25);
+        vga_print_color("Password: ", VGA_COLOR(VGA_WHITE, VGA_BLACK));
+        read_input(password, 32, true);
+
+        uid = users_authenticate(username, password);
+        if (uid == UID_INVALID) {
+            play_error_sound();
+            vga_set_cursor(13, 25);
+            vga_print_color("Invalid username or password.",
+                            VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+            /* brief pause so the message is visible */
+            delay_ticks(18);
+        }
+    }
+
+    /* Authenticated — make this the current user. */
+    users_set_current(uid);
 
     /* Welcome message */
     /* Hide cursor for animation */
@@ -188,4 +209,6 @@ void login_run(void) {
 
     vga_clear();
     vga_flush();
+
+    return uid;
 }
