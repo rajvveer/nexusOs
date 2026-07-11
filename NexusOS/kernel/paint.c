@@ -10,6 +10,7 @@
 #include "theme.h"
 #include "vga.h"
 #include "string.h"
+#include "appui.h"
 
 #define PT_W 24
 #define PT_H 10
@@ -37,24 +38,20 @@ static void pt_init(void) {
 
 static void pt_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
-    const theme_t* t = theme_get();
-    uint8_t tc = t->win_content;
-    uint8_t bg = (tc >> 4) & 0x0F;
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
+    appui_theme_t ui = appui_theme();
+    uint8_t dim = ui.muted;
 
-    int row = cy;
+    appui_fill(cx, cy, cw, ch, ui.panel);
 
     /* Title + brush info */
-    gui_draw_text(cx, row, "\x0F Paint", accent);
     char info[20];
-    strcpy(info, " Brush:");
+    strcpy(info, "Brush: ");
     info[7] = pt_brush; info[8] = '\0';
     strcat(info, " C:");
     char cn[3]; int_to_str(pt_fg, cn);
     strcat(info, cn);
-    gui_draw_text(cx + 8, row, info, dim);
-    row++;
+    appui_header(cx, cy, cw, "Paint", info);
+    int row = cy + 3;
 
     /* Canvas border */
     gui_putchar(cx, row, (char)0xDA, dim);
@@ -79,7 +76,7 @@ static void pt_draw(int id, int cx, int cy, int cw, int ch) {
     gui_putchar(cx + PT_W + 1, row, (char)0xD9, dim);
     row++;
 
-    gui_draw_text(cx, row, "Space:paint C:color B:brush", dim);
+    appui_status(cx, cy + ch - 1, cw, "Space Paint   C Color   B Brush   X Clear");
     (void)cw; (void)ch;
 }
 
@@ -130,5 +127,5 @@ static void pt_key(int id, char key) {
 
 int paint_open(void) {
     pt_init();
-    return window_create("Paint", 14, 2, PT_W + 4, PT_H + 5, pt_draw, pt_key);
+    return window_create("Paint", 14, 4, PT_W + 8, PT_H + 8, pt_draw, pt_key);
 }
