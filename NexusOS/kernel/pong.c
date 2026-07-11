@@ -11,6 +11,7 @@
 #include "vga.h"
 #include "string.h"
 #include "speaker.h"
+#include "appui.h"
 
 extern volatile uint32_t system_ticks;
 
@@ -71,24 +72,23 @@ static void pg_update(void) {
 }
 
 static void pg_draw(int id, int cx, int cy, int cw, int ch) {
-    (void)id; (void)cw; (void)ch;
-    const theme_t* t = theme_get();
-    uint8_t tc = t->win_content, bg = (tc >> 4) & 0xF;
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
+    (void)id;
+    appui_theme_t ui = appui_theme();
+    uint8_t tc = ui.text, bg = ui.bg;
+    uint8_t dim = ui.muted;
     uint8_t ball_col = VGA_COLOR(VGA_YELLOW, bg);
     uint8_t pad_col = VGA_COLOR(VGA_LIGHT_GREEN, bg);
 
     pg_update();
 
-    int row = cy;
     /* Score */
     char sc[20]; strcpy(sc, "You:");
     char n1[4]; int_to_str(p_score_p, n1); strcat(sc, n1);
     strcat(sc, "  CPU:");
     char n2[4]; int_to_str(p_score_a, n2); strcat(sc, n2);
-    gui_draw_text(cx + 4, row, sc, accent);
-    row++;
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "Pong", sc);
+    int row = cy + 3;
 
     /* Field */
     for (int y = 0; y < PG_H && row < cy + ch - 1; y++) {
@@ -107,7 +107,7 @@ static void pg_draw(int id, int cx, int cy, int cw, int ch) {
         row++;
     }
 
-    gui_draw_text(cx, row, p_paused ? "P:Resume Up/Dn:Move" : "P:Pause Up/Dn:Move", dim);
+    appui_status(cx, cy + ch - 1, cw, p_paused ? "P Resume   Up/Down Move" : "P Pause   Up/Down Move");
 }
 
 static void pg_key(int id, char key) {
@@ -120,5 +120,5 @@ static void pg_key(int id, char key) {
 
 int pong_open(void) {
     pg_init();
-    return window_create("Pong", 16, 3, PG_W + 3, PG_H + 4, pg_draw, pg_key);
+    return window_create("Pong", 16, 4, PG_W + 6, PG_H + 7, pg_draw, pg_key);
 }
