@@ -9,6 +9,7 @@
 #include "vga.h"
 #include "string.h"
 #include "port.h"
+#include "appui.h"
 
 static bool pm_open = false;
 static int  pm_sel = 0;
@@ -20,26 +21,25 @@ bool power_menu_is_open(void) { return pm_open; }
 void power_menu_draw(void) {
     if (!pm_open) return;
 
-    int x = 25, y = 7, w = 30, h = 10;
-    uint8_t bg = VGA_COLOR(VGA_WHITE, VGA_DARK_GREY);
+    int x = 38, y = 14, w = 42, h = 12;
+    uint8_t bg = VGA_COLOR(VGA_LIGHT_GREY, VGA_BLACK);
     uint8_t hi = VGA_COLOR(VGA_BLACK, VGA_LIGHT_CYAN);
-    uint8_t dim = VGA_COLOR(VGA_LIGHT_GREY, VGA_DARK_GREY);
-    uint8_t title = VGA_COLOR(VGA_LIGHT_CYAN, VGA_DARK_GREY);
+    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, VGA_BLACK);
 
     gui_rect_t r = { x, y, w, h };
     gui_fill_rect(r, ' ', bg);
-    gui_draw_box_double(r, bg);
+    gui_draw_box(r, dim);
 
-    gui_draw_text(x + 8, y, " Power Options ", title);
+    appui_header(x + 1, y + 1, w - 2, "Power", "Choose a session action");
 
-    const char* opts[] = { "\x1F Shutdown", "\x18 Restart", "\xFE Lock Screen", "\x11 Cancel" };
+    const char* opts[] = { "Shutdown", "Restart", "Lock Screen", "Cancel" };
     for (int i = 0; i < 4; i++) {
-        int row = y + 2 + i * 2;
+        int row = y + 4 + i;
         uint8_t col = (i == pm_sel) ? hi : bg;
         for (int j = x + 2; j < x + w - 2; j++) gui_putchar(j, row, ' ', col);
         gui_draw_text(x + 8, row, opts[i], col);
         if (i == pm_sel) {
-            gui_putchar(x + 5, row, '\x10', VGA_COLOR(VGA_LIGHT_CYAN, (col >> 4) & 0xF));
+            gui_putchar(x + 5, row, '>', VGA_COLOR(VGA_LIGHT_CYAN, (col >> 4) & 0xF));
         }
     }
 }
