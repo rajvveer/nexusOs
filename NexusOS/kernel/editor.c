@@ -14,6 +14,7 @@
 #include "vfs.h"
 #include "ramfs.h"
 #include "string.h"
+#include "assistant.h"
 
 #define EDITOR_MAX_LINES  50
 #define EDITOR_MAX_COLS   80
@@ -74,7 +75,7 @@ static void draw_footer(void) {
     for (int c = 0; c < VGA_WIDTH; c++) {
         vga_putchar_at(' ', row, c, foot_color);
     }
-    const char* shortcuts = " ^S Save  ^Q Quit  Arrow Keys Navigate";
+    const char* shortcuts = " ^S Save  ^Q Quit  Tab Autocomplete  Arrows Navigate";
     for (int i = 0; shortcuts[i] && i < VGA_WIDTH; i++) {
         vga_putchar_at(shortcuts[i], row, i, foot_color);
     }
@@ -178,6 +179,73 @@ static void insert_char(char c) {
     lines[cursor_line][cursor_col_ed] = c;
     cursor_col_ed++;
     editor_modified = 1;
+}
+
+/* --------------------------------------------------------------------------
+ * autocomplete: Phase 46 — Tab completes the word before the cursor against
+ * the assistant's keyword list + words already in the buffer. Repeated Tab on
+ * the same prefix cycles through candidates.
+ * -------------------------------------------------------------------------- */
+static void delete_char(void);  /* forward decl (defined below) */
+
+static char ac_prefix[40];     /* the prefix we are completing               */
+static int  ac_nth = 0;        /* which candidate to show next               */
+static int  ac_inserted = 0;   /* chars of the last completion we added       */
+
+static void autocomplete(void) {
+    char* line = lines[cursor_line];
+
+    /* If we just inserted a completion and Tab is pressed again, remove it and
+     * try the next candidate (cycle). */
+    if (ac_inserted > 0) {
+        for (int i = 0; i < ac_inserted; i++) delete_char();
+        ac_inserted = 0;
+        ac_nth++;
+    } else {
+        /* fresh: capture the word immediately left of the cursor */
+        int start = cursor_col_ed;
+        while (start > 0) {
+            char c = line[start - 1];
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                (c >= '0' && c <= '9') || c == '_') start--;
+            else break;
+        }
+        int plen = cursor_col_ed - start;
+        if (plen <= 0 || plen >= (int)sizeof(ac_prefix)) return;
+        for (int i = 0; i < plen; i++) ac_prefix[i] = line[start + i];
+        ac_prefix[plen] = '\0';
+        ac_nth = 0;
+    }
+
+    /* Build a small buffer-words context from all lines (bounded). */
+    static char ctx[512];
+    int o = 0;
+    for (int l = 0; l < num_lines && o < (int)sizeof(ctx) - 2; l++) {
+        for (int i = 0; lines[l][i] && o < (int)sizeof(ctx) - 2; i++) ctx[o++] = lines[l][i];
+        ctx[o++] = ' ';
+    }
+    ctx[o] = '\0';
+
+    char comp[40];
+    int total = assistant_complete(ac_prefix, ac_nth, ctx, comp, sizeof(comp));
+    if (total == 0) { ac_inserted = 0; return; }
+    if (ac_nth >= total) { ac_nth = 0;
+        assistant_complete(ac_prefix, 0, ctx, comp, sizeof(comp)); }
+
+    /* insert the remainder of the completion after the existing prefix.
+     * Count only characters that were ACTUALLY inserted — insert_char() is a
+     * no-op once the line hits EDITOR_MAX_COLS-2, and over-counting here would
+     * make the next Tab's delete loop eat into the user's own text (and even
+     * join lines). Detect a refused insert via the line length and stop. */
+    int plen = strlen(ac_prefix);
+    int added = 0;
+    for (int i = plen; comp[i]; i++) {
+        int before = strlen(lines[cursor_line]);
+        insert_char(comp[i]);
+        if ((int)strlen(lines[cursor_line]) > before) added++;
+        else break;   /* line full — stop, keep ac_inserted accurate */
+    }
+    ac_inserted = added;
 }
 
 /* --------------------------------------------------------------------------
@@ -383,11 +451,17 @@ void editor_run(const char* filename) {
 
             case '\n':  /* Enter */
                 insert_newline();
+                ac_inserted = 0;
+                break;
+
+            case '\t':  /* Tab — Phase 46 autocomplete (cycles on repeat) */
+                autocomplete();
                 break;
 
             default:
                 if (c >= 32 && c < 127) {
                     insert_char(c);
+                    ac_inserted = 0;   /* typing cancels the completion cycle */
                 }
                 break;
         }
