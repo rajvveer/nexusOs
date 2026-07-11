@@ -1,0 +1,6 @@
+gpubench: no faults
+sprites: no faults
+snake: no faults
+breakout: no faults
+doom: no faults
+FINAL: no faults

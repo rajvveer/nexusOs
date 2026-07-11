@@ -1,0 +1,19 @@
+calc -> gui_calc
+notepad -> gui_notepad
+files -> gui_filemgr
+paint -> gui_paint
+calendar -> gui_calendar
+settings -> gui_settings
+taskmgr -> gui_taskmgr
+sysmon -> gui_sysmon
+contacts -> gui_contacts
+colors -> gui_colors
+clock -> gui_clock
+snake
+tetris
+pong
+minesweeper
+breakout
+doom
+sprites
+serial: CRASH !EX:00000008 00101775 00000008 

@@ -1,0 +1,8 @@
+core: 13 cmds ran | serial: no faults
+fs: 9 cmds ran | serial: no faults
+net: 8 cmds ran | serial: no faults
+compat: 7 cmds ran | serial: no faults
+media: 6 cmds ran | serial: no faults
+polish: 10 cmds ran | serial: no faults
+domination: 7 cmds ran | serial: no faults
+FINAL serial check: no faults
