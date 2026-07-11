@@ -19,6 +19,7 @@
 #include "string.h"
 #include "syslog.h"
 #include "notifcenter.h"
+#include "appui.h"
 
 /* System tick counter */
 extern volatile uint32_t system_ticks;
@@ -324,41 +325,45 @@ static void resolve_href(const char* href, char* out, int max) {
  * -------------------------------------------------------------------------- */
 static void browser_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
-    const theme_t* t = theme_get();
-    uint8_t tc = t->win_content;
-    uint8_t bg = (tc >> 4) & 0xF;
+    appui_theme_t ui = appui_theme();
+    uint8_t bg = ui.bg;
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "Browser", browser_loading ? "Loading page" : "Text web");
 
-    /* --- URL bar (row 0) --- */
-    uint8_t url_bg = VGA_COLOR(VGA_WHITE, VGA_BLUE);
-    for (int i = 0; i < cw; i++) gui_putchar(cx + i, cy, ' ', url_bg);
+    /* --- URL bar (row 2) --- */
+    uint8_t url_bg = VGA_COLOR(VGA_WHITE, VGA_BLACK);
+    int url_y = cy + 2;
+    for (int i = 0; i < cw; i++) gui_putchar(cx + i, url_y, ' ', url_bg);
 
     if (url_input_mode) {
         /* Show editable URL input */
-        gui_draw_text(cx, cy, "URL: ", url_bg);
+        gui_draw_text(cx + 1, url_y, "URL: ", url_bg);
         int maxc = cw - 6;
         for (int i = 0; i < url_input_len && i < maxc; i++)
-            gui_putchar(cx + 5 + i, cy, url_input_buf[i], url_bg);
+            gui_putchar(cx + 6 + i, url_y, url_input_buf[i], url_bg);
         /* Cursor */
         if (url_input_len < maxc)
-            gui_putchar(cx + 5 + url_input_len, cy, '_', VGA_COLOR(VGA_YELLOW, VGA_BLUE));
+            gui_putchar(cx + 6 + url_input_len, url_y, '_', VGA_COLOR(VGA_YELLOW, VGA_BLACK));
     } else {
         /* Show current URL */
         int ulen = strlen(current_url);
         if (ulen > cw - 1) {
             for (int i = 0; i < cw - 4; i++)
-                gui_putchar(cx + 1 + i, cy, current_url[i], url_bg);
-            gui_draw_text(cx + cw - 3, cy, "...", url_bg);
+                gui_putchar(cx + 1 + i, url_y, current_url[i], url_bg);
+            gui_draw_text(cx + cw - 3, url_y, "...", url_bg);
         } else {
-            gui_putchar(cx, cy, ' ', url_bg);
-            gui_draw_text(cx + 1, cy, current_url, url_bg);
+            gui_putchar(cx, url_y, ' ', url_bg);
+            gui_draw_text(cx + 1, url_y, current_url, url_bg);
         }
     }
 
-    /* --- Content area (rows 1 to ch-2) --- */
-    int content_rows = ch - 2;
+    appui_hline(cx, cy + 3, cw, ui.muted);
+
+    /* --- Content area --- */
+    int content_rows = ch - 5;
     for (int row = 0; row < content_rows; row++) {
         int line_idx = scroll_pos + row;
-        int sy = cy + 1 + row;
+        int sy = cy + 4 + row;
 
         if (line_idx < total_lines) {
             /* Determine color */
@@ -382,15 +387,12 @@ static void browser_draw(int id, int cx, int cy, int cw, int ch) {
     }
 
     /* --- Status bar (last row) --- */
-    uint8_t sb = VGA_COLOR(VGA_BLACK, VGA_LIGHT_GREY);
-    for (int i = 0; i < cw; i++) gui_putchar(cx + i, cy + ch - 1, ' ', sb);
-
     if (browser_loading) {
-        gui_draw_text(cx + 1, cy + ch - 1, "Loading...", sb);
+        appui_status(cx, cy + ch - 1, cw, "Loading...");
     } else if (status_msg[0]) {
-        gui_draw_text(cx + 1, cy + ch - 1, status_msg, sb);
+        appui_status(cx, cy + ch - 1, cw, status_msg);
     } else {
-        gui_draw_text(cx + 1, cy + ch - 1, "Tab:links Enter:go Bksp:back G:url B:bkmk", sb);
+        appui_status(cx, cy + ch - 1, cw, "Tab Links   Enter Go   Backspace Back   G URL   B Bookmark");
     }
 
     /* Scroll indicator */
@@ -402,8 +404,8 @@ static void browser_draw(int id, int cx, int cy, int cw, int ch) {
         char n[8];
         int_to_str(pct, n);
         int nlen = strlen(n);
-        gui_draw_text(cx + cw - nlen - 1, cy + ch - 1, n, sb);
-        gui_putchar(cx + cw - 1, cy + ch - 1, '%', sb);
+        gui_draw_text(cx + cw - nlen - 1, cy + ch - 1, n, ui.status);
+        gui_putchar(cx + cw - 1, cy + ch - 1, '%', ui.status);
     }
 }
 
@@ -554,7 +556,7 @@ void browser_open(const char* url) {
     strcpy(current_url, url);
 
     /* Create a GUI window for the browser */
-    browser_win_id = window_create("NexusBrowse", 5, 1, 75, 22,
+    browser_win_id = window_create("NexusBrowse", 5, 4, 90, 30,
                                     browser_draw, browser_key);
 
     /* Navigate to the URL */
