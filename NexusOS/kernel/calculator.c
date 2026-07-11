@@ -12,6 +12,7 @@
 #include "vga.h"
 #include "string.h"
 #include "framebuffer.h"
+#include "appui.h"
 
 #ifndef FB_RGB
 #define FB_RGB(r, g, b) (((0xFF & r) << 16) | ((0xFF & g) << 8) | (0xFF & b))
@@ -149,41 +150,13 @@ static void calc_process(void) {
  * -------------------------------------------------------------------------- */
 static void calc_draw(int id, int cx, int cy, int cw, int ch) {
     (void)id;
-    const theme_t* t = theme_get();
-    uint8_t text_color = t->win_content;
-    uint8_t bg = (text_color >> 4) & 0x0F;
-    uint8_t accent = VGA_COLOR(VGA_LIGHT_CYAN, bg);
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, bg);
-    bool vesa = fb_is_vesa();
-
-    if (vesa) {
-        int px = cx * 8;
-        int py = cy * 16;
-        int pw = cw * 8;
-        int ph = ch * 16;
-        
-        /* App background */
-        fb_fill_rect(px, py, pw, ph, FB_RGB(30, 30, 30));
-        
-        /* Input box background */
-        fb_fill_rect(px + 8, py + ph - 22, pw - 16, 18, FB_RGB(10, 10, 15));
-        fb_draw_rect(px + 8, py + ph - 22, pw - 16, 18, FB_RGB(80, 80, 90));
-    }
-
-    /* Draw header */
-    gui_draw_text(cx + 1, cy, "\x04 Calculator", accent);
-
-    /* Separator */
-    if (!vesa) {
-        for (int i = 0; i < cw - 1 && cx + i < GUI_WIDTH; i++)
-            gui_putchar(cx + i, cy + 1, (char)0xC4, dim);
-    } else {
-        fb_fill_rect(cx * 8, cy * 16 + 18, cw * 8, 1, FB_RGB(100, 100, 100));
-    }
+    appui_theme_t ui = appui_theme();
+    appui_fill(cx, cy, cw, ch, ui.panel);
+    appui_header(cx, cy, cw, "Calculator", "Integer expression evaluator");
 
     /* History lines */
-    int hist_start = cy + 2;
-    int visible = ch - 4;
+    int hist_start = cy + 3;
+    int visible = ch - 6;
     int start_idx = calc_hist_count - visible;
     if (start_idx < 0) start_idx = 0;
 
@@ -192,37 +165,17 @@ static void calc_draw(int id, int cx, int cy, int cw, int ch) {
         if (row >= cy + ch - 2) break;
 
         /* Color: results in cyan, input in default */
-        uint8_t line_col = (calc_history[i][0] == '=') ? accent : text_color;
-        int j = 0;
-        while (calc_history[i][j] && j < cw - 1) {
-            gui_putchar(cx + j, row, calc_history[i][j], line_col);
-            j++;
-        }
+        uint8_t line_col = (calc_history[i][0] == '=') ? ui.accent : ui.text;
+        appui_text(cx + 1, row, calc_history[i], cw - 2, line_col);
     }
 
     /* Separator above input */
     int sep_row = cy + ch - 2;
-    if (!vesa) {
-        for (int i = 0; i < cw - 1 && cx + i < GUI_WIDTH; i++)
-            gui_putchar(cx + i, sep_row, (char)0xC4, dim);
-    }
+    appui_hline(cx, sep_row, cw, ui.muted);
 
     /* Input line */
     int input_row = cy + ch - 1;
-    gui_putchar(cx, input_row, '>', VGA_COLOR(VGA_LIGHT_GREEN, bg));
-    gui_putchar(cx + 1, input_row, ' ', text_color);
-
-    int max_input = cw - 3;
-    for (int i = 0; i < calc_expr_len && i < max_input; i++) {
-        gui_putchar(cx + 2 + i, input_row, calc_expr[i], text_color);
-    }
-
-    /* Blinking cursor */
-    if (calc_expr_len < max_input) {
-        char cursor_ch = (system_ticks % 16 < 8) ? '_' : ' ';
-        gui_putchar(cx + 2 + calc_expr_len, input_row, cursor_ch,
-                    VGA_COLOR(VGA_WHITE, bg));
-    }
+    appui_input(cx, input_row, cw, calc_expr, calc_expr_len, (system_ticks % 16 < 8));
 }
 
 static void calc_key(int id, char key) {
@@ -260,5 +213,5 @@ int calculator_open(void) {
     calc_add_history("e.g. 12+34  50*2");
     calc_add_history("Ctrl+C to clear");
 
-    return window_create("Calculator", 30, 3, 28, 14, calc_draw, calc_key);
+    return window_create("Calculator", 30, 4, 36, 18, calc_draw, calc_key);
 }
