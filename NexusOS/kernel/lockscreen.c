@@ -7,6 +7,7 @@
 
 #include "lockscreen.h"
 #include "gui.h"
+#include "users.h"
 #include "vga.h"
 #include "keyboard.h"
 #include "rtc.h"
@@ -78,9 +79,13 @@ void lockscreen_run(void) {
             char key = keyboard_getchar();
 
             if (key == '\n') {
-                /* Accept any password */
-                if (pw_len > 0) {
+                /* Phase 44: verify against the logged-in user's password. */
+                user_t* u = users_find_uid(users_current_uid());
+                if (u && users_verify(password, &u->pw)) {
                     unlocked = true;
+                } else {
+                    /* wrong — clear and let the loop re-prompt */
+                    pw_len = 0; password[0] = '\0';
                 }
                 break;
             } else if (key == '\b') {
