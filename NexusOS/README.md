@@ -20,6 +20,179 @@
 
 ---
 
+## 📸 Screenshots
+
+### Native x86-64 NexusOS (captured 17 Nov 2026)
+
+<p align="center">
+  <img src="screenshots/os-desktop.png" width="85%" alt="NexusOS native x86-64 Aurora desktop"/>
+  <br>
+  <sub><b>Aurora on the native x86-64 kernel</b> (1920×1080) — menu bar, dock and wallpaper</sub>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/os-launchpad.png" alt="Launchpad"/><br><sub><b>Launchpad</b> (<code>F4</code>) — built-in apps plus Chrome, Firefox, VS Code, LibreOffice and Wine</sub></td>
+    <td width="50%" align="center"><img src="screenshots/os-spotlight.png" alt="Spotlight"/><br><sub><b>Spotlight</b> (<code>Ctrl+Space</code>) — instant app search</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/os-terminal.png" alt="Terminal"/><br><sub><b>Terminal</b> — <code>uname</code>, <code>free</code>, <code>df</code> and <code>ps</code> on the native kernel, NVMe root</sub></td>
+    <td width="50%" align="center"><img src="screenshots/os-files.png" alt="Files"/><br><sub><b>Files</b> — browsing the home folder</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/os-desktop-apps.png" alt="Desktop apps"/><br><sub><b>Multitasking</b> — Files, Calendar, Calculator and Notes side by side</sub></td>
+    <td width="50%" align="center"><img src="screenshots/os-overview.png" alt="Workspace overview"/><br><sub><b>Workspace overview</b> (<code>Super+W</code>) — four virtual desktops and live window previews</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/os-alt-tab.png" alt="Alt+Tab"/><br><sub><b>App switcher</b> (<code>Alt+Tab</code>)</sub></td>
+    <td width="50%" align="center"><img src="screenshots/os-nexus-menu.png" alt="NexusOS menu"/><br><sub><b>NexusOS menu</b> — About, Settings, Lock, Sleep, Hibernate, Restart, Shut Down, Log Out</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/os-lock-screen.png" alt="Lock screen"/><br><sub><b>Lock screen</b> (<code>Super+L</code>)</sub></td>
+    <td width="50%" align="center"><img src="screenshots/os-settings.png" alt="System Settings - Displays"/><br><sub><b>System Settings › Displays</b> — resolution and scaling</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/os-settings-appearance.png" alt="System Settings - Appearance"/><br><sub><b>System Settings › Appearance</b> — light/dark style and accent colours</sub></td>
+    <td width="50%" align="center"><img src="screenshots/os-network.png" alt="Network"/><br><sub><b>Network</b> — DHCP IPv4 + IPv6, routes, DNS and firewall</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/os-chrome.png" alt="Google Chrome"/><br><sub><b>Google Chrome</b> running natively over HTTPS</sub></td>
+    <td width="50%" align="center"><img src="screenshots/os-firefox.png" alt="Firefox"/><br><sub><b>Firefox</b></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/os-vscode.png" alt="VS Code"/><br><sub><b>Visual Studio Code</b> — editing C on NexusOS</sub></td>
+    <td width="50%" align="center"><img src="screenshots/os-wine.png" alt="Wine"/><br><sub><b>Windows apps via Wine 10.0</b> — Explorer and <code>winecfg</code></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/os-libreoffice-writer.png" alt="LibreOffice Writer"/><br><sub><b>LibreOffice Writer</b></sub></td>
+    <td width="50%" align="center"><img src="screenshots/os-libreoffice-calc.png" alt="LibreOffice Calc"/><br><sub><b>LibreOffice Calc</b> — formulas and a chart</sub></td>
+  </tr>
+</table>
+
+### Legacy i386 Aurora
+
+<p align="center">
+  <img src="screenshots/aurora-desktop.png" width="85%" alt="NexusOS Aurora desktop"/>
+  <br>
+  <sub><b>Aurora</b> (1920×1080) — menu bar, magnifying dock, rounded windows and the dusk-hills wallpaper</sub>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/aurora-login.png" alt="Login"/><br><sub><b>Login window</b></sub></td>
+    <td width="50%" align="center"><img src="screenshots/aurora-windows.png" alt="Windows"/><br><sub><b>Terminal, Finder and About This NexusOS</b></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/aurora-launchpad.png" alt="Launchpad"/><br><sub><b>Launchpad</b> (<code>F4</code>)</sub></td>
+    <td width="50%" align="center"><img src="screenshots/aurora-spotlight.png" alt="Spotlight"/><br><sub><b>Spotlight</b> (<code>Ctrl+Space</code>)</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/aurora-menu.png" alt="NexusOS menu"/><br><sub><b>NexusOS menu</b> and Notification Center</sub></td>
+    <td width="50%" align="center"><img src="screenshots/aurora-console.png" alt="Console"/><br><sub><b>Console</b> (<code>F12</code>) — the text shell in a Terminal window</sub></td>
+  </tr>
+</table>
+
+**Phase 55 — hardened kernel, persistent files, real servers, full USB stack**
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/phase55-crash-contained.png" alt="App crash contained"/><br><sub><b>Crash containment:</b> a built-in app dereferences NULL - the window closes, a notification explains, the desktop keeps running</sub></td>
+    <td width="50%" align="center"><img src="screenshots/phase55-crashtest.png" alt="crashtest"/><br><sub><b><code>crashtest</code>:</b> NULL read, kernel-stack overflow (double fault) and a write into kernel code - all recovered at the shell</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/phase55-persist.png" alt="persist status"/><br><sub><b>Persistent RAM-FS:</b> files, folders, a new user and a deleted built-in all back after a reboot (<code>persist status</code>)</sub></td>
+    <td width="50%" align="center"><img src="screenshots/phase55-vnc-auth.png" alt="VNC auth"/><br><sub><b>VNC authentication:</b> DES self-test, <code>vncpasswd</code>, RFB challenge/response with lockout</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/phase55-usb-xhci-hub.png" alt="xHCI hub"/><br><sub><b>xHCI</b> with a hub: SuperSpeed stick, keyboard and mouse behind the hub (<code>usbinfo</code> tree)</sub></td>
+    <td width="50%" align="center"><img src="screenshots/phase55-usb-ehci-companion.png" alt="EHCI companion"/><br><sub><b>EHCI + UHCI companion:</b> the high-speed stick stays on EHCI, the full-speed hub is handed to the companion</sub></td>
+  </tr>
+</table>
+
+<details><summary>Earlier builds (pre-Aurora)</summary>
+
+<p align="center">
+  <img src="screenshots/desktop.png" width="85%" alt="NexusOS desktop environment"/>
+  <br>
+  <sub><b>The VESA desktop</b> (1024×768×32bpp) — window manager, taskbar, dock, and 30+ built-in apps</sub>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="screenshots/login.png" alt="Login screen"/>
+      <br><sub><b>Boot login screen</b></sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="screenshots/package-manager.png" alt="Package manager"/>
+      <br><sub><b>Package manager</b> — <code>npkg list</code></sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="screenshots/package-install.png" alt="Installing a package"/>
+      <br><sub><b>Installing a package</b> — <code>.npk</code> build, CRC32 verify, extract</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="screenshots/scripting.png" alt="NexusScript scripting engine"/>
+      <br><sub><b>Scripting engine</b> — <code>script demo.ns</code> (loops, conditionals, <code>run</code>)</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="screenshots/sound.png" alt="AC'97 sound subsystem"/>
+      <br><sub><b>Sound subsystem</b> — <code>sndinfo</code> (Intel AC'97 codec, mixer, WAV player)</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="screenshots/image-viewer.png" alt="Image viewer"/>
+      <br><sub><b>Image viewer</b> — <code>view logo.png</code> (BMP/PNG/JPEG/GIF decoders)</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="screenshots/video-player.png" alt="AVI/MJPEG media player"/>
+      <br><sub><b>Media player</b> — <code>mplay</code> (RIFF/AVI parser, MJPEG video + synced audio)</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="screenshots/gpu-sprites.png" alt="VirtIO-GPU sprite engine"/>
+      <br><sub><b>Sprite engine</b> — <code>sprites</code> (VirtIO-GPU zero-copy presents, ~520 fps)</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="screenshots/gpu-bench.png" alt="GPU benchmark"/>
+      <br><sub><b>GPU benchmark</b> — <code>gpubench</code> (4620 fps GPU present vs 107 fps VESA memcpy)</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="screenshots/doom_title.png" alt="NEXUSDOOM title screen"/>
+      <br><sub><b>NEXUSDOOM</b> — <code>doom</code> (from-scratch raycaster on the NexusSDL gaming framework)</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="screenshots/doom.png" alt="NEXUSDOOM gameplay"/>
+      <br><sub><b>NEXUSDOOM gameplay</b> — textured DDA raycaster, z-tested demon sprites, hitscan + HUD</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="screenshots/breakout.png" alt="Breakout"/>
+      <br><sub><b>Breakout</b> — <code>breakout</code> (Q16.16 ball physics, paddle english, ~200-line NexusSDL demo)</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="screenshots/gamepad.png" alt="Game controller tester"/>
+      <br><sub><b>Controller tester</b> — <code>gamepad</code> (12-button virtual pad from raw PS/2 scancodes)</sub>
+    </td>
+    <td width="50%" align="center">
+      &nbsp;
+    </td>
+  </tr>
+</table>
+
+</details>
+
+---
+
 **Startup and rendering fixes published for `build.bat run`:** DMA disk reads,
 bounded filesystem caching and selective redraws reduce repeated work. On the
 tested 1080p Windows host, the final permanent image opened Chrome's first window
@@ -326,179 +499,6 @@ self-tests and diagnostics only; the desktop needs the root disk. Hardware suppo
 - [Roadmap](#-roadmap)
 - [Growth Projection](#-growth-projection)
 - [License](#-license)
-
----
-
-## 📸 Screenshots
-
-### Native x86-64 NexusOS (captured 17 Nov 2026)
-
-<p align="center">
-  <img src="screenshots/os-desktop.png" width="85%" alt="NexusOS native x86-64 Aurora desktop"/>
-  <br>
-  <sub><b>Aurora on the native x86-64 kernel</b> (1920×1080) — menu bar, dock and wallpaper</sub>
-</p>
-
-<table>
-  <tr>
-    <td width="50%" align="center"><img src="screenshots/os-launchpad.png" alt="Launchpad"/><br><sub><b>Launchpad</b> (<code>F4</code>) — built-in apps plus Chrome, Firefox, VS Code, LibreOffice and Wine</sub></td>
-    <td width="50%" align="center"><img src="screenshots/os-spotlight.png" alt="Spotlight"/><br><sub><b>Spotlight</b> (<code>Ctrl+Space</code>) — instant app search</sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><img src="screenshots/os-terminal.png" alt="Terminal"/><br><sub><b>Terminal</b> — <code>uname</code>, <code>free</code>, <code>df</code> and <code>ps</code> on the native kernel, NVMe root</sub></td>
-    <td width="50%" align="center"><img src="screenshots/os-files.png" alt="Files"/><br><sub><b>Files</b> — browsing the home folder</sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><img src="screenshots/os-desktop-apps.png" alt="Desktop apps"/><br><sub><b>Multitasking</b> — Files, Calendar, Calculator and Notes side by side</sub></td>
-    <td width="50%" align="center"><img src="screenshots/os-overview.png" alt="Workspace overview"/><br><sub><b>Workspace overview</b> (<code>Super+W</code>) — four virtual desktops and live window previews</sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><img src="screenshots/os-alt-tab.png" alt="Alt+Tab"/><br><sub><b>App switcher</b> (<code>Alt+Tab</code>)</sub></td>
-    <td width="50%" align="center"><img src="screenshots/os-nexus-menu.png" alt="NexusOS menu"/><br><sub><b>NexusOS menu</b> — About, Settings, Lock, Sleep, Hibernate, Restart, Shut Down, Log Out</sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><img src="screenshots/os-lock-screen.png" alt="Lock screen"/><br><sub><b>Lock screen</b> (<code>Super+L</code>)</sub></td>
-    <td width="50%" align="center"><img src="screenshots/os-settings.png" alt="System Settings - Displays"/><br><sub><b>System Settings › Displays</b> — resolution and scaling</sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><img src="screenshots/os-settings-appearance.png" alt="System Settings - Appearance"/><br><sub><b>System Settings › Appearance</b> — light/dark style and accent colours</sub></td>
-    <td width="50%" align="center"><img src="screenshots/os-network.png" alt="Network"/><br><sub><b>Network</b> — DHCP IPv4 + IPv6, routes, DNS and firewall</sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><img src="screenshots/os-chrome.png" alt="Google Chrome"/><br><sub><b>Google Chrome</b> running natively over HTTPS</sub></td>
-    <td width="50%" align="center"><img src="screenshots/os-firefox.png" alt="Firefox"/><br><sub><b>Firefox</b></sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><img src="screenshots/os-vscode.png" alt="VS Code"/><br><sub><b>Visual Studio Code</b> — editing C on NexusOS</sub></td>
-    <td width="50%" align="center"><img src="screenshots/os-wine.png" alt="Wine"/><br><sub><b>Windows apps via Wine 10.0</b> — Explorer and <code>winecfg</code></sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><img src="screenshots/os-libreoffice-writer.png" alt="LibreOffice Writer"/><br><sub><b>LibreOffice Writer</b></sub></td>
-    <td width="50%" align="center"><img src="screenshots/os-libreoffice-calc.png" alt="LibreOffice Calc"/><br><sub><b>LibreOffice Calc</b> — formulas and a chart</sub></td>
-  </tr>
-</table>
-
-### Legacy i386 Aurora
-
-<p align="center">
-  <img src="screenshots/aurora-desktop.png" width="85%" alt="NexusOS Aurora desktop"/>
-  <br>
-  <sub><b>Aurora</b> (1920×1080) — menu bar, magnifying dock, rounded windows and the dusk-hills wallpaper</sub>
-</p>
-
-<table>
-  <tr>
-    <td width="50%" align="center"><img src="screenshots/aurora-login.png" alt="Login"/><br><sub><b>Login window</b></sub></td>
-    <td width="50%" align="center"><img src="screenshots/aurora-windows.png" alt="Windows"/><br><sub><b>Terminal, Finder and About This NexusOS</b></sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><img src="screenshots/aurora-launchpad.png" alt="Launchpad"/><br><sub><b>Launchpad</b> (<code>F4</code>)</sub></td>
-    <td width="50%" align="center"><img src="screenshots/aurora-spotlight.png" alt="Spotlight"/><br><sub><b>Spotlight</b> (<code>Ctrl+Space</code>)</sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><img src="screenshots/aurora-menu.png" alt="NexusOS menu"/><br><sub><b>NexusOS menu</b> and Notification Center</sub></td>
-    <td width="50%" align="center"><img src="screenshots/aurora-console.png" alt="Console"/><br><sub><b>Console</b> (<code>F12</code>) — the text shell in a Terminal window</sub></td>
-  </tr>
-</table>
-
-**Phase 55 — hardened kernel, persistent files, real servers, full USB stack**
-
-<table>
-  <tr>
-    <td width="50%" align="center"><img src="screenshots/phase55-crash-contained.png" alt="App crash contained"/><br><sub><b>Crash containment:</b> a built-in app dereferences NULL - the window closes, a notification explains, the desktop keeps running</sub></td>
-    <td width="50%" align="center"><img src="screenshots/phase55-crashtest.png" alt="crashtest"/><br><sub><b><code>crashtest</code>:</b> NULL read, kernel-stack overflow (double fault) and a write into kernel code - all recovered at the shell</sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><img src="screenshots/phase55-persist.png" alt="persist status"/><br><sub><b>Persistent RAM-FS:</b> files, folders, a new user and a deleted built-in all back after a reboot (<code>persist status</code>)</sub></td>
-    <td width="50%" align="center"><img src="screenshots/phase55-vnc-auth.png" alt="VNC auth"/><br><sub><b>VNC authentication:</b> DES self-test, <code>vncpasswd</code>, RFB challenge/response with lockout</sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><img src="screenshots/phase55-usb-xhci-hub.png" alt="xHCI hub"/><br><sub><b>xHCI</b> with a hub: SuperSpeed stick, keyboard and mouse behind the hub (<code>usbinfo</code> tree)</sub></td>
-    <td width="50%" align="center"><img src="screenshots/phase55-usb-ehci-companion.png" alt="EHCI companion"/><br><sub><b>EHCI + UHCI companion:</b> the high-speed stick stays on EHCI, the full-speed hub is handed to the companion</sub></td>
-  </tr>
-</table>
-
-<details><summary>Earlier builds (pre-Aurora)</summary>
-
-<p align="center">
-  <img src="screenshots/desktop.png" width="85%" alt="NexusOS desktop environment"/>
-  <br>
-  <sub><b>The VESA desktop</b> (1024×768×32bpp) — window manager, taskbar, dock, and 30+ built-in apps</sub>
-</p>
-
-<table>
-  <tr>
-    <td width="50%" align="center">
-      <img src="screenshots/login.png" alt="Login screen"/>
-      <br><sub><b>Boot login screen</b></sub>
-    </td>
-    <td width="50%" align="center">
-      <img src="screenshots/package-manager.png" alt="Package manager"/>
-      <br><sub><b>Package manager</b> — <code>npkg list</code></sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="screenshots/package-install.png" alt="Installing a package"/>
-      <br><sub><b>Installing a package</b> — <code>.npk</code> build, CRC32 verify, extract</sub>
-    </td>
-    <td width="50%" align="center">
-      <img src="screenshots/scripting.png" alt="NexusScript scripting engine"/>
-      <br><sub><b>Scripting engine</b> — <code>script demo.ns</code> (loops, conditionals, <code>run</code>)</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="screenshots/sound.png" alt="AC'97 sound subsystem"/>
-      <br><sub><b>Sound subsystem</b> — <code>sndinfo</code> (Intel AC'97 codec, mixer, WAV player)</sub>
-    </td>
-    <td width="50%" align="center">
-      <img src="screenshots/image-viewer.png" alt="Image viewer"/>
-      <br><sub><b>Image viewer</b> — <code>view logo.png</code> (BMP/PNG/JPEG/GIF decoders)</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="screenshots/video-player.png" alt="AVI/MJPEG media player"/>
-      <br><sub><b>Media player</b> — <code>mplay</code> (RIFF/AVI parser, MJPEG video + synced audio)</sub>
-    </td>
-    <td width="50%" align="center">
-      <img src="screenshots/gpu-sprites.png" alt="VirtIO-GPU sprite engine"/>
-      <br><sub><b>Sprite engine</b> — <code>sprites</code> (VirtIO-GPU zero-copy presents, ~520 fps)</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="screenshots/gpu-bench.png" alt="GPU benchmark"/>
-      <br><sub><b>GPU benchmark</b> — <code>gpubench</code> (4620 fps GPU present vs 107 fps VESA memcpy)</sub>
-    </td>
-    <td width="50%" align="center">
-      <img src="screenshots/doom_title.png" alt="NEXUSDOOM title screen"/>
-      <br><sub><b>NEXUSDOOM</b> — <code>doom</code> (from-scratch raycaster on the NexusSDL gaming framework)</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="screenshots/doom.png" alt="NEXUSDOOM gameplay"/>
-      <br><sub><b>NEXUSDOOM gameplay</b> — textured DDA raycaster, z-tested demon sprites, hitscan + HUD</sub>
-    </td>
-    <td width="50%" align="center">
-      <img src="screenshots/breakout.png" alt="Breakout"/>
-      <br><sub><b>Breakout</b> — <code>breakout</code> (Q16.16 ball physics, paddle english, ~200-line NexusSDL demo)</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="screenshots/gamepad.png" alt="Game controller tester"/>
-      <br><sub><b>Controller tester</b> — <code>gamepad</code> (12-button virtual pad from raw PS/2 scancodes)</sub>
-    </td>
-    <td width="50%" align="center">
-      &nbsp;
-    </td>
-  </tr>
-</table>
-
-</details>
 
 ---
 
