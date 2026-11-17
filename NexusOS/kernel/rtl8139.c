@@ -48,6 +48,9 @@ static struct {
     net_device_t net_dev;
 } rtl;
 
+/* Physically contiguous RX DMA ring (.bss is NOLOAD, so no image cost) */
+static uint8_t rtl_rx_ring[RTL_RX_BUF_SIZE] __attribute__((aligned(16)));
+
 /* --------------------------------------------------------------------------
  * I/O helpers — read/write RTL8139 registers via I/O ports
  * -------------------------------------------------------------------------- */
@@ -264,19 +267,12 @@ static int rtl8139_probe(pci_device_t* dev) {
 
     /* --- Allocate DMA buffers --- */
 
-    /* RX buffer: 8K + 16 + 1500 (for wrap safety) — must be physically contiguous */
-    /* Allocate 3 pages (12KB) which covers 8K+16+1500 = ~9716 bytes */
-    uint32_t rx_phys = pmm_alloc_page();
-    uint32_t rx_phys2 = pmm_alloc_page();
-    uint32_t rx_phys3 = pmm_alloc_page();
-    if (!rx_phys || !rx_phys2 || !rx_phys3) {
-        vga_print_color("[FAIL] ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
-        vga_print("RTL8139: Cannot allocate RX buffer\n");
-        return -1;
-    }
-
-    /* Use identity-mapped physical addresses (first 16MB is identity-mapped) */
-    rtl.rx_buffer = (uint8_t*)rx_phys;
+    /* RX buffer: 8K + 16 + 1500 (for wrap safety) — must be ONE physically
+     * contiguous block (the NIC DMAs straight through it). Three separate
+     * pmm_alloc_page() calls weren't guaranteed adjacent, so use a static
+     * .bss ring (identity-mapped: virt == phys) and keep the PMM off it. */
+    rtl.rx_buffer = rtl_rx_ring;
+    pmm_reserve_range((uint32_t)rtl_rx_ring, sizeof(rtl_rx_ring));
     memset(rtl.rx_buffer, 0, RTL_RX_BUF_SIZE);
     rtl.rx_offset = 0;
 

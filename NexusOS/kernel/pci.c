@@ -12,6 +12,7 @@
 /* Discovered devices */
 static pci_device_t devices[PCI_MAX_DEVICES];
 static int num_devices = 0;
+static int num_dropped = 0;     /* functions seen after the table filled */
 
 /* --------------------------------------------------------------------------
  * PCI Config Space Access
@@ -76,7 +77,7 @@ static void pci_scan_device(uint8_t bus, uint8_t dev, uint8_t func) {
     uint16_t vendor = pci_read16(bus, dev, func, PCI_VENDOR_ID);
     if (vendor == 0xFFFF) return; /* No device */
 
-    if (num_devices >= PCI_MAX_DEVICES) return;
+    if (num_devices >= PCI_MAX_DEVICES) { num_dropped++; return; }
 
     pci_device_t* d = &devices[num_devices];
     d->bus = bus;
@@ -105,6 +106,7 @@ static void pci_scan_device(uint8_t bus, uint8_t dev, uint8_t func) {
 void pci_init(void) {
     memset(devices, 0, sizeof(devices));
     num_devices = 0;
+    num_dropped = 0;
 
     /* Brute-force scan: bus 0–255, dev 0–31, func 0–7 */
     for (int bus = 0; bus < 256; bus++) {
@@ -130,7 +132,12 @@ void pci_init(void) {
     char buf[12];
     int_to_str(num_devices, buf);
     vga_print(buf);
-    vga_print(" devices found\n");
+    vga_print(" devices found");
+    if (num_dropped) {
+        int_to_str(num_dropped, buf);
+        vga_print(" (table full, "); vga_print(buf); vga_print(" ignored)");
+    }
+    vga_print("\n");
 
     /* List devices */
     for (int i = 0; i < num_devices; i++) {

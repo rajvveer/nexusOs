@@ -40,8 +40,22 @@
 #define PCI_CLASS_BRIDGE     0x06
 #define PCI_CLASS_SERIAL     0x0C
 
-/* Max discovered devices */
-#define PCI_MAX_DEVICES  32
+/* Phase 55: USB host controllers = class 0x0C, subclass 0x03, prog-if: */
+#define PCI_SUBCLASS_USB     0x03
+#define PCI_PROGIF_UHCI      0x00
+#define PCI_PROGIF_OHCI      0x10
+#define PCI_PROGIF_EHCI      0x20
+#define PCI_PROGIF_XHCI      0x30
+
+/* Max discovered devices. VMware alone exposes 32 PCIe root ports, which
+ * filled the old 32-entry table and hid the real devices behind them.
+ * 64 x 44-byte entries = 2.8 KB of BSS. Real PCs (many root ports and PCH functions) can have more:
+ * the native 64-bit kernel keeps 256 (11 KB). */
+#ifdef NEXUS_NATIVE64
+#define PCI_MAX_DEVICES  256
+#else
+#define PCI_MAX_DEVICES  64
+#endif
 
 /* PCI device info */
 typedef struct {

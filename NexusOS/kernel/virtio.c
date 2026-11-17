@@ -69,7 +69,15 @@ bool virtio_pci_setup(virtio_dev_t* vd, pci_device_t* pci) {
             uint32_t off      = pci_read32(pci->bus, pci->device, pci->function, cap + 8);
             uint32_t len      = pci_read32(pci->bus, pci->device, pci->function, cap + 12);
 
-            if (bar < 6 && len != 0 && !(pci->bar[bar] & 1)) {  /* memory BAR only */
+            /* Memory BARs only. A 64-bit BAR (type bits 2:1 == 10b) carries
+             * its high dword in the next BAR slot: we can only map windows
+             * below 4 GB (no PAE), so a non-zero high half — or an
+             * unassigned (zero) BAR — leaves the window unmapped. */
+            bool usable = bar < 6 && len != 0 && !(pci->bar[bar] & 1) &&
+                          (pci->bar[bar] & 0xFFFFFFF0) != 0;
+            if (usable && (pci->bar[bar] & 0x6) == 0x4)
+                usable = bar < 5 && pci->bar[bar + 1] == 0;
+            if (usable) {
                 uint32_t base = (pci->bar[bar] & 0xFFFFFFF0) + off;
                 switch (cfg_type) {
                     case VIRTIO_PCI_CAP_COMMON_CFG:
@@ -216,8 +224,15 @@ int virtio_run(virtio_dev_t* vd, virtq_t* q,
     uint32_t start = system_ticks, spins = 0;
     int result = -1;
     while (q->used->idx == q->last_used) {
-        if ((system_ticks - start) > (1000 / TICK_MS) + 2) goto done;
-        if (++spins > 50000000u) goto done;
+        if ((system_ticks - start) > (1000 / TICK_MS) + 2 || ++spins > 50000000u) {
+            /* Timed out with the chain still posted: the ring is now out of
+             * step (a late completion would be read as the NEXT request's
+             * reply) and the device may still DMA into `in`. Reset the
+             * device and retire the queue so every later call fails fast. */
+            vd->common->device_status = 0;
+            q->size = 0;
+            goto done;
+        }
         vmb();
     }
     result = (int)q->used->ring[q->last_used % q->size].len;

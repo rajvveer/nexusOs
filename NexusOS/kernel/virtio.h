@@ -128,7 +128,8 @@ void virtio_driver_ok(virtio_dev_t* vd);
  * device→driver buffer, kick the doorbell and poll the used ring to
  * completion (tick timeout + spin cap — never hangs). Both buffers must be
  * identity-mapped (kmalloc/static memory <16MB). Returns bytes the device
- * wrote into `in`, or -1 on timeout. */
+ * wrote into `in`, or -1 on timeout — in which case the device is reset and
+ * the queue retired (size 0), so all later calls on it return -1 at once. */
 int virtio_run(virtio_dev_t* vd, virtq_t* q,
                const void* out, uint32_t out_len, void* in, uint32_t in_len);
 
