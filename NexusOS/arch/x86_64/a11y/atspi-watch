@@ -1,0 +1,84 @@
+#!/usr/bin/python3
+# NexusOS test client (tests/test_aurora_orca.py): lists the AT-SPI2 applications, then prints the events a screen
+# reader follows (focus, window activation, notifications, text changes) with the source's name, role, states and,
+# for objects with the Text interface, their text.
+#   atspi-watch SECONDS          (as the session's user: DBUS_SESSION_BUS_ADDRESS set)
+#   atspi-watch tree APP         the accessible tree of the application named APP
+import sys
+import gi
+gi.require_version("Atspi", "2.0")
+from gi.repository import Atspi, GLib
+
+
+def text_of(obj):
+    try:
+        iface = obj.get_text_iface()
+        if iface is None:
+            return None
+        # (the interface object is the accessible itself in GI: call the Text methods unbound)
+        return Atspi.Text.get_text(iface, 0, Atspi.Text.get_character_count(iface))
+    except (GLib.Error, AttributeError, TypeError):
+        return None
+
+
+def describe(obj):
+    try:
+        states = obj.get_state_set()
+        flags = [name for name, state in (("focused", Atspi.StateType.FOCUSED), ("active", Atspi.StateType.ACTIVE),
+                                          ("selected", Atspi.StateType.SELECTED), ("showing", Atspi.StateType.SHOWING),
+                                          ("checked", Atspi.StateType.CHECKED))
+                 if states.contains(state)]
+        parent = obj.get_parent()
+        text = text_of(obj)
+        return "name=%r role=%s states=%s parent=%r index=%d app=%r%s" % (
+            obj.get_name(), obj.get_role_name(), ",".join(flags), parent.get_name() if parent else None,
+            obj.get_index_in_parent(), obj.get_application().get_name() if obj.get_application() else None,
+            "" if text is None else " text=%r" % text)
+    except GLib.Error as error:
+        return "gone (%s)" % error.message
+
+
+def apps():
+    desktop = Atspi.get_desktop(0)
+    return [desktop.get_child_at_index(i) for i in range(desktop.get_child_count())]
+
+
+def tree(obj, depth=0):
+    print("TREE %s%s" % ("  " * depth, describe(obj)), flush=True)
+    for i in range(min(obj.get_child_count(), 64)):
+        child = obj.get_child_at_index(i)
+        if child is not None:
+            tree(child, depth + 1)
+
+
+if len(sys.argv) == 3 and sys.argv[1] == "tree":
+    for app in apps():
+        if app is not None and app.get_name() == sys.argv[2]:
+            tree(app)
+            sys.exit(0)
+    print("TREE no application %r" % sys.argv[2])
+    sys.exit(1)
+
+seconds = int(sys.argv[1]) if len(sys.argv) > 1 else 60
+print("APPS %s" % [app.get_name() for app in apps() if app is not None], flush=True)
+
+
+def on_event(event):
+    extra = ""
+    if event.type.startswith("object:text-"):
+        try:
+            extra = " detail2=%d data=%r" % (event.detail2, event.any_data)
+        except Exception:   # noqa: BLE001
+            extra = " detail2=%d data=?" % event.detail2
+    print("EVENT %s detail1=%d%s %s" % (event.type, event.detail1, extra, describe(event.source)), flush=True)
+
+
+listener = Atspi.EventListener.new(on_event)
+for kind in ("object:state-changed:focused", "object:state-changed:showing", "window:activate", "window:deactivate",
+             "object:text-changed", "object:text-caret-moved"):
+    listener.register(kind)
+loop = GLib.MainLoop()
+GLib.timeout_add_seconds(seconds, loop.quit)
+print("WATCHING", flush=True)
+loop.run()
+print("WATCH DONE", flush=True)

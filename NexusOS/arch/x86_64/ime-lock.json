@@ -1,0 +1,728 @@
+{
+ "format": 1,
+ "generated": "2026-10-29T21:14:39Z",
+ "suites": {
+  "trixie": {
+   "inrelease_sha256": "0584fba32e13e0ab8285fb16c27adea1ec03a73669c18702821094fd6ca86675",
+   "packages_xz_sha256": "7778d3e3f303b7ddb8ce0fe7c8d57473a076c6bf2e8f241f75421d2396352498",
+   "date": "Sat, 12 Sep 2026 07:55:41 UTC",
+   "signed_by": [
+    "Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>",
+    "Debian Stable Release Key (13/trixie) <debian-release@lists.debian.org>"
+   ]
+  },
+  "trixie-updates": {
+   "inrelease_sha256": "8bc39bced3d37fc871156566fe133ab928a2ab4631f6d7a7503f53a26dd57ed7",
+   "packages_xz_sha256": "235fb859490d45c1490bc69836bd2607c9a8557b629ebc33bab1008edb6e9e6d",
+   "date": "Thu, 29 Oct 2026 08:10:31 UTC",
+   "signed_by": [
+    "Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>"
+   ]
+  },
+  "trixie-security": {
+   "inrelease_sha256": "c95ded379fc5341068961c2ceb972175a5d5f61d0119bade7f7967e8e08b5753",
+   "packages_xz_sha256": "7a15c5fa1bbde13b5b4d57154d5314a3305d96069002b22726cc7b95eb621be0",
+   "date": "Thu, 29 Oct 2026 20:52:49 UTC",
+   "signed_by": [
+    "Debian Security Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Security Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>"
+   ]
+  },
+  "sid": {
+   "inrelease_sha256": "d7c5b2a63f067406ccd8299015a00d9ea856b7311c1fab75b90bf0e2e71fa1c9",
+   "packages_xz_sha256": "fd31518bf75f7b7c6b6904c9e0f601a88de82ebe3b8f32962e9fcf4c4126f59b",
+   "date": "Thu, 29 Oct 2026 08:10:31 UTC",
+   "signed_by": [
+    "Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>"
+   ]
+  }
+ },
+ "keyring": {
+  "name": "debian-archive-keyring",
+  "version": "2025.1",
+  "sha256": "9ea7778e443144ca490668737a8ab22dd3e748bb99e805e22ec055abeb3c7fac",
+  "url": "https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2025.1_all.deb",
+  "bytes": 179244
+ },
+ "present_from_chrome_and_desk_locks": {
+  "libbz2-1.0": "1.0.8-6",
+  "libc6": "2.41-12+deb13u4",
+  "libcairo2": "1.18.4-1+b1",
+  "libexpat1": "2.8.3-1~deb13u1",
+  "libgcc-s1": "14.2.0-19",
+  "libgdk-pixbuf-2.0-0": "2.42.12+dfsg-4+deb13u1",
+  "libglib2.0-0t64": "2.84.4-3~deb13u5",
+  "liblzma5": "5.8.1-1+deb13u1",
+  "libpango-1.0-0": "1.56.3-1",
+  "libpangocairo-1.0-0": "1.56.3-1",
+  "libstdc++6": "14.2.0-19",
+  "libsystemd0": "257.13-1~deb13u1",
+  "libwayland-client0": "1.23.1-3",
+  "libwayland-cursor0": "1.23.1-3",
+  "libx11-6": "2:1.8.12-1",
+  "libxcb-randr0": "1.17.0-2+b1",
+  "libxcb-xfixes0": "1.17.0-2+b1",
+  "libxcb1": "1.17.0-2+b1",
+  "libxkbcommon0": "1.7.0-2",
+  "libzstd1": "1.5.7+dfsg-1",
+  "zlib1g": "1:1.3.dfsg+really1.3.1-1+b1"
+ },
+ "skipped": {
+  "libtext-iconv-perl": {
+   "reason": "dictionaries-common's maintainer scripts only (Perl); no runtime use",
+   "required_by": [
+    "dictionaries-common"
+   ]
+  }
+ },
+ "packages": [
+  {
+   "name": "anthy-common",
+   "version": "1:0.4-3",
+   "url": "https://deb.debian.org/debian/pool/main/a/anthy/anthy-common_0.4-3_all.deb",
+   "sha256": "ff7ceb5057328621be06cfce963b80e7978d4aa40a4c02e632bb138f6e03310a",
+   "bytes": 5595292,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/anthy-common_0.4-3_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20240301T214050Z/pool/main/a/anthy/anthy-common_0.4-3_all.deb"
+  },
+  {
+   "name": "debconf",
+   "version": "1.5.91",
+   "url": "https://deb.debian.org/debian/pool/main/d/debconf/debconf_1.5.91_all.deb",
+   "sha256": "1ddc7e6c5925f748eefb7ca811d98e049f18c158bb21fbc7e122262ce6011e49",
+   "bytes": 121088,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/debconf_1.5.91_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250310T160631Z/pool/main/d/debconf/debconf_1.5.91_all.deb"
+  },
+  {
+   "name": "dictionaries-common",
+   "version": "1.30.10",
+   "url": "https://deb.debian.org/debian/pool/main/d/dictionaries-common/dictionaries-common_1.30.10_all.deb",
+   "sha256": "8640d705119a9458dc7fdcaef77b5ec7e72b0378caa6fb238383f3f6103c8692",
+   "bytes": 174176,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/dictionaries-common_1.30.10_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250302T161742Z/pool/main/d/dictionaries-common/dictionaries-common_1.30.10_all.deb"
+  },
+  {
+   "name": "emacsen-common",
+   "version": "3.0.8",
+   "url": "https://deb.debian.org/debian/pool/main/e/emacsen-common/emacsen-common_3.0.8_all.deb",
+   "sha256": "8b164951c11937eae26b0528f65d75d5dda64985ec8ccf0cb48605842b4d5495",
+   "bytes": 13636,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/emacsen-common_3.0.8_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250603T205416Z/pool/main/e/emacsen-common/emacsen-common_3.0.8_all.deb"
+  },
+  {
+   "name": "fcitx5",
+   "version": "5.1.12-2",
+   "url": "https://deb.debian.org/debian/pool/main/f/fcitx5/fcitx5_5.1.12-2_amd64.deb",
+   "sha256": "b6e24c79626a82570d5f98c8dab076e7a220cb71e9733eacea16eeef5e2ac7c2",
+   "bytes": 198752,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/fcitx5_5.1.12-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250321T024612Z/pool/main/f/fcitx5/fcitx5_5.1.12-2_amd64.deb"
+  },
+  {
+   "name": "fcitx5-anthy",
+   "version": "5.1.6-1",
+   "url": "https://deb.debian.org/debian/pool/main/f/fcitx5-anthy/fcitx5-anthy_5.1.6-1_amd64.deb",
+   "sha256": "71664a439e8d83e58cdd62dc3daceb83e29a3425ba87deb4b9521f1a0867c87a",
+   "bytes": 170064,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/fcitx5-anthy_5.1.6-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250124T023832Z/pool/main/f/fcitx5-anthy/fcitx5-anthy_5.1.6-1_amd64.deb"
+  },
+  {
+   "name": "fcitx5-chinese-addons",
+   "version": "5.1.8-1",
+   "url": "https://deb.debian.org/debian/pool/main/f/fcitx5-chinese-addons/fcitx5-chinese-addons_5.1.8-1_all.deb",
+   "sha256": "1f4f1601e82ae57c133bc9b15d4ee5a11794b876ec028fa7f711fb7114cb891c",
+   "bytes": 6856,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/fcitx5-chinese-addons_5.1.8-1_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250124T023832Z/pool/main/f/fcitx5-chinese-addons/fcitx5-chinese-addons_5.1.8-1_all.deb"
+  },
+  {
+   "name": "fcitx5-chinese-addons-bin",
+   "version": "5.1.8-1",
+   "url": "https://deb.debian.org/debian/pool/main/f/fcitx5-chinese-addons/fcitx5-chinese-addons-bin_5.1.8-1_amd64.deb",
+   "sha256": "480157b225298ef2909d7865b024a31a3fd0c3d4254493f0dc9a2a61e20c0091",
+   "bytes": 15108,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/fcitx5-chinese-addons-bin_5.1.8-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250124T023832Z/pool/main/f/fcitx5-chinese-addons/fcitx5-chinese-addons-bin_5.1.8-1_amd64.deb"
+  },
+  {
+   "name": "fcitx5-chinese-addons-data",
+   "version": "5.1.8-1",
+   "url": "https://deb.debian.org/debian/pool/main/f/fcitx5-chinese-addons/fcitx5-chinese-addons-data_5.1.8-1_all.deb",
+   "sha256": "3bf4e8d2c297050d3e6a9fa61cc996aafb22a57a371397039df22513dc3618c6",
+   "bytes": 41448,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/fcitx5-chinese-addons-data_5.1.8-1_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250124T023832Z/pool/main/f/fcitx5-chinese-addons/fcitx5-chinese-addons-data_5.1.8-1_all.deb"
+  },
+  {
+   "name": "fcitx5-data",
+   "version": "5.1.12-2",
+   "url": "https://deb.debian.org/debian/pool/main/f/fcitx5/fcitx5-data_5.1.12-2_all.deb",
+   "sha256": "8d53bd6dd9ea1820ff3671fcf8f932d88d4b079288a57ddbf1f5729cafe6db66",
+   "bytes": 6902824,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/fcitx5-data_5.1.12-2_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250321T024612Z/pool/main/f/fcitx5/fcitx5-data_5.1.12-2_all.deb"
+  },
+  {
+   "name": "fcitx5-hangul",
+   "version": "5.1.6-1",
+   "url": "https://deb.debian.org/debian/pool/main/f/fcitx5-hangul/fcitx5-hangul_5.1.6-1_amd64.deb",
+   "sha256": "1cefd285c21268e4b70a7dcafcb600b0ec09139a858a4965ec60c51540b1f72f",
+   "bytes": 54192,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/fcitx5-hangul_5.1.6-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250128T025224Z/pool/main/f/fcitx5-hangul/fcitx5-hangul_5.1.6-1_amd64.deb"
+  },
+  {
+   "name": "fcitx5-module-pinyinhelper",
+   "version": "5.1.8-1",
+   "url": "https://deb.debian.org/debian/pool/main/f/fcitx5-chinese-addons/fcitx5-module-pinyinhelper_5.1.8-1_amd64.deb",
+   "sha256": "acafcbb52341994f9e7fa80aeac5c8f253b52f432a243e578d1142ca5381d597",
+   "bytes": 561148,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/fcitx5-module-pinyinhelper_5.1.8-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250124T023832Z/pool/main/f/fcitx5-chinese-addons/fcitx5-module-pinyinhelper_5.1.8-1_amd64.deb"
+  },
+  {
+   "name": "fcitx5-module-punctuation",
+   "version": "5.1.8-1",
+   "url": "https://deb.debian.org/debian/pool/main/f/fcitx5-chinese-addons/fcitx5-module-punctuation_5.1.8-1_amd64.deb",
+   "sha256": "5edcb1feabdb6d3ab0def19ef8fb33e9dfe249e26937a4dc15eb7e1d4f4d29e9",
+   "bytes": 55436,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/fcitx5-module-punctuation_5.1.8-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250124T023832Z/pool/main/f/fcitx5-chinese-addons/fcitx5-module-punctuation_5.1.8-1_amd64.deb"
+  },
+  {
+   "name": "fcitx5-modules",
+   "version": "5.1.12-2",
+   "url": "https://deb.debian.org/debian/pool/main/f/fcitx5/fcitx5-modules_5.1.12-2_amd64.deb",
+   "sha256": "49c9503e2caa335872bd13f194461e88ef0f4087eae799e680a71f6aa13c8bf2",
+   "bytes": 940828,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/fcitx5-modules_5.1.12-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250321T024612Z/pool/main/f/fcitx5/fcitx5-modules_5.1.12-2_amd64.deb"
+  },
+  {
+   "name": "fcitx5-pinyin",
+   "version": "5.1.8-1",
+   "url": "https://deb.debian.org/debian/pool/main/f/fcitx5-chinese-addons/fcitx5-pinyin_5.1.8-1_amd64.deb",
+   "sha256": "75699b108f40a19e2f684cfe5650da21fc6ba83cb15a144fbfe288674521b017",
+   "bytes": 435440,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/fcitx5-pinyin_5.1.8-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250124T023832Z/pool/main/f/fcitx5-chinese-addons/fcitx5-pinyin_5.1.8-1_amd64.deb"
+  },
+  {
+   "name": "fcitx5-table",
+   "version": "5.1.8-1",
+   "url": "https://deb.debian.org/debian/pool/main/f/fcitx5-chinese-addons/fcitx5-table_5.1.8-1_amd64.deb",
+   "sha256": "cf1b285e8cc6df12e3acd45a11d0c0df9f32d79112b2427a84019791b01c40af",
+   "bytes": 173092,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/fcitx5-table_5.1.8-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250124T023832Z/pool/main/f/fcitx5-chinese-addons/fcitx5-table_5.1.8-1_amd64.deb"
+  },
+  {
+   "name": "hunspell-en-us",
+   "version": "1:2020.12.07-4",
+   "url": "https://deb.debian.org/debian/pool/main/s/scowl/hunspell-en-us_2020.12.07-4_all.deb",
+   "sha256": "962d774fd74f94ea8e781291319706fc5172d7d02c806e4c3a0c6af3ec9ccdc7",
+   "bytes": 557976,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/hunspell-en-us_2020.12.07-4_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250315T094245Z/pool/main/s/scowl/hunspell-en-us_2020.12.07-4_all.deb"
+  },
+  {
+   "name": "libanthy1t64",
+   "version": "1:0.4-3+b1",
+   "url": "https://deb.debian.org/debian/pool/main/a/anthy/libanthy1t64_0.4-3+b1_amd64.deb",
+   "sha256": "52916329ae2ad32ce63261e2e998c6b75bf4df300d21347f542b6ab1a462ffc5",
+   "bytes": 102316,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libanthy1t64_0.4-3+b1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241028T215736Z/pool/main/a/anthy/libanthy1t64_0.4-3+b1_amd64.deb"
+  },
+  {
+   "name": "libaspell15",
+   "version": "0.60.8.1-4",
+   "url": "https://deb.debian.org/debian/pool/main/a/aspell/libaspell15_0.60.8.1-4_amd64.deb",
+   "sha256": "8be22785198a4e5de1e2c3a157e8cd99ec7d5843c8ac96a174ec701ba4ac28e2",
+   "bytes": 337684,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libaspell15_0.60.8.1-4_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250218T025254Z/pool/main/a/aspell/libaspell15_0.60.8.1-4_amd64.deb"
+  },
+  {
+   "name": "libboost-iostreams1.83.0",
+   "version": "1.83.0-4.2",
+   "url": "https://deb.debian.org/debian/pool/main/b/boost1.83/libboost-iostreams1.83.0_1.83.0-4.2_amd64.deb",
+   "sha256": "65db6c6900a35c44a23e680aa9f5b93ce6fd51c6b18eb74f64cecbd824077386",
+   "bytes": 253636,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libboost-iostreams1.83.0_1.83.0-4.2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250325T204825Z/pool/main/b/boost1.83/libboost-iostreams1.83.0_1.83.0-4.2_amd64.deb"
+  },
+  {
+   "name": "libenchant-2-2",
+   "version": "2.8.2+dfsg1-3",
+   "url": "https://deb.debian.org/debian/pool/main/e/enchant-2/libenchant-2-2_2.8.2+dfsg1-3_amd64.deb",
+   "sha256": "83f208d89db1c48e6ede8a23e8ffa2bcddd4f99427bfd1279201247bbf27ca58",
+   "bytes": 56756,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libenchant-2-2_2.8.2+dfsg1-3_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250122T204604Z/pool/main/e/enchant-2/libenchant-2-2_2.8.2+dfsg1-3_amd64.deb"
+  },
+  {
+   "name": "libfcitx5config6",
+   "version": "5.1.12-2",
+   "url": "https://deb.debian.org/debian/pool/main/f/fcitx5/libfcitx5config6_5.1.12-2_amd64.deb",
+   "sha256": "e40ac6e60e2679a43c04954b0cfb1faeae1478036a2e33b89e9c61621581fa1c",
+   "bytes": 58540,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libfcitx5config6_5.1.12-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250321T024612Z/pool/main/f/fcitx5/libfcitx5config6_5.1.12-2_amd64.deb"
+  },
+  {
+   "name": "libfcitx5core7",
+   "version": "5.1.12-2",
+   "url": "https://deb.debian.org/debian/pool/main/f/fcitx5/libfcitx5core7_5.1.12-2_amd64.deb",
+   "sha256": "304ef55001c6f6e6f61eb55f332c621ed523eec30fcec9a6c60469729a3a3313",
+   "bytes": 340108,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libfcitx5core7_5.1.12-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250321T024612Z/pool/main/f/fcitx5/libfcitx5core7_5.1.12-2_amd64.deb"
+  },
+  {
+   "name": "libfcitx5utils2",
+   "version": "5.1.12-2",
+   "url": "https://deb.debian.org/debian/pool/main/f/fcitx5/libfcitx5utils2_5.1.12-2_amd64.deb",
+   "sha256": "e350d7245d82456ab5ee09766f7a8b8db9eb1236de34897fd5690f87c14d709f",
+   "bytes": 234544,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libfcitx5utils2_5.1.12-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250321T024612Z/pool/main/f/fcitx5/libfcitx5utils2_5.1.12-2_amd64.deb"
+  },
+  {
+   "name": "libhangul-data",
+   "version": "0.2.0-1",
+   "url": "https://deb.debian.org/debian/pool/main/libh/libhangul/libhangul-data_0.2.0-1_all.deb",
+   "sha256": "7dd6a6cf76d72110009d7f9b95ad2f9aca4b239c0832046333a5204232864377",
+   "bytes": 1873864,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libhangul-data_0.2.0-1_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250511T144304Z/pool/main/libh/libhangul/libhangul-data_0.2.0-1_all.deb"
+  },
+  {
+   "name": "libhangul1",
+   "version": "0.2.0-1",
+   "url": "https://deb.debian.org/debian/pool/main/libh/libhangul/libhangul1_0.2.0-1_amd64.deb",
+   "sha256": "4d7c599367b8a3cfce9e46955f5ede570756675ea76cd29fdcdaf626766157bc",
+   "bytes": 63316,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libhangul1_0.2.0-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250511T144304Z/pool/main/libh/libhangul/libhangul1_0.2.0-1_amd64.deb"
+  },
+  {
+   "name": "libhunspell-1.7-0",
+   "version": "1.7.2+really1.7.2-10+b4",
+   "url": "https://deb.debian.org/debian/pool/main/h/hunspell/libhunspell-1.7-0_1.7.2+really1.7.2-10+b4_amd64.deb",
+   "sha256": "a9427e5220e71f8c04c6c0f87826c6fef98e2bab6994a87d6d82e8a120790ecf",
+   "bytes": 236980,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libhunspell-1.7-0_1.7.2+really1.7.2-10+b4_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250105T040337Z/pool/main/h/hunspell/libhunspell-1.7-0_1.7.2+really1.7.2-10+b4_amd64.deb"
+  },
+  {
+   "name": "libime-data",
+   "version": "1.1.10+dict20250327-1",
+   "url": "https://deb.debian.org/debian/pool/main/libi/libime/libime-data_1.1.10+dict20250327-1_all.deb",
+   "sha256": "324b502d52f973508f6f76dc53aef4f16cbc4762c63187cafeaaf2b87bb2227b",
+   "bytes": 16523084,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libime-data_1.1.10+dict20250327-1_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250424T204715Z/pool/main/libi/libime/libime-data_1.1.10+dict20250327-1_all.deb"
+  },
+  {
+   "name": "libime-data-language-model",
+   "version": "1.1.10+dict20250327-1",
+   "url": "https://deb.debian.org/debian/pool/main/libi/libime/libime-data-language-model_1.1.10+dict20250327-1_amd64.deb",
+   "sha256": "ec2b201333d43ce2da8497599339e8732647f0751d73ac0058362a242f532e05",
+   "bytes": 20006412,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libime-data-language-model_1.1.10+dict20250327-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250424T204715Z/pool/main/libi/libime/libime-data-language-model_1.1.10+dict20250327-1_amd64.deb"
+  },
+  {
+   "name": "libimecore0",
+   "version": "1.1.10+dict20250327-1",
+   "url": "https://deb.debian.org/debian/pool/main/libi/libime/libimecore0_1.1.10+dict20250327-1_amd64.deb",
+   "sha256": "c0d42face4b8f9507c00357ab18288ce757d966d77fe42ccf50180f5c5af8765",
+   "bytes": 278040,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libimecore0_1.1.10+dict20250327-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250424T204715Z/pool/main/libi/libime/libimecore0_1.1.10+dict20250327-1_amd64.deb"
+  },
+  {
+   "name": "libimepinyin0",
+   "version": "1.1.10+dict20250327-1",
+   "url": "https://deb.debian.org/debian/pool/main/libi/libime/libimepinyin0_1.1.10+dict20250327-1_amd64.deb",
+   "sha256": "9501cdf6c6e8940e10cb0b91e1c9ab5de9e68626de0455b3deda7db57090503c",
+   "bytes": 208940,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libimepinyin0_1.1.10+dict20250327-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250424T204715Z/pool/main/libi/libime/libimepinyin0_1.1.10+dict20250327-1_amd64.deb"
+  },
+  {
+   "name": "libimetable0",
+   "version": "1.1.10+dict20250327-1",
+   "url": "https://deb.debian.org/debian/pool/main/libi/libime/libimetable0_1.1.10+dict20250327-1_amd64.deb",
+   "sha256": "988221a9af18cc32cb891d895aeb7b576a811b4a7393579ad765600786041837",
+   "bytes": 165568,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libimetable0_1.1.10+dict20250327-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250424T204715Z/pool/main/libi/libime/libimetable0_1.1.10+dict20250327-1_amd64.deb"
+  },
+  {
+   "name": "libjson-c5",
+   "version": "0.18+ds-1",
+   "url": "https://deb.debian.org/debian/pool/main/j/json-c/libjson-c5_0.18+ds-1_amd64.deb",
+   "sha256": "4fbd5fb4d54c626f05d68abf38a31533fbf1bf4a87068696abe041ee9c974fe0",
+   "bytes": 45956,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libjson-c5_0.18+ds-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20240921T025122Z/pool/main/j/json-c/libjson-c5_0.18+ds-1_amd64.deb"
+  },
+  {
+   "name": "libuuid1",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/libuuid1_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "c1bf4c4c3ff48c57fabf93307dfb56996b60cfa33927afc4158b5db36fb2721e",
+   "bytes": 37848,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libuuid1_2.41.5-0+deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20260814T165831Z/pool/updates/main/u/util-linux/libuuid1_2.41.5-0+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libxcb-ewmh2",
+   "version": "0.4.2-1",
+   "url": "https://deb.debian.org/debian/pool/main/x/xcb-util-wm/libxcb-ewmh2_0.4.2-1_amd64.deb",
+   "sha256": "9dda3db4efb484c7047f0629c14aba9ab0dbe8bde7461e1ed6c90525cfbbc0d4",
+   "bytes": 32764,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libxcb-ewmh2_0.4.2-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241021T203046Z/pool/main/x/xcb-util-wm/libxcb-ewmh2_0.4.2-1_amd64.deb"
+  },
+  {
+   "name": "libxcb-icccm4",
+   "version": "0.4.2-1",
+   "url": "https://deb.debian.org/debian/pool/main/x/xcb-util-wm/libxcb-icccm4_0.4.2-1_amd64.deb",
+   "sha256": "28f04c7fa76939bbc03fbaa1191dc58200c0c894d48ac6105a7039ba4d223b4a",
+   "bytes": 27460,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libxcb-icccm4_0.4.2-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241021T203046Z/pool/main/x/xcb-util-wm/libxcb-icccm4_0.4.2-1_amd64.deb"
+  },
+  {
+   "name": "libxcb-imdkit1",
+   "version": "1.0.9-1+b1",
+   "url": "https://deb.debian.org/debian/pool/main/x/xcb-imdkit/libxcb-imdkit1_1.0.9-1+b1_amd64.deb",
+   "sha256": "e094dda6fc40480f43b388965ffc044e154360835e559edde465e7b89a5299a5",
+   "bytes": 280072,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libxcb-imdkit1_1.0.9-1+b1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241029T234230Z/pool/main/x/xcb-imdkit/libxcb-imdkit1_1.0.9-1+b1_amd64.deb"
+  },
+  {
+   "name": "libxcb-keysyms1",
+   "version": "0.4.1-1",
+   "url": "https://deb.debian.org/debian/pool/main/x/xcb-util-keysyms/libxcb-keysyms1_0.4.1-1_amd64.deb",
+   "sha256": "6989138382e5b9966aa731db68f851858c1d40cf8c98d7e5d7952c9e5a09d710",
+   "bytes": 16700,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libxcb-keysyms1_0.4.1-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250128T145535Z/pool/main/x/xcb-util-keysyms/libxcb-keysyms1_0.4.1-1_amd64.deb"
+  },
+  {
+   "name": "libxcb-util1",
+   "version": "0.4.1-1",
+   "url": "https://deb.debian.org/debian/pool/main/x/xcb-util/libxcb-util1_0.4.1-1_amd64.deb",
+   "sha256": "c242371fdfc806aa5599290150c6008a723c9b0fdb34ac6688f1a4083682172a",
+   "bytes": 23520,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libxcb-util1_0.4.1-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250122T204604Z/pool/main/x/xcb-util/libxcb-util1_0.4.1-1_amd64.deb"
+  },
+  {
+   "name": "libxcb-xinerama0",
+   "version": "1.17.0-2+b1",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxcb/libxcb-xinerama0_1.17.0-2+b1_amd64.deb",
+   "sha256": "0dc42702688c447855906f3a070de6a4cae8fb8fc3c817c085184975e5976e99",
+   "bytes": 104972,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libxcb-xinerama0_1.17.0-2+b1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241029T234230Z/pool/main/libx/libxcb/libxcb-xinerama0_1.17.0-2+b1_amd64.deb"
+  },
+  {
+   "name": "libxcb-xkb1",
+   "version": "1.17.0-2+b1",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxcb/libxcb-xkb1_1.17.0-2+b1_amd64.deb",
+   "sha256": "a46b8d860fbff32c8021dac6036d83859c24ad8700cd1b977cda116d37a2dd35",
+   "bytes": 129972,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libxcb-xkb1_1.17.0-2+b1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241029T234230Z/pool/main/libx/libxcb/libxcb-xkb1_1.17.0-2+b1_amd64.deb"
+  },
+  {
+   "name": "libxkbcommon-x11-0",
+   "version": "1.7.0-2",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxkbcommon/libxkbcommon-x11-0_1.7.0-2_amd64.deb",
+   "sha256": "b5cff6287d0d90b66224edfb7208709c5d35511215d87d2836919e4f7d367653",
+   "bytes": 16184,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libxkbcommon-x11-0_1.7.0-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241216T144229Z/pool/main/libx/libxkbcommon/libxkbcommon-x11-0_1.7.0-2_amd64.deb"
+  },
+  {
+   "name": "libxkbfile1",
+   "version": "1:1.1.0-1+b4",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxkbfile/libxkbfile1_1.1.0-1+b4_amd64.deb",
+   "sha256": "989b61e0eb7f1f99d0e969a5957e9a857a95941d5c0e86d5e2b502008b4ac28e",
+   "bytes": 76516,
+   "kind": "deb",
+   "app": "ime",
+   "suite": "trixie",
+   "needed_by": [
+    "ime"
+   ],
+   "filename": "debs/libxkbfile1_1.1.0-1+b4_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250123T210549Z/pool/main/libx/libxkbfile/libxkbfile1_1.1.0-1+b4_amd64.deb"
+  }
+ ]
+}

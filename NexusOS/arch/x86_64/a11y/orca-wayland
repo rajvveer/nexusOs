@@ -1,0 +1,50 @@
+#!/usr/bin/python3
+# NexusOS: start Orca (Debian's) in an Aurora Wayland session, which has no X server.
+# Orca 48 refreshes its X keyboard map with "xkbcomp $DISPLAY" while loading the user's settings and stops with a
+# KeyError when DISPLAY is unset; on Wayland the Orca modifier keys are handled through the compositor's keyboard
+# monitor (org.freedesktop.a11y.Manager, provided for Aurora by aurora-a11y-bridge), so the X map is not needed.
+# Without DISPLAY this skips those xkbcomp calls (patched when Orca itself imports the module, so its import order
+# is kept) and runs /usr/bin/orca unchanged otherwise.
+import importlib.abc
+import importlib.machinery
+import os
+import runpy
+import sys
+
+TARGET = "orca.orca_modifier_manager"
+X_ONLY = ("refresh_orca_modifiers", "_create_orca_xmodmap", "unset_orca_modifiers", "set_caps_lock_as_orca_modifier")
+
+
+def patch(module):
+    cls = getattr(module, "OrcaModifierManager", None)
+    for name in X_ONLY:
+        if cls is not None and hasattr(cls, name):
+            setattr(cls, name, lambda self, *args, **kwargs: None)
+
+
+class Loader(importlib.abc.Loader):
+    def __init__(self, inner):
+        self.inner = inner
+
+    def create_module(self, spec):
+        return self.inner.create_module(spec)
+
+    def exec_module(self, module):
+        self.inner.exec_module(module)
+        patch(module)
+
+
+class Finder(importlib.abc.MetaPathFinder):
+    def find_spec(self, name, path, target=None):
+        if name != TARGET:
+            return None
+        spec = importlib.machinery.PathFinder.find_spec(name, path)
+        if spec is not None and spec.loader is not None:
+            spec.loader = Loader(spec.loader)
+        return spec
+
+
+if "DISPLAY" not in os.environ:
+    sys.meta_path.insert(0, Finder())
+sys.argv[0] = "/usr/bin/orca"
+runpy.run_path("/usr/bin/orca", run_name="__main__")
