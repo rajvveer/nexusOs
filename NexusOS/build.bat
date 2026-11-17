@@ -1,8 +1,8 @@
 @echo off
 REM ============================================================================
-REM NexusOS — Windows Build Script
+REM NexusOS â€” Windows Build Script
 REM ============================================================================
-REM Usage: build.bat [run|clean|debug]
+REM Usage: build.bat [run|legacy|desktop [--gpu|--uefi|--legacy-devices]|vmware [--uefi]|clean|debug|apps|storage [MiB]|x64 [build|run|test|chrome|desktop|vmware]]
 REM ============================================================================
 
 REM --- Toolchain paths (local tools directory) ---
@@ -17,15 +17,21 @@ if exist "C:\Program Files\qemu\qemu-system-i386.exe" set QEMU=C:\Program Files\
 if exist "%TOOLS_DIR%\qemu\qemu-system-i386.exe" set QEMU=%TOOLS_DIR%\qemu\qemu-system-i386.exe
 
 REM --- Flags ---
-set CFLAGS=-ffreestanding -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector -nostartfiles -nodefaultlibs -Wall -Wextra -c
-set LDFLAGS=-T linker.ld --oformat binary -nostdlib
+set CFLAGS=-ffreestanding -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector -nostartfiles -nodefaultlibs -fno-asynchronous-unwind-tables -Wall -Wextra -c
+set LDFLAGS=-T linker.ld --oformat binary -nostdlib -Map kernel.map
 set ASM_BIN=-f bin
 set ASM_ELF=-f elf32
 
 REM --- Handle arguments ---
+if "%1"=="x64" goto build_x64
 if "%1"=="clean" goto clean
-if "%1"=="run" goto build_and_run
+if "%1"=="run" goto run_desktop
+if "%1"=="legacy" goto build_and_run
+if "%1"=="desktop" goto run_desktop
+if "%1"=="vmware" goto run_vmware
 if "%1"=="debug" goto build_and_debug
+if "%1"=="apps" goto build_apps
+if "%1"=="storage" goto grow_storage
 
 :build
 echo.
@@ -76,12 +82,38 @@ if errorlevel 1 (echo [FAIL] irq_asm.asm & exit /b 1)
 "%NASM%" %ASM_ELF% kernel\switch.asm -o kernel\switch.o
 if errorlevel 1 (echo [FAIL] switch.asm & exit /b 1)
 
+REM --- Phase 55: kguard setjmp/longjmp + double-fault task entry ---
+"%NASM%" %ASM_ELF% kernel\kguard_asm.asm -o kernel\kguard_asm.o
+if errorlevel 1 (echo [FAIL] kguard_asm.asm & exit /b 1)
+
 REM --- Compile C files ---
 echo [BUILD] Kernel C files...
 for %%f in (kernel\*.c) do (
     echo         %%f
     "%CC%" %CFLAGS% "%%f" -o "%%~dpnf.o"
     if errorlevel 1 (echo [FAIL] %%f & exit /b 1)
+)
+
+REM --- Aurora UI hot paths: per-pixel blending/compositing code at -O2 ---
+REM     (the rest stays at -O0; these files are pure computation)
+echo [BUILD] Optimizing graphics files (-O2)...
+for %%f in (macui menubar dock spotlight appui framebuffer gfx font gui window webengine) do (
+    "%CC%" %CFLAGS% -O2 "kernel\%%f.c" -o "kernel\%%f.o"
+    if errorlevel 1 (echo [FAIL] kernel\%%f.c -O2 & exit /b 1)
+)
+
+REM --- Phase 57: crypto / TLS / X.509 / streaming HTTP at -O2 (2-3x smaller
+REM     and far faster than -O0 under QEMU TCG; pure computation) ---
+echo [BUILD] Optimizing network/crypto files (-O2)...
+for %%f in (crypto bignum x509 tls netstream download) do (
+    "%CC%" %CFLAGS% -O2 "kernel\%%f.c" -o "kernel\%%f.o"
+    if errorlevel 1 (echo [FAIL] kernel\%%f.c -O2 & exit /b 1)
+)
+REM --- Phase 57 apps: syscall/terminal/FAT32 paths run for every byte a user
+REM     program prints or reads; -Os keeps them small (the kernel cap is shared) ---
+for %%f in (usys vt fat32 appstore_ui) do (
+    "%CC%" %CFLAGS% -Os "kernel\%%f.c" -o "kernel\%%f.o"
+    if errorlevel 1 (echo [FAIL] kernel\%%f.c -Os & exit /b 1)
 )
 
 REM --- Link kernel ---
@@ -106,7 +138,11 @@ echo [BUILD] Linking kernel...
     kernel\process.o ^
     kernel\scheduler.o ^
     kernel\switch.o ^
+    kernel\uproc.o ^
     kernel\syscall.o ^
+    kernel\usys.o ^
+    kernel\vt.o ^
+    kernel\appstore_ui.o ^
     kernel\rtc.o ^
     kernel\speaker.o ^
     kernel\editor.o ^
@@ -177,6 +213,11 @@ echo [BUILD] Linking kernel...
     kernel\usb.o ^
     kernel\usb_hid.o ^
     kernel\usb_storage.o ^
+    kernel\usb_uhci.o ^
+    kernel\usb_ohci.o ^
+    kernel\usb_ehci.o ^
+    kernel\usb_xhci.o ^
+    kernel\usb_hub.o ^
     kernel\net.o ^
     kernel\rtl8139.o ^
     kernel\arp.o ^
@@ -187,8 +228,15 @@ echo [BUILD] Linking kernel...
     kernel\socket.o ^
     kernel\dns.o ^
     kernel\http.o ^
-    kernel\html.o ^
+    kernel\netstream.o ^
+    kernel\tls.o ^
+    kernel\crypto.o ^
+    kernel\bignum.o ^
+    kernel\x509.o ^
+    kernel\netcmd.o ^
+    kernel\download.o ^
     kernel\browser.o ^
+    kernel\webengine.o ^
     kernel\dhcp.o ^
     kernel\ntp.o ^
     kernel\httpd.o ^
@@ -227,14 +275,29 @@ echo [BUILD] Linking kernel...
     kernel\users.o ^
     kernel\firewall.o ^
     kernel\vnc.o ^
+    kernel\des.o ^
     kernel\sync.o ^
     kernel\assistant.o ^
     kernel\mobile.o ^
     kernel\perf.o ^
     kernel\appstore.o ^
     kernel\finale.o ^
-    kernel\npfs.o
+    kernel\npfs.o ^
+    kernel\persist.o ^
+    kernel\macui.o ^
+    kernel\menubar.o ^
+    kernel\spotlight.o ^
+    kernel\kguard.o ^
+    kernel\kguard_asm.o ^
+    kernel\crashtest.o
 if errorlevel 1 (echo [FAIL] Linking & exit /b 1)
+
+REM --- Size guard: boot2.asm loads KERNEL_SECTORS (2816) sectors = 1,441,792
+REM     bytes (Phase 57; was 1984 = 1,015,808 while the heap sat at 2MB). A
+REM     bigger kernel.bin would silently lose its tail at boot. ---
+for %%A in (kernel.bin) do set KSIZE=%%~zA
+if %KSIZE% GTR 1441792 (echo [FAIL] kernel.bin is %KSIZE% bytes, over the 1441792-byte boot2 load limit & exit /b 1)
+echo [OK] kernel.bin %KSIZE% / 1441792 bytes
 
 REM --- Create OS image ---
 echo [BUILD] Creating disk image...
@@ -268,6 +331,43 @@ echo.
 if "%1"=="" exit /b 0
 goto :eof
 
+REM ============================================================================
+REM Phase 57 apps: build.bat apps -- kernel + userland (libc, Lua, kilo, games,
+REM coreutils) and inject the binaries into disk.img's FAT32 volume (/disk/bin,
+REM /disk/share). fatput.py only touches LBA 0..20479 (NPFS/persist stay put).
+REM ============================================================================
+:build_x64
+python -I arch\x86_64\build.py %2 %3 %4 %5
+exit /b %errorlevel%
+
+:run_desktop
+python -I arch\x86_64\build.py desktop %2 %3 %4
+exit /b %errorlevel%
+
+:run_vmware
+python -I arch\x86_64\build.py vmware %2 %3 %4
+exit /b %errorlevel%
+
+:build_apps
+call :build
+if errorlevel 1 exit /b 1
+if not exist disk.img (
+    python mkfat32.py
+    if errorlevel 1 exit /b 1
+)
+python -I storage.py --ensure
+if errorlevel 1 exit /b 1
+python -I userland\build.py
+exit /b %errorlevel%
+
+:grow_storage
+if not exist disk.img (
+    python mkfat32.py
+    if errorlevel 1 exit /b 1
+)
+if "%~2"=="" (python -I storage.py) else (python -I storage.py "%~2")
+exit /b %errorlevel%
+
 :build_and_run
 call :build
 if errorlevel 1 exit /b 1
@@ -286,7 +386,9 @@ if not exist disk.img (
         fsutil file createnew disk.img 16777216 >nul 2>&1
     )
 )
-"%QEMU%" -m 2048 -drive file=nexus.img,format=raw,if=floppy -drive file=disk.img,format=raw,if=ide -boot a -vga none -device virtio-vga -serial file:serial.log -netdev user,id=net0,hostfwd=tcp::8080-:8080,hostfwd=tcp::2323-:2323,hostfwd=tcp::5900-:5900,hostfwd=tcp::7070-:7070 -device rtl8139,netdev=net0 -audiodev dsound,id=snd0 -device AC97,audiodev=snd0
+python -I storage.py --ensure
+if errorlevel 1 exit /b 1
+"%QEMU%" -cpu max -m 2048 -drive file=nexus.img,format=raw,if=floppy -drive file=disk.img,format=raw,if=ide -boot a -vga none -device virtio-vga -display sdl -serial file:serial.log -netdev user,id=net0,hostfwd=tcp::8080-:8080,hostfwd=tcp::2323-:2323,hostfwd=tcp::5900-:5900,hostfwd=tcp::7070-:7070 -device rtl8139,netdev=net0 -audiodev dsound,id=snd0 -device AC97,audiodev=snd0
 goto :eof
 
 :build_and_debug
@@ -297,7 +399,7 @@ if "%QEMU%"=="" (
     echo [ERROR] QEMU not found.
     exit /b 1
 )
-"%QEMU%" -m 2048 -drive file=nexus.img,format=raw,if=floppy -drive file=disk.img,format=raw,if=ide -boot a -vga none -device virtio-vga -d int -no-reboot -no-shutdown -serial file:serial.log -netdev user,id=net0 -device rtl8139,netdev=net0 -audiodev dsound,id=snd0 -device AC97,audiodev=snd0
+"%QEMU%" -cpu max -m 2048 -drive file=nexus.img,format=raw,if=floppy -drive file=disk.img,format=raw,if=ide -boot a -vga none -device virtio-vga -display sdl -d int -no-reboot -no-shutdown -serial file:serial.log -netdev user,id=net0 -device rtl8139,netdev=net0 -audiodev dsound,id=snd0 -device AC97,audiodev=snd0
 goto :eof
 
 :clean

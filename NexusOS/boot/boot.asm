@@ -25,6 +25,10 @@ start:
     ; Save boot drive number (BIOS passes it in DL)
     mov [BOOT_DRIVE], dl
 
+%ifdef NEXUS_X86_64
+    call memory_map
+%endif
+
     ; Print boot message
     mov si, MSG_BOOT
     call print_string
@@ -100,6 +104,44 @@ BOOT_DRIVE:     db 0
 MSG_BOOT:       db '[NexusOS] Stage 1: Booting...', 13, 10, 0
 MSG_LOADED:     db '[NexusOS] Stage 2 loaded!', 13, 10, 0
 MSG_DISK_ERR:   db '[NexusOS] Disk read error!', 13, 10, 0
+
+%ifdef NEXUS_X86_64
+; The 64-bit target receives up to 32 E820 entries at 0x9108, after VBE info.
+memory_map:
+    pusha
+    push es
+    xor ax, ax
+    mov es, ax
+    mov word [0x9100], 0
+    mov dword [0x9104], 'NX64'
+    mov di, 0x9108
+    xor ebx, ebx
+.next:
+    mov eax, 0xE820
+    mov edx, 0x534D4150
+    mov ecx, 24
+    mov dword [es:di + 20], 1
+    push di
+    int 0x15
+    pop di
+    jc .done
+    cmp eax, 0x534D4150
+    jne .invalid
+    cmp ecx, 20
+    jb .invalid
+    inc word [0x9100]
+    add di, 24
+    test ebx, ebx
+    jz .done
+    cmp word [0x9100], 32
+    jb .next
+.invalid:
+    mov word [0x9100], 0
+.done:
+    pop es
+    popa
+    ret
+%endif
 
 ; ----------------------------------------------------------------------------
 ; Boot Sector Padding and Magic Number
