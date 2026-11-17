@@ -177,7 +177,7 @@ static uint16_t be16(const uint8_t* p) { return (uint16_t)((p[0] << 8) | p[1]); 
 static void j_dqt(jpeg_t* j, const uint8_t* p, const uint8_t* e) {
     while (p < e) {
         int pq = *p >> 4, tq = *p & 15; p++;
-        if (tq > 3) { j->error = 1; return; }
+        if (tq > 3 || e - p < (pq ? 128 : 64)) { j->error = 1; return; }
         for (int i = 0; i < 64; i++) {
             if (pq) { j->qtab[tq][i] = be16(p); p += 2; }
             else    { j->qtab[tq][i] = *p++; }
@@ -188,25 +188,29 @@ static void j_dqt(jpeg_t* j, const uint8_t* p, const uint8_t* e) {
 static void j_dht(jpeg_t* j, const uint8_t* p, const uint8_t* e) {
     while (p < e) {
         int tc = *p >> 4, th = *p & 15; p++;
-        if (th > 3) { j->error = 1; return; }
+        if (th > 3 || e - p < 16) { j->error = 1; return; }
         uint8_t* cnt = tc ? j->hac_cnt[th] : j->hdc_cnt[th];
         uint8_t* sym = tc ? j->hac_sym[th] : j->hdc_sym[th];
         int total = 0;
         cnt[0] = 0;
         for (int i = 1; i <= 16; i++) { cnt[i] = p[i - 1]; total += cnt[i]; }
         p += 16;
-        for (int i = 0; i < total && i < 256; i++) sym[i] = p[i];
+        /* j_huff() indexes sym[] by the running count total, so the counts
+         * must fit the 256-entry table (and the segment). */
+        if (total > 256 || e - p < total) { j->error = 1; return; }
+        for (int i = 0; i < total; i++) sym[i] = p[i];
         p += total;
     }
 }
 
 static void j_sof(jpeg_t* j, const uint8_t* p, const uint8_t* e) {
-    if (p + 6 > e) { j->error = 1; return; }
+    if (p + 6 > e || j->comp[0].pixels) { j->error = 1; return; }   /* one SOF only */
     p++;                                    /* precision (8) */
     j->height = be16(p); p += 2;
     j->width  = be16(p); p += 2;
     j->ncomp  = *p++;
-    if (j->ncomp != 1 && j->ncomp != 3) { j->error = 1; return; }
+    /* Reject before the plane allocations below (also keeps them small). */
+    if ((j->ncomp != 1 && j->ncomp != 3) || !image_dim_ok(j->width, j->height)) { j->error = 1; return; }
 
     int hmax = 1, vmax = 1;
     for (int i = 0; i < j->ncomp; i++) {
@@ -215,6 +219,7 @@ static void j_sof(jpeg_t* j, const uint8_t* p, const uint8_t* e) {
         int s = *p++;
         j->comp[i].ssx = s >> 4;
         j->comp[i].ssy = s & 15;
+        if (!j->comp[i].ssx || !j->comp[i].ssy) { j->error = 1; return; }
         j->comp[i].qtsel = *p++;
         if (j->comp[i].ssx > hmax) hmax = j->comp[i].ssx;
         if (j->comp[i].ssy > vmax) vmax = j->comp[i].ssy;
@@ -228,14 +233,14 @@ static void j_sof(jpeg_t* j, const uint8_t* p, const uint8_t* e) {
         c->width  = j->mbw * c->ssx * 8;
         c->height = j->mbh * c->ssy * 8;
         c->stride = c->width;
-        c->pixels = (uint8_t*)kmalloc((uint32_t)c->width * c->height);
+        c->pixels = (uint8_t*)image_alloc((uint32_t)c->width * c->height);
         if (!c->pixels) { j->error = 1; return; }
     }
     /* stash hmax/vmax for upsampling via mbsx/mbsy already (=hmax*8). */
 }
 
 static void j_sos(jpeg_t* j, const uint8_t* p, const uint8_t* e) {
-    int ns = *p++;
+    int ns = (p < e) ? *p++ : 0;
     for (int i = 0; i < ns; i++) {
         if (p + 2 > e) { j->error = 1; return; }
         int id = *p++, tt = *p++;
@@ -284,7 +289,7 @@ static void j_decode_scan(jpeg_t* j) {
 bool jpeg_decode(const uint8_t* data, uint32_t size, image_t* img) {
     if (size < 4 || data[0] != 0xFF || data[1] != 0xD8) return false;
 
-    jpeg_t* j = (jpeg_t*)kmalloc(sizeof(jpeg_t));
+    jpeg_t* j = (jpeg_t*)image_alloc(sizeof(jpeg_t));
     if (!j) return false;
     memset(j, 0, sizeof(*j));
     j->end = data + size;
@@ -302,13 +307,13 @@ bool jpeg_decode(const uint8_t* data, uint32_t size, image_t* img) {
         int seglen = be16(p);
         const uint8_t* seg = p + 2;
         const uint8_t* sege = p + seglen;
-        if (sege > end) break;
+        if (seglen < 2 || sege > end) break;
 
         if (m == 0xDB) j_dqt(j, seg, sege);
         else if (m == 0xC4) j_dht(j, seg, sege);
         else if (m == 0xC0) j_sof(j, seg, sege);     /* baseline */
         else if (m == 0xC1) j_sof(j, seg, sege);     /* extended seq (treat as baseline) */
-        else if (m == 0xDD) j->rstinterval = be16(seg);
+        else if (m == 0xDD && seglen >= 4) j->rstinterval = be16(seg);
         else if (m == 0xC2) { j->error = 1; }        /* progressive: unsupported */
         else if (m == 0xDA) {                          /* SOS */
             j_sos(j, seg, sege);
@@ -324,7 +329,7 @@ bool jpeg_decode(const uint8_t* data, uint32_t size, image_t* img) {
         j_decode_scan(j);
 
         if (!j->error) {
-            uint32_t* px = (uint32_t*)kmalloc((uint32_t)j->width * j->height * 4);
+            uint32_t* px = (uint32_t*)image_alloc((uint32_t)j->width * j->height * 4);
             if (px) {
                 int hmax = j->mbsx / 8, vmax = j->mbsy / 8;
                 for (int y = 0; y < j->height; y++) {
@@ -354,7 +359,7 @@ bool jpeg_decode(const uint8_t* data, uint32_t size, image_t* img) {
         }
     }
 
-    for (int i = 0; i < JMAXCOMP; i++) if (j->comp[i].pixels) kfree(j->comp[i].pixels);
-    kfree(j);
+    for (int i = 0; i < JMAXCOMP; i++) if (j->comp[i].pixels) image_free_buf(j->comp[i].pixels);
+    image_free_buf(j);
     return ok;
 }

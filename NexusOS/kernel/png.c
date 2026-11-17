@@ -210,17 +210,19 @@ bool png_decode(const uint8_t* d, uint32_t size, image_t* img) {
     uint8_t palette[256 * 3]; int pal_n = 0;
 
     /* IDAT may be split across chunks; concatenate into one buffer. */
-    uint8_t* idat = (uint8_t*)kmalloc(size);
+    uint8_t* idat = (uint8_t*)image_alloc(size);
     if (!idat) return false;
     uint32_t idat_len = 0;
 
     uint32_t pos = 8;
     bool have_ihdr = false;
-    while (pos + 8 <= size) {
+    while (size - pos >= 8) {                /* pos <= size always holds */
         uint32_t clen = rd32be(d + pos);
         const uint8_t* type = d + pos + 4;
         uint32_t body = pos + 8;
-        if (body + clen + 4 > size) break;
+        /* Overflow-safe: body + clen + 4(CRC) must fit; also guarantees the
+         * advance below moves forward and stays <= size. */
+        if (size - body < 4 || clen > size - body - 4) break;
 
         if (type[0]=='I'&&type[1]=='H'&&type[2]=='D'&&type[3]=='R' && clen >= 13) {
             w = (int)rd32be(d + body);
@@ -233,7 +235,7 @@ bool png_decode(const uint8_t* d, uint32_t size, image_t* img) {
             pal_n = (int)(clen / 3); if (pal_n > 256) pal_n = 256;
             memcpy(palette, d + body, (uint32_t)pal_n * 3);
         } else if (type[0]=='I'&&type[1]=='D'&&type[2]=='A'&&type[3]=='T') {
-            if (idat_len + clen <= size) { memcpy(idat + idat_len, d + body, clen); idat_len += clen; }
+            if (clen <= size - idat_len) { memcpy(idat + idat_len, d + body, clen); idat_len += clen; }
         } else if (type[0]=='I'&&type[1]=='E'&&type[2]=='N'&&type[3]=='D') {
             break;
         }
@@ -241,7 +243,7 @@ bool png_decode(const uint8_t* d, uint32_t size, image_t* img) {
     }
 
     if (!have_ihdr || !image_dim_ok(w, h) || bitdepth != 8 || interlace != 0 || idat_len < 3) {
-        kfree(idat); return false;
+        image_free_buf(idat); return false;
     }
 
     int channels;
@@ -251,19 +253,19 @@ bool png_decode(const uint8_t* d, uint32_t size, image_t* img) {
         case 3: channels = 1; break;   /* palette index     */
         case 4: channels = 2; break;   /* gray + alpha      */
         case 6: channels = 4; break;   /* RGBA              */
-        default: kfree(idat); return false;
+        default: image_free_buf(idat); return false;
     }
-    if (colortype == 3 && pal_n == 0) { kfree(idat); return false; }
+    if (colortype == 3 && pal_n == 0) { image_free_buf(idat); return false; }
 
     uint32_t stride = 1 + (uint32_t)w * channels;
     uint32_t rawlen = stride * h;
-    uint8_t* raw = (uint8_t*)kmalloc(rawlen);
-    if (!raw) { kfree(idat); return false; }
+    uint8_t* raw = (uint8_t*)image_alloc(rawlen);
+    if (!raw) { image_free_buf(idat); return false; }
 
     /* zlib wrapper: skip 2-byte header, inflate the DEFLATE body. */
     uint32_t produced = inflate(idat + 2, idat_len - 2, raw, rawlen);
-    kfree(idat);
-    if (produced < rawlen) { kfree(raw); return false; }
+    image_free_buf(idat);
+    if (produced < rawlen) { image_free_buf(raw); return false; }
 
     /* Unfilter scanlines in place (bpp = channels for 8-bit). */
     int bpp = channels;
@@ -289,8 +291,8 @@ bool png_decode(const uint8_t* d, uint32_t size, image_t* img) {
     }
 
     /* Convert to ARGB. */
-    uint32_t* px = (uint32_t*)kmalloc((uint32_t)w * h * 4);
-    if (!px) { kfree(raw); return false; }
+    uint32_t* px = (uint32_t*)image_alloc((uint32_t)w * h * 4);
+    if (!px) { image_free_buf(raw); return false; }
     for (int y = 0; y < h; y++) {
         uint8_t* row = raw + (uint32_t)y * stride + 1;
         for (int x = 0; x < w; x++) {
@@ -307,7 +309,7 @@ bool png_decode(const uint8_t* d, uint32_t size, image_t* img) {
             px[y * w + x] = ((uint32_t)r << 16) | ((uint32_t)g << 8) | b;
         }
     }
-    kfree(raw);
+    image_free_buf(raw);
 
     img->pixels = px; img->width = w; img->height = h;
     img->frames = 1; img->format = "PNG";

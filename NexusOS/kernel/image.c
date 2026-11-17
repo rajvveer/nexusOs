@@ -32,8 +32,40 @@ static uint32_t rd32(const uint8_t* p) {
            ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
 
+/* ---- Phase 57: optional decode arena (see image.h) ---------------------- */
+static uint8_t* arena_base = NULL;
+static uint32_t arena_size = 0, arena_used = 0;
+static int      arena_max_dim = 0;
+static uint32_t arena_max_pixels = 0;
+
+void image_arena_begin(uint8_t* base, uint32_t size, int max_dim, uint32_t max_pixels) {
+    arena_base = base; arena_size = size; arena_used = 0;
+    arena_max_dim = max_dim; arena_max_pixels = max_pixels;
+}
+void image_arena_end(void) {
+    arena_base = NULL; arena_size = 0; arena_used = 0;
+    arena_max_dim = 0; arena_max_pixels = 0;
+}
+void* image_alloc(uint32_t size) {
+    if (!arena_base) return kmalloc(size);
+    uint32_t sz = (size + 15) & ~15u;
+    if (sz < size || arena_used + sz > arena_size) return NULL;
+    void* p = arena_base + arena_used;
+    arena_used += sz;
+    return p;
+}
+void image_free_buf(void* p) {
+    if (!p) return;
+    if (arena_base && (uint8_t*)p >= arena_base && (uint8_t*)p < arena_base + arena_size) return;
+    kfree(p);
+}
+
 bool image_dim_ok(int w, int h) {
-    return w > 0 && h > 0 && w <= IMAGE_MAX_DIM && h <= IMAGE_MAX_DIM;
+    if (w <= 0 || h <= 0) return false;
+    if (arena_base)
+        return w <= arena_max_dim && h <= arena_max_dim &&
+               (uint32_t)w * (uint32_t)h <= arena_max_pixels;
+    return w <= IMAGE_MAX_DIM && h <= IMAGE_MAX_DIM;
 }
 
 /* --------------------------------------------------------------------------
@@ -55,9 +87,9 @@ static bool bmp_decode(const uint8_t* d, uint32_t size, image_t* img) {
 
     int bytespp = bpp / 8;
     uint32_t rowsize = (((uint32_t)w * bytespp) + 3) & ~3u;   /* w,h capped: no overflow */
-    if (off + rowsize * (uint32_t)h > size) return false;
+    if (off > size || rowsize * (uint32_t)h > size - off) return false;   /* overflow-safe */
 
-    uint32_t* px = (uint32_t*)kmalloc((uint32_t)w * h * 4);
+    uint32_t* px = (uint32_t*)image_alloc((uint32_t)w * h * 4);
     if (!px) return false;
 
     for (int y = 0; y < h; y++) {
@@ -95,7 +127,7 @@ bool image_decode(const uint8_t* data, uint32_t size, image_t* img) {
 }
 
 void image_free(image_t* img) {
-    if (img && img->pixels) { kfree(img->pixels); img->pixels = NULL; }
+    if (img && img->pixels) { image_free_buf(img->pixels); img->pixels = NULL; }
 }
 
 /* --------------------------------------------------------------------------

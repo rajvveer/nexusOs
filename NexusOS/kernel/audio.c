@@ -345,11 +345,11 @@ bool wav_parse(const uint8_t* data, uint32_t size, wav_info_t* out) {
 
     uint32_t off = 12;
     bool have_fmt = false, have_data = false;
-    while (off + 8 <= size) {
+    while (off <= size - 8) {
         const uint8_t* ch = data + off;
         uint32_t clen = rd32(ch + 4);
         uint32_t body = off + 8;
-        if (tag4(ch, "fmt ") && body + 16 <= size) {
+        if (tag4(ch, "fmt ") && size - body >= 16) {
             out->format   = rd16(data + body + 0);
             out->channels = rd16(data + body + 2);
             out->rate     = rd32(data + body + 4);
@@ -358,13 +358,14 @@ bool wav_parse(const uint8_t* data, uint32_t size, wav_info_t* out) {
         } else if (tag4(ch, "data")) {
             out->data_off = body;
             out->data_len = clen;
-            if (out->data_off + out->data_len > size)        /* clamp to file */
-                out->data_len = (size > out->data_off) ? size - out->data_off : 0;
+            if (clen > size - body) out->data_len = size - body;   /* clamp to file */
             have_data = true;
         }
-        /* chunks are word-aligned */
-        off = body + clen + (clen & 1);
         if (have_fmt && have_data) break;
+        /* chunks are word-aligned; a chunk running past EOF ends the walk
+         * (overflow-safe, and the advance is always >= 8 bytes) */
+        if (clen > size - body) break;
+        off = body + clen + (clen & 1);
     }
     if (!have_fmt || !have_data) return false;
     if (out->channels != 1 && out->channels != 2) return false;

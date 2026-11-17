@@ -31,6 +31,19 @@ const char* image_format_name(const uint8_t* data, uint32_t size);
 /* Shared dimension sanity check (decoders cap allocations). */
 bool image_dim_ok(int w, int h);
 
+/* ---- Phase 57: decoder memory hooks ----
+ * Every decoder allocates its scratch and pixel buffers through image_alloc /
+ * image_free_buf. By default these are kmalloc/kfree (1 MB kernel heap, dims
+ * capped at 256x256). The graphical browser installs a large static arena
+ * around a decode so web images (up to max_dim per side / max_pixels total)
+ * decode without touching the heap: allocations bump from the arena, frees
+ * are no-ops, and image_arena_end() releases everything at once. A caller
+ * that uses the arena must copy the pixels out before image_arena_end(). */
+void* image_alloc(uint32_t size);
+void  image_free_buf(void* p);
+void  image_arena_begin(uint8_t* base, uint32_t size, int max_dim, uint32_t max_pixels);
+void  image_arena_end(void);
+
 /* Install the embedded sample images into the RAM-FS (called at boot). */
 void image_init(void);
 

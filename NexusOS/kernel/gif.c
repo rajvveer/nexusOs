@@ -24,6 +24,9 @@ static uint16_t rd16(const uint8_t* p) { return (uint16_t)(p[0] | (p[1] << 8)); 
  * -------------------------------------------------------------------------- */
 static uint32_t lzw_decode(const uint8_t* in, uint32_t inlen, int min_code,
                            uint8_t* out, uint32_t outcap) {
+    /* GIF allows LZW minimum code sizes 2..8; anything larger would push codes
+     * past the 12-bit / 4096-entry tables (and 1 << min_code is UB past 31). */
+    if (min_code < 2 || min_code > 8) return 0;
     int clear = 1 << min_code;
     int eoi   = clear + 1;
     int code_size = min_code + 1;
@@ -103,17 +106,17 @@ static bool gif_render(const uint8_t* d, uint32_t size, int target, image_t* img
         pos += (uint32_t)gct_n * 3;
     }
 
-    uint32_t* canvas = (uint32_t*)kmalloc((uint32_t)cw * ch * 4);
-    uint32_t* out    = (uint32_t*)kmalloc((uint32_t)cw * ch * 4);
-    uint8_t*  lct    = (uint8_t*)kmalloc(256 * 3);
-    uint8_t*  idx    = (uint8_t*)kmalloc((uint32_t)cw * ch);
-    uint8_t*  lzwbuf = (uint8_t*)kmalloc(size);   /* >= total code bytes */
+    uint32_t* canvas = (uint32_t*)image_alloc((uint32_t)cw * ch * 4);
+    uint32_t* out    = (uint32_t*)image_alloc((uint32_t)cw * ch * 4);
+    uint8_t*  lct    = (uint8_t*)image_alloc(256 * 3);
+    uint8_t*  idx    = (uint8_t*)image_alloc((uint32_t)cw * ch);
+    uint8_t*  lzwbuf = (uint8_t*)image_alloc(size);   /* >= total code bytes */
     if (!canvas || !out || !lct || !idx || !lzwbuf) {
-        if (canvas) kfree(canvas);
-        if (out) kfree(out);
-        if (lct) kfree(lct);
-        if (idx) kfree(idx);
-        if (lzwbuf) kfree(lzwbuf);
+        if (canvas) image_free_buf(canvas);
+        if (out) image_free_buf(out);
+        if (lct) image_free_buf(lct);
+        if (idx) image_free_buf(idx);
+        if (lzwbuf) image_free_buf(lzwbuf);
         return false;
     }
 
@@ -228,7 +231,7 @@ static bool gif_render(const uint8_t* d, uint32_t size, int target, image_t* img
 
     if (!captured) memcpy(out, canvas, (uint32_t)cw * ch * 4);
 
-    kfree(canvas); kfree(lct); kfree(idx); kfree(lzwbuf);
+    image_free_buf(canvas); image_free_buf(lct); image_free_buf(idx); image_free_buf(lzwbuf);
     img->pixels = out; img->width = cw; img->height = ch;
     img->frames = frames > 0 ? frames : 1; img->format = "GIF";
     return true;
