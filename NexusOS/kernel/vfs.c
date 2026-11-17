@@ -8,6 +8,7 @@
 #include "vga.h"
 #include "string.h"
 #include "users.h"
+#include "persist.h"   /* Phase 55: chmod/chown mark the tree dirty */
 
 static fs_node_t* fs_root = NULL;
 
@@ -142,6 +143,7 @@ int vfs_chmod(fs_node_t* node, uint16_t mode, uint32_t caller_uid) {
     if (!node) return -1;
     if (caller_uid != UID_ROOT && caller_uid != node->uid) return -1; /* EPERM */
     node->mode = (uint16_t)(mode & 0777);
+    persist_note_meta(node);                   /* Phase 55 */
     return 0;
 }
 
@@ -150,6 +152,7 @@ int vfs_chown(fs_node_t* node, uint32_t new_uid, uint32_t caller_uid) {
     if (caller_uid != UID_ROOT) return -1;     /* only root may chown */
     node->uid = new_uid;
     node->gid = new_uid;
+    persist_note_meta(node);                   /* Phase 55 */
     return 0;
 }
 

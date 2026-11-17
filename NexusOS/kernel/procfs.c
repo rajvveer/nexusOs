@@ -7,6 +7,7 @@
  * ============================================================================ */
 
 #include "procfs.h"
+#include "version.h"
 #include "process.h"
 #include "memory.h"
 #include "heap.h"
@@ -121,8 +122,8 @@ int procfs_read(const char* path, char* buf, int max) {
 
     /* /proc/version */
     if (strcmp(path, "/proc/version") == 0) {
-        pos = pappend(buf, pos, max, "NexusOS v3.1.0\n");
-        pos = pappend(buf, pos, max, "Phase 31: POSIX compatibility\n");
+        pos = pappend(buf, pos, max, NEXUS_VERSION_STRING "\n");
+        pos = pappend(buf, pos, max, "Nexus kernel " NEXUS_VERSION " (i386)\n");
         pos = pappend(buf, pos, max, "Compiler: i686-elf-gcc\n");
         return pos;
     }

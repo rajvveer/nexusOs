@@ -34,31 +34,33 @@ static void fo_refresh(void) {
     }
 }
 
+/* Rename in place: no copy, so the data can't be lost or truncated, and an
+ * existing target is refused rather than clobbered. */
 int fileops_rename(const char* old_name, const char* new_name) {
-    fs_node_t* root = vfs_get_root();
-    if (!root) return -1;
-    fs_node_t* f = vfs_finddir(root, old_name);
-    if (!f) return -1;
-    /* Read data, delete old, create new */
-    uint8_t buf[512];
-    uint32_t sz = vfs_read(f, 0, 512, buf);
-    ramfs_delete(old_name);
-    fs_node_t* nf = ramfs_create(new_name, FS_FILE);
-    if (nf && sz > 0) vfs_write(nf, 0, sz, buf);
-    return 0;
+    return ramfs_rename(old_name, new_name);
 }
 
 int fileops_duplicate(const char* name) {
     fs_node_t* root = vfs_get_root();
-    if (!root) return -1;
-    fs_node_t* f = vfs_finddir(root, name);
-    if (!f) return -1;
+    fs_node_t* f = root ? vfs_finddir(root, name) : NULL;
+    if (!f || f->type != FS_FILE) return -1;
     uint8_t buf[512];
-    uint32_t sz = vfs_read(f, 0, 512, buf);
-    char dup[32]; strcpy(dup, "copy_"); strcat(dup, name);
-    if (strlen(dup) > 28) dup[28] = '\0';
+    int32_t n = vfs_read(f, 0, sizeof(buf), buf);
+    if (n < 0) return -1;                       /* unreadable: make no copy */
+    char dup[FO_NAME_MAX + 1];                  /* "copy_" + name, <= 28 chars */
+    strcpy(dup, "copy_");
+    strncpy(dup + 5, name, FO_NAME_MAX - 5);
+    dup[FO_NAME_MAX] = '\0';
     fs_node_t* nf = ramfs_create(dup, FS_FILE);
-    if (nf && sz > 0) vfs_write(nf, 0, sz, buf);
+    if (!nf) return -1;
+    /* Chunked copy: works for any file size with a fixed stack buffer. */
+    uint32_t off = 0;
+    while (n > 0) {
+        if (vfs_write(nf, off, (uint32_t)n, buf) != n) break;
+        off += (uint32_t)n;
+        n = vfs_read(f, off, sizeof(buf), buf);
+    }
+    if (n != 0) { ramfs_delete(dup); return -1; }   /* no partial copies */
     return 0;
 }
 

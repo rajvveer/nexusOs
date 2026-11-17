@@ -6,10 +6,12 @@
  * ============================================================================ */
 
 #include "ramfs.h"
+#include "version.h"
 #include "heap.h"
 #include "string.h"
 #include "vga.h"
 #include "users.h"
+#include "persist.h"   /* Phase 55: mutation hooks for the disk snapshot */
 
 /* External: set VFS root */
 extern void vfs_set_root(fs_node_t* root);
@@ -23,11 +25,12 @@ static uint32_t file_count = 0;
  * ramfs_read: Read data from a ramfs file
  * -------------------------------------------------------------------------- */
 static int32_t ramfs_read(fs_node_t* node, uint32_t offset, uint32_t size, uint8_t* buffer) {
-    if (node == NULL || node->data == NULL) return -1;
-    if (offset >= node->size) return 0;
+    if (node == NULL) return -1;
+    /* An empty file (never written: data == NULL) is a valid 0-byte read. */
+    if (node->data == NULL || offset >= node->size) return 0;
 
     uint32_t bytes_to_read = size;
-    if (offset + size > node->size) {
+    if (size > node->size - offset) {           /* overflow-safe clamp */
         bytes_to_read = node->size - offset;
     }
 
@@ -41,21 +44,30 @@ static int32_t ramfs_read(fs_node_t* node, uint32_t offset, uint32_t size, uint8
 static int32_t ramfs_write_fn(fs_node_t* node, uint32_t offset, uint32_t size, const uint8_t* buffer) {
     if (node == NULL) return -1;
 
-    /* Ensure we have enough capacity */
+    /* Ensure we have enough capacity. Clamp without forming offset+size first
+     * (it can wrap to a small value and under-allocate before the memcpy). */
+    if (offset >= RAMFS_MAX_FILE_SIZE) return 0;
+    if (size > RAMFS_MAX_FILE_SIZE - offset) size = RAMFS_MAX_FILE_SIZE - offset;
     uint32_t needed = offset + size;
-    if (needed > RAMFS_MAX_FILE_SIZE) {
-        needed = RAMFS_MAX_FILE_SIZE;
-        size = needed - offset;
-    }
 
     if (node->data == NULL) {
-        node->data = (uint8_t*)kmalloc(needed > 256 ? needed : 256);
+        /* Phase 57: first allocation — small files stay small (256 B min),
+         * anything bigger is rounded up to whole 4 KB so the next appends fit. */
+        uint32_t cap = needed > 256 ? needed : 256;
+        if (cap > 4096) cap = (cap + 4095u) & ~4095u;
+        if (cap > RAMFS_MAX_FILE_SIZE) cap = RAMFS_MAX_FILE_SIZE;
+        node->data = (uint8_t*)kmalloc(cap);
         if (node->data == NULL) return -1;
-        node->capacity = needed > 256 ? needed : 256;
+        node->capacity = cap;
         memset(node->data, 0, node->capacity);
     } else if (needed > node->capacity) {
-        /* Reallocate: allocate new, copy, free old */
-        uint32_t new_cap = needed * 2;
+        /* Phase 57 growth policy: double the buffer (geometric, so a stream of
+         * small appends costs O(log n) copies, never a 256 KB copy per write),
+         * but at least `needed` + 25% headroom, rounded up to a 4 KB multiple
+         * and capped at RAMFS_MAX_FILE_SIZE. Allocate new, copy, free old. */
+        uint32_t new_cap = node->capacity * 2;
+        if (new_cap < needed + needed / 4) new_cap = needed + needed / 4;
+        new_cap = (new_cap + 4095u) & ~4095u;
         if (new_cap > RAMFS_MAX_FILE_SIZE) new_cap = RAMFS_MAX_FILE_SIZE;
         uint8_t* new_data = (uint8_t*)kmalloc(new_cap);
         if (new_data == NULL) return -1;
@@ -71,6 +83,7 @@ static int32_t ramfs_write_fn(fs_node_t* node, uint32_t offset, uint32_t size, c
         node->size = offset + size;
     }
 
+    persist_note_write(node);                  /* Phase 55 */
     return (int32_t)size;
 }
 
@@ -105,11 +118,13 @@ static fs_node_t* ramfs_finddir_fn(fs_node_t* dir, const char* name) {
 }
 
 /* --------------------------------------------------------------------------
- * ramfs_create: Create a new file or directory
+ * ramfs_mknode: Create a node inside an arbitrary directory (Phase 54)
  * -------------------------------------------------------------------------- */
-fs_node_t* ramfs_create(const char* name, uint8_t type) {
+fs_node_t* ramfs_mknode(fs_node_t* parent, const char* name, uint8_t type) {
+    if (parent == NULL || parent->type != FS_DIRECTORY) return NULL;
+    if (!name || !name[0] || strlen(name) >= FS_NAME_MAX) return NULL;
     if (file_count >= RAMFS_MAX_FILES) return NULL;
-    if (ramfs_finddir_fn(&root_node, name) != NULL) return NULL; /* Already exists */
+    if (ramfs_finddir_fn(parent, name) != NULL) return NULL; /* Already exists */
 
     fs_node_t* node = (fs_node_t*)kcalloc(1, sizeof(fs_node_t));
     if (node == NULL) return NULL;
@@ -121,7 +136,7 @@ fs_node_t* ramfs_create(const char* name, uint8_t type) {
     node->inode = next_inode++;
     node->data = NULL;
     node->capacity = 0;
-    node->parent = &root_node;
+    node->parent = parent;
     node->children = NULL;
 
     /* Set operations */
@@ -133,12 +148,20 @@ fs_node_t* ramfs_create(const char* name, uint8_t type) {
     /* Phase 44: default ownership (creator) + mode (0644 file / 0755 dir) */
     vfs_init_perms(node);
 
-    /* Add to root's children (prepend) */
-    node->next = root_node.children;
-    root_node.children = node;
+    /* Add to parent's children (prepend) */
+    node->next = parent->children;
+    parent->children = node;
     file_count++;
 
+    persist_note_create(node);                 /* Phase 55 */
     return node;
+}
+
+/* --------------------------------------------------------------------------
+ * ramfs_create: Create a new file or directory in the root (legacy)
+ * -------------------------------------------------------------------------- */
+fs_node_t* ramfs_create(const char* name, uint8_t type) {
+    return ramfs_mknode(&root_node, name, type);
 }
 
 /* --------------------------------------------------------------------------
@@ -156,6 +179,7 @@ int ramfs_delete(const char* name) {
             if (cu != UID_ROOT && current->uid != cu)
                 return -2;  /* permission denied */
 
+            persist_note_unlink(current);      /* Phase 55 (before free) */
             /* Unlink from list */
             if (prev == NULL) {
                 root_node.children = current->next;
@@ -177,6 +201,171 @@ int ramfs_delete(const char* name) {
 
     return -1; /* Not found */
 }
+
+/* --------------------------------------------------------------------------
+ * ramfs_rename: Rename in place (no data copy, so any size is safe and the
+ * file is never lost). Fails if the target exists. Same gate as delete.
+ * -------------------------------------------------------------------------- */
+int ramfs_rename(const char* old_name, const char* new_name) {
+    if (!new_name || !*new_name || strlen(new_name) >= FS_NAME_MAX) return -1;
+    fs_node_t* n = ramfs_finddir_fn(&root_node, old_name);
+    if (!n || ramfs_finddir_fn(&root_node, new_name)) return -1;
+    uint32_t cu = users_current_uid();
+    if (cu != UID_ROOT && n->uid != cu) return -2;  /* permission denied */
+    persist_note_rename(n);                    /* Phase 55 (old name still set) */
+    strcpy(n->name, new_name);
+    return 0;
+}
+
+/* ============================================================================
+ * Phase 54: path resolution + real directories
+ * ============================================================================ */
+
+/* Unlink `node` from its parent's child list (does not free). */
+static void ramfs_unlink_child(fs_node_t* node) {
+    if (!node || !node->parent) return;
+    fs_node_t* parent = node->parent;
+    fs_node_t* prev = NULL;
+    fs_node_t* cur = parent->children;
+    while (cur) {
+        if (cur == node) {
+            if (prev) prev->next = cur->next;
+            else parent->children = cur->next;
+            node->next = NULL;
+            return;
+        }
+        prev = cur;
+        cur = cur->next;
+    }
+}
+
+fs_node_t* ramfs_resolve(const char* path, fs_node_t* cwd) {
+    if (!path) return NULL;
+    fs_node_t* cur = (path[0] == '/') ? &root_node : (cwd ? cwd : &root_node);
+    const char* p = path;
+    char comp[FS_NAME_MAX];
+    while (*p) {
+        while (*p == '/') p++;
+        if (!*p) break;
+        int ci = 0;
+        while (*p && *p != '/' && ci < FS_NAME_MAX - 1) comp[ci++] = *p++;
+        comp[ci] = '\0';
+        if (strcmp(comp, ".") == 0) continue;
+        if (strcmp(comp, "..") == 0) { if (cur->parent) cur = cur->parent; continue; }
+        if (cur->type != FS_DIRECTORY) return NULL;
+        fs_node_t* next = ramfs_finddir_fn(cur, comp);
+        if (!next) return NULL;
+        cur = next;
+    }
+    return cur;
+}
+
+fs_node_t* ramfs_resolve_parent(const char* path, fs_node_t* cwd, char* leaf) {
+    if (!path || !leaf) return NULL;
+    char tmp[FS_PATH_MAX];
+    strncpy(tmp, path, FS_PATH_MAX - 1);
+    tmp[FS_PATH_MAX - 1] = '\0';
+
+    int len = (int)strlen(tmp);
+    while (len > 1 && tmp[len - 1] == '/') tmp[--len] = '\0';  /* strip trailing / */
+
+    int slash = -1;
+    for (int i = 0; i < len; i++) if (tmp[i] == '/') slash = i;
+
+    if (slash < 0) {                        /* bare name, relative to cwd */
+        strncpy(leaf, tmp, FS_NAME_MAX - 1);
+        leaf[FS_NAME_MAX - 1] = '\0';
+        return cwd ? cwd : &root_node;
+    }
+
+    strncpy(leaf, tmp + slash + 1, FS_NAME_MAX - 1);
+    leaf[FS_NAME_MAX - 1] = '\0';
+
+    if (slash == 0) return &root_node;      /* parent is "/" */
+    tmp[slash] = '\0';
+    return ramfs_resolve(tmp, cwd);
+}
+
+int ramfs_mkdir(const char* path, fs_node_t* cwd) {
+    char leaf[FS_NAME_MAX];
+    fs_node_t* parent = ramfs_resolve_parent(path, cwd, leaf);
+    if (!parent || parent->type != FS_DIRECTORY) return -3;
+    if (!leaf[0] || strcmp(leaf, ".") == 0 || strcmp(leaf, "..") == 0) return -1;
+    if (ramfs_finddir_fn(parent, leaf)) return -1;             /* exists */
+    if (!vfs_check_perm(parent, users_current_uid(), ACC_WRITE)) return -2;
+    return ramfs_mknode(parent, leaf, FS_DIRECTORY) ? 0 : -1;
+}
+
+int ramfs_rmdir(const char* path, fs_node_t* cwd) {
+    char leaf[FS_NAME_MAX];
+    fs_node_t* parent = ramfs_resolve_parent(path, cwd, leaf);
+    if (!parent) return -1;
+    fs_node_t* n = ramfs_finddir_fn(parent, leaf);
+    if (!n) return -1;
+    if (n->type != FS_DIRECTORY) return -4;
+    if (n == &root_node) return -1;
+    if (n->children) return -3;                                /* not empty */
+    uint32_t cu = users_current_uid();
+    if (cu != UID_ROOT && n->uid != cu) return -2;
+    persist_note_unlink(n);                    /* Phase 55 */
+    ramfs_unlink_child(n);
+    kfree(n);
+    file_count--;
+    return 0;
+}
+
+int ramfs_rm_path(const char* path, fs_node_t* cwd) {
+    char leaf[FS_NAME_MAX];
+    fs_node_t* parent = ramfs_resolve_parent(path, cwd, leaf);
+    if (!parent) return -1;
+    fs_node_t* n = ramfs_finddir_fn(parent, leaf);
+    if (!n) return -1;
+    if (n->type == FS_DIRECTORY) return -4;                    /* use rmdir */
+    uint32_t cu = users_current_uid();
+    if (cu != UID_ROOT && n->uid != cu) return -2;
+    persist_note_unlink(n);                    /* Phase 55 */
+    ramfs_unlink_child(n);
+    if (n->data) kfree(n->data);
+    kfree(n);
+    file_count--;
+    return 0;
+}
+
+void ramfs_abspath(fs_node_t* node, char* out, int sz) {
+    if (sz <= 0) return;
+    if (!node || !node->parent) { strncpy(out, "/", sz); out[sz - 1] = '\0'; return; }
+    const char* parts[32];
+    int np = 0;
+    fs_node_t* c = node;
+    while (c && c->parent && np < 32) { parts[np++] = c->name; c = c->parent; }
+    int pos = 0;
+    for (int i = np - 1; i >= 0; i--) {
+        if (pos < sz - 1) out[pos++] = '/';
+        const char* s = parts[i];
+        while (*s && pos < sz - 1) out[pos++] = *s++;
+    }
+    out[pos] = '\0';
+}
+
+/* ---- Phase 57: per-user home layout (/home/<user>/Downloads) ----------- */
+void ramfs_ensure_user_dirs(const char* user, uint32_t uid) {
+    if (!user || !user[0] || strcmp(user, "?") == 0) return;
+    fs_node_t* home = ramfs_resolve("/home", NULL);
+    if (!home) home = ramfs_mknode(&root_node, "home", FS_DIRECTORY);
+    if (!home || home->type != FS_DIRECTORY) return;
+
+    fs_node_t* h = ramfs_finddir_fn(home, user);
+    if (!h) h = ramfs_mknode(home, user, FS_DIRECTORY);
+    if (!h || h->type != FS_DIRECTORY) return;
+    /* A home created at boot (before users_init) is root-owned: hand it to its
+     * user so the account can write into its own home, not just Downloads. */
+    if (h->uid == 0 || h->uid == uid) { h->uid = uid; h->gid = uid; }
+
+    fs_node_t* d = ramfs_finddir_fn(h, "Downloads");
+    if (!d) d = ramfs_mknode(h, "Downloads", FS_DIRECTORY);
+    if (d && d->type == FS_DIRECTORY) { d->uid = uid; d->gid = uid; }
+}
+/* ---- end Phase 57 ---- */
 
 /* --------------------------------------------------------------------------
  * ramfs_get_file_count
@@ -211,7 +400,7 @@ void ramfs_init(void) {
 
     fs_node_t* version = ramfs_create("version", FS_FILE);
     if (version) {
-        const char* ver = "NexusOS v0.2.0\n";
+        const char* ver = NEXUS_VERSION_STRING "\n";
         vfs_write(version, 0, strlen(ver), (const uint8_t*)ver);
     }
 
@@ -221,6 +410,21 @@ void ramfs_init(void) {
                           "NexusOS Phase 2: Now with filesystem and multitasking!\n";
         vfs_write(motd, 0, strlen(msg), (const uint8_t*)msg);
     }
+
+    /* Phase 54: a few default directories so the tree looks real. These are
+     * created at boot while the current user is root (login runs later). */
+    fs_node_t* home = ramfs_mknode(&root_node, "home", FS_DIRECTORY);
+    if (home) {
+        ramfs_mknode(home, "root", FS_DIRECTORY);
+        ramfs_mknode(home, "guest", FS_DIRECTORY);
+    }
+    /* Phase 57: every home gets a Downloads folder (owned by root here —
+     * users_init runs later; kernel.c re-runs this for the logged-in user with
+     * the real uid so Downloads is writable by its owner). */
+    ramfs_ensure_user_dirs("root", 0);
+    ramfs_ensure_user_dirs("guest", 0);
+    fs_node_t* tmp_dir = ramfs_mknode(&root_node, "tmp", FS_DIRECTORY);
+    if (tmp_dir) tmp_dir->mode = 0777;      /* world-writable scratch, like /tmp */
 
     char buf[16];
     vga_print_color("[OK] ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));

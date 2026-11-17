@@ -36,6 +36,11 @@
 #define ACC_WRITE PERM_TW
 #define ACC_EXEC  PERM_TX
 
+/* Phase 55: fs_node_t.flags bits (persistence bookkeeping, see persist.h) */
+#define FS_FLAG_BUILTIN 0x01   /* created by boot-time init; not snapshotted unless modified */
+#define FS_FLAG_DIRTY   0x02   /* modified since the last snapshot (informational)          */
+/* bit 0x80 is reserved as a transient mark used while a snapshot is written */
+
 /* Forward declaration */
 struct fs_node;
 
@@ -56,6 +61,7 @@ typedef struct fs_node {
     uint32_t uid;                   /* owning user id  */
     uint32_t gid;                   /* owning group id */
     uint16_t mode;                  /* rwx bits (see PERM_* in this header) */
+    uint8_t  flags;                 /* Phase 55: FS_FLAG_* persistence bits */
 
     /* Data storage (implementation-specific) */
     uint8_t* data;                  /* Pointer to file data */

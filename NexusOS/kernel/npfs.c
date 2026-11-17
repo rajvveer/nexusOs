@@ -105,6 +105,12 @@ static bool mounted = false;
  * simulate a crash after commit but before checkpoint. */
 static int skip_next_checkpoint = 0;
 
+/* True while the journal holds a committed txn that is NOT fully checkpointed
+ * (checkpoint I/O error, failed replay, or crashtest). The journal is a single
+ * slot, so that txn's only copy must be applied before the slot is reused. */
+static bool journal_pending = false;
+static int journal_replay(void);
+
 /* ============================================================================
  * Output helpers
  * ============================================================================ */
@@ -185,6 +191,12 @@ static uint32_t txn_crc(const npfs_jdesc_t* desc, const npfs_txn_t* t) {
 static int txn_commit(npfs_txn_t* t) {
     if (t->count == 0) return NPFS_OK;
 
+    /* Finish an earlier, un-checkpointed txn before overwriting its only copy. */
+    if (journal_pending) {
+        if (journal_replay() < 0) return NPFS_ERR_IO;
+        journal_pending = false;
+    }
+
     uint32_t jbase = win(sb.journal_start);   /* journal region starts here     */
     uint32_t txid  = sb.next_txid;
 
@@ -227,12 +239,15 @@ static int txn_commit(npfs_txn_t* t) {
         /* Simulated crash after commit, before checkpoint — leave the journal
          * holding a committed, un-applied txn for replay to find. */
         skip_next_checkpoint--;
+        journal_pending = true;
         return NPFS_OK;
     }
 
     for (int i = 0; i < t->count; i++)
-        if (blk_write(t->lba[i], t->data[i]) != NPFS_OK)
+        if (blk_write(t->lba[i], t->data[i]) != NPFS_OK) {
+            journal_pending = true;   /* journal copy is now the only good one */
             return NPFS_ERR_IO;
+        }
 
     /* --- 5. Invalidate the journal (clear the commit record) so we don't
      * replay an already-checkpointed txn. --- */
@@ -264,7 +279,16 @@ static int journal_replay(void) {
     /* Reload the block images and verify the CRC before applying. */
     npfs_txn_t* t = &g_replay_txn;
     txn_begin(t);
+    /* Logged blocks only ever target the inode table / bitmap / data area;
+     * anything else (journal, superblock, outside the window) is corrupt and
+     * must not be written. */
+    uint32_t lo = win(sb.inode_start), hi = win(sb.data_start) + sb.data_blocks;
     for (uint32_t i = 0; i < desc.count; i++) {
+        if (desc.target_lba[i] < lo || desc.target_lba[i] >= hi) {
+            prc("  [journal] bad target LBA — discarding txn\n",
+                VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+            return 0;
+        }
         if (blk_read(jbase + 1 + i, t->data[i]) != NPFS_OK) return NPFS_ERR_IO;
         t->lba[i] = desc.target_lba[i];
         t->count++;
@@ -393,9 +417,12 @@ static int super_write(void) {
 int npfs_format(void) {
     if (!ata_disk_present()) return NPFS_ERR_NODISK;
 
-    /* Layout the window. */
-    uint32_t total = ata_get_size() / NPFS_BLOCK_SIZE;
-    if (total <= NPFS_WINDOW_LBA + 128) return NPFS_ERR_FULL;
+    /* Layout the window (block == sector; bytes would overflow at 4 GiB). */
+    uint32_t total = ata_get_sectors();
+    /* Need room for super + journal + inodes + bitmap + some data, else the
+     * data_blocks subtraction below underflows. */
+    if (total <= NPFS_WINDOW_LBA + 2 + NPFS_JOURNAL_BLOCKS + NPFS_INODE_BLOCKS + 128)
+        return NPFS_ERR_FULL;
     uint32_t window_blocks = total - NPFS_WINDOW_LBA;
 
     memset(&sb, 0, sizeof(sb));
@@ -433,8 +460,31 @@ int npfs_format(void) {
 
     if (super_write() != NPFS_OK) return NPFS_ERR_IO;
 
+    journal_pending = false;
     mounted = true;
     return NPFS_OK;
+}
+
+/* A matching CRC only proves the superblock was written intact, not that its
+ * geometry is sane. Reject anything that would steer I/O outside the window,
+ * past the single-block bitmap (4096 bits) or the fixed inode table, or that
+ * makes the journal too small for a max-size txn. Checks are ordered so no
+ * sum can wrap (every term is already bounded by total_blocks). */
+static bool super_sane(const npfs_super_t* s) {
+    uint32_t disk = ata_get_sectors(), t = s->total_blocks;
+    if (s->block_size != NPFS_BLOCK_SIZE || disk <= NPFS_WINDOW_LBA ||
+        t > disk - NPFS_WINDOW_LBA) return false;
+    if (s->journal_start < 1 || s->journal_start >= t ||
+        s->journal_blocks < NPFS_MAX_TXN_BLOCKS + 2 ||
+        s->journal_blocks > t - s->journal_start) return false;
+    if (s->inode_start < s->journal_start + s->journal_blocks ||
+        s->inode_start >= t || s->inode_blocks > t - s->inode_start) return false;
+    if (s->bitmap_start < s->inode_start + s->inode_blocks ||
+        s->data_start <= s->bitmap_start || s->data_start > t ||
+        s->data_blocks > t - s->data_start ||
+        s->data_blocks > NPFS_BLOCK_SIZE * 8) return false;
+    return s->inode_count <= NPFS_MAX_INODES &&
+           s->inode_count <= s->inode_blocks * NPFS_INODES_PER_BLOCK;
 }
 
 int npfs_mount(void) {
@@ -448,11 +498,14 @@ int npfs_mount(void) {
     if (cand.magic != NPFS_MAGIC) return NPFS_ERR_NOTFOUND;   /* no NPFS here    */
     uint32_t want = pkg_crc32(&cand, sizeof(cand) - sizeof(uint32_t));
     if (want != cand.sb_crc) return NPFS_ERR_CORRUPT;
+    if (!super_sane(&cand)) return NPFS_ERR_CORRUPT;
 
     sb = cand;
 
-    /* Crash recovery: replay any committed-but-uncheckpointed transaction. */
-    journal_replay();
+    /* Crash recovery: replay any committed-but-uncheckpointed transaction.
+     * If that hits an I/O error, keep the journal intact: the next commit
+     * retries the replay before it reuses the slot. */
+    journal_pending = journal_replay() < 0;
 
     sb.mounts++;
     super_write();
