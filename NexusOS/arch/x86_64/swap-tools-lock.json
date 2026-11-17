@@ -1,0 +1,269 @@
+{
+ "format": 1,
+ "generated": "2026-10-18T15:39:42Z",
+ "suites": {
+  "trixie": {
+   "inrelease_sha256": "0584fba32e13e0ab8285fb16c27adea1ec03a73669c18702821094fd6ca86675",
+   "packages_xz_sha256": "7778d3e3f303b7ddb8ce0fe7c8d57473a076c6bf2e8f241f75421d2396352498",
+   "date": "Sat, 12 Sep 2026 07:55:41 UTC",
+   "signed_by": [
+    "Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>",
+    "Debian Stable Release Key (13/trixie) <debian-release@lists.debian.org>"
+   ]
+  },
+  "trixie-updates": {
+   "inrelease_sha256": "4933c2b3e21ffbf47feec884081709c0c6fe0677a32b3e9fe1bbde58ecbf5b17",
+   "packages_xz_sha256": "10012cb384dc2613586d7b3d391d92a5637c9faa36017239739f2a6109a0d45f",
+   "date": "Sun, 18 Oct 2026 14:16:08 UTC",
+   "signed_by": [
+    "Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>"
+   ]
+  },
+  "trixie-security": {
+   "inrelease_sha256": "5510808993fdc57e97aca13dda7573e45cf39c201870faca02ed323874801713",
+   "packages_xz_sha256": "da000332b59fbd809b7e7a13c11cc78c36ad1430dd1869a49a514ff5ebc2bc90",
+   "date": "Sun, 18 Oct 2026 12:31:26 UTC",
+   "signed_by": [
+    "Debian Security Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Security Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>"
+   ]
+  }
+ },
+ "keyring": {
+  "name": "debian-archive-keyring",
+  "version": "2025.1",
+  "sha256": "9ea7778e443144ca490668737a8ab22dd3e748bb99e805e22ec055abeb3c7fac",
+  "url": "https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2025.1_all.deb",
+  "bytes": 179244
+ },
+ "present_from_chrome_lock": {
+  "libblkid1": "2.41.5-0+deb13u1",
+  "libc6": "2.41-12+deb13u4",
+  "libmount1": "2.41.5-0+deb13u1",
+  "libselinux1": "3.8.1-1",
+  "libsqlite3-0": "3.46.1-7+deb13u2",
+  "libsystemd0": "257.13-1~deb13u1",
+  "libtinfo6": "6.5+20250216-2",
+  "libudev1": "257.13-1~deb13u1"
+ },
+ "skipped": {
+  "init-system-helpers": {
+   "reason": "service management helpers for maintainer scripts",
+   "required_by": [
+    "procps"
+   ]
+  },
+  "libpam-modules": {
+   "reason": "PAM modules: only su/runuser authenticate",
+   "required_by": [
+    "util-linux"
+   ]
+  },
+  "libpam-runtime": {
+   "reason": "PAM configuration framework (maintainer scripts)",
+   "required_by": [
+    "util-linux"
+   ]
+  }
+ },
+ "packages": [
+  {
+   "name": "debconf",
+   "version": "1.5.91",
+   "url": "https://deb.debian.org/debian/pool/main/d/debconf/debconf_1.5.91_all.deb",
+   "sha256": "1ddc7e6c5925f748eefb7ca811d98e049f18c158bb21fbc7e122262ce6011e49",
+   "bytes": 121088,
+   "kind": "deb",
+   "app": "swap-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "swap-tools"
+   ],
+   "filename": "debs/debconf_1.5.91_all.deb"
+  },
+  {
+   "name": "libaudit-common",
+   "version": "1:4.0.2-2+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/a/audit/libaudit-common_4.0.2-2+deb13u1_all.deb",
+   "sha256": "b9d32e5ff04fd747aacb7d6b3ebbbbf734ddefb2f1695f0b1b2a4b5e51b1052e",
+   "bytes": 12812,
+   "kind": "deb",
+   "app": "swap-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "swap-tools"
+   ],
+   "filename": "debs/libaudit-common_4.0.2-2+deb13u1_all.deb"
+  },
+  {
+   "name": "libaudit1",
+   "version": "1:4.0.2-2+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/a/audit/libaudit1_4.0.2-2+deb13u1_amd64.deb",
+   "sha256": "3d1dd3f031a56f01b747e2acc0e14575212580e6fa63d800c44cb0a31f1edfd7",
+   "bytes": 57680,
+   "kind": "deb",
+   "app": "swap-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "swap-tools"
+   ],
+   "filename": "debs/libaudit1_4.0.2-2+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libcap-ng0",
+   "version": "0.8.5-4+b1",
+   "url": "https://deb.debian.org/debian/pool/main/libc/libcap-ng/libcap-ng0_0.8.5-4+b1_amd64.deb",
+   "sha256": "20a9e4b0619a3eb2566338223bed135dde5a601eaa2f8fdd5f20b94506addcac",
+   "bytes": 17584,
+   "kind": "deb",
+   "app": "swap-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "swap-tools"
+   ],
+   "filename": "debs/libcap-ng0_0.8.5-4+b1_amd64.deb"
+  },
+  {
+   "name": "libcrypt1",
+   "version": "1:4.4.38-1",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxcrypt/libcrypt1_4.4.38-1_amd64.deb",
+   "sha256": "0ebc144d662e3197982d1bf3a7b8b35ca845e54c68811de0328b1f0d7c67585c",
+   "bytes": 90072,
+   "kind": "deb",
+   "app": "swap-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "swap-tools"
+   ],
+   "filename": "debs/libcrypt1_4.4.38-1_amd64.deb"
+  },
+  {
+   "name": "liblastlog2-2",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/liblastlog2-2_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "abb76aecbf51479e6e193873dfddaa1b88667dc0b1db82a11286a67550ba1557",
+   "bytes": 28772,
+   "kind": "deb",
+   "app": "swap-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "swap-tools"
+   ],
+   "filename": "debs/liblastlog2-2_2.41.5-0+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libncursesw6",
+   "version": "6.5+20250216-2",
+   "url": "https://deb.debian.org/debian/pool/main/n/ncurses/libncursesw6_6.5+20250216-2_amd64.deb",
+   "sha256": "47baa2e11579583654583a066b69bd5a5d2f22423081f707ed6c0c3ba6d538b7",
+   "bytes": 135484,
+   "kind": "deb",
+   "app": "swap-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "swap-tools"
+   ],
+   "filename": "debs/libncursesw6_6.5+20250216-2_amd64.deb"
+  },
+  {
+   "name": "libpam0g",
+   "version": "1.7.0-5",
+   "url": "https://deb.debian.org/debian/pool/main/p/pam/libpam0g_1.7.0-5_amd64.deb",
+   "sha256": "4f5bde27d8df2de6ea8990319b42d9974f56a3ba9907ce7296fd0f8964fc9fb1",
+   "bytes": 69880,
+   "kind": "deb",
+   "app": "swap-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "swap-tools"
+   ],
+   "filename": "debs/libpam0g_1.7.0-5_amd64.deb"
+  },
+  {
+   "name": "libproc2-0",
+   "version": "2:4.0.4-9",
+   "url": "https://deb.debian.org/debian/pool/main/p/procps/libproc2-0_4.0.4-9_amd64.deb",
+   "sha256": "c9d61caab1b2ddfc3f17edb95be31b9809fcb2daf27d853dff615bc4ebd08b4b",
+   "bytes": 65596,
+   "kind": "deb",
+   "app": "swap-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "swap-tools"
+   ],
+   "filename": "debs/libproc2-0_4.0.4-9_amd64.deb"
+  },
+  {
+   "name": "libsmartcols1",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/libsmartcols1_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "d96bac9c8805685f2734885098a214b82950da6ebb182c27a6b7a124a0323392",
+   "bytes": 143216,
+   "kind": "deb",
+   "app": "swap-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "swap-tools"
+   ],
+   "filename": "debs/libsmartcols1_2.41.5-0+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libuuid1",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/libuuid1_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "c1bf4c4c3ff48c57fabf93307dfb56996b60cfa33927afc4158b5db36fb2721e",
+   "bytes": 37848,
+   "kind": "deb",
+   "app": "swap-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "swap-tools"
+   ],
+   "filename": "debs/libuuid1_2.41.5-0+deb13u1_amd64.deb"
+  },
+  {
+   "name": "mount",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/mount_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "eb70a615114ac40123768beb20e302554d5cb7edb33290be7e418ebe1075c878",
+   "bytes": 163208,
+   "kind": "deb",
+   "app": "swap-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "swap-tools"
+   ],
+   "filename": "debs/mount_2.41.5-0+deb13u1_amd64.deb"
+  },
+  {
+   "name": "procps",
+   "version": "2:4.0.4-9",
+   "url": "https://deb.debian.org/debian/pool/main/p/procps/procps_4.0.4-9_amd64.deb",
+   "sha256": "4db90bb6776772fc52585d6b1fbfc52ec2a85480e1b4363b743fbb2ffa2a5375",
+   "bytes": 882088,
+   "kind": "deb",
+   "app": "swap-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "swap-tools"
+   ],
+   "filename": "debs/procps_4.0.4-9_amd64.deb"
+  },
+  {
+   "name": "util-linux",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/util-linux_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "7d5b1176cc3d8cc6b290b3ec17af458f362d9200845f30da22057a8198744430",
+   "bytes": 1242392,
+   "kind": "deb",
+   "app": "swap-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "swap-tools"
+   ],
+   "filename": "debs/util-linux_2.41.5-0+deb13u1_amd64.deb"
+  }
+ ]
+}
