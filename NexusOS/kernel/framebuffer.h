@@ -56,6 +56,7 @@ bool fb_is_vesa(void);
 uint32_t fb_get_width(void);
 uint32_t fb_get_height(void);
 uint32_t fb_get_pitch(void);
+uint32_t fb_get_bpp(void);     /* bits per pixel of the hardware mode */
 
 /* --------------------------------------------------------------------------
  * Pixel operations (operate on back buffer)

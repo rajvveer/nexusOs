@@ -54,6 +54,7 @@ void vga_backspace(void);
 void vga_update_cursor(void);
 int vga_get_cursor_row(void);
 int vga_get_cursor_col(void);
+uint16_t vga_get_cell(int row, int col);   /* Phase 57 apps: char | attr << 8 */
 
 /* Phase 3 additions */
 void vga_putchar_at(char c, int row, int col, uint8_t color);

@@ -53,13 +53,16 @@ static bool avi_load(const uint8_t* d, uint32_t size, avi_t* a) {
     int stream_idx = 0;
     uint32_t pos = 12;
 
-    while (pos + 8 <= size) {
+    /* All chunk-size checks are written as `len > end - start` (start <= end
+     * already holds) so a huge length can't wrap uint32 arithmetic; every
+     * walk then advances by at least the 8-byte chunk header. */
+    while (pos <= size - 8) {
         const uint8_t* fcc = d + pos;
         uint32_t sz = rd32(d + pos + 4);
         uint32_t body = pos + 8;
-        if (body + sz > size) break;
+        if (sz > size - body) break;
 
-        if (fourcc(fcc, "LIST")) {
+        if (fourcc(fcc, "LIST") && sz >= 4) {
             const uint8_t* lt = d + body;
             if (fourcc(lt, "hdrl")) {
                 uint32_t p = body + 4, e = body + sz;
@@ -67,20 +70,20 @@ static bool avi_load(const uint8_t* d, uint32_t size, avi_t* a) {
                     const uint8_t* f = d + p;
                     uint32_t s = rd32(d + p + 4);
                     uint32_t b = p + 8;
-                    if (b + s > size) break;
-                    if (fourcc(f, "avih")) {
+                    if (s > e - b) break;
+                    if (fourcc(f, "avih") && s >= 40) {
                         a->info.us_per_frame = rd32(d + b + 0);
                         a->info.frame_count  = (int)rd32(d + b + 16);
                         a->info.width        = (int)rd32(d + b + 32);
                         a->info.height       = (int)rd32(d + b + 36);
-                    } else if (fourcc(f, "LIST") && fourcc(d + b, "strl")) {
-                        uint32_t sp = b + 4, se = p + 8 + s;
+                    } else if (fourcc(f, "LIST") && s >= 4 && fourcc(d + b, "strl")) {
+                        uint32_t sp = b + 4, se = b + s;
                         while (sp + 8 <= se) {
                             const uint8_t* sf = d + sp;
                             uint32_t ss = rd32(d + sp + 4);
                             uint32_t sb = sp + 8;
-                            if (sb + ss > size) break;
-                            if (fourcc(sf, "strh")) {
+                            if (ss > se - sb) break;
+                            if (fourcc(sf, "strh") && ss >= 8) {
                                 if (fourcc(d + sb, "vids")) {
                                     a->vstream = stream_idx;
                                     for (int k = 0; k < 4; k++) a->info.vcodec[k] = (char)d[sb + 4 + k];
@@ -118,7 +121,7 @@ static bool avi_load(const uint8_t* d, uint32_t size, avi_t* a) {
             const uint8_t* id = d + p;
             uint32_t s = rd32(d + p + 4);
             uint32_t b = p + 8;
-            if (b + s > size) break;
+            if (s > movi_end - b) break;
             int stream = (id[0] - '0') * 10 + (id[1] - '0');
             if (stream == a->vstream && id[2] == 'd' && (id[3] == 'c' || id[3] == 'b')) {
                 if (a->nv < MAX_VFRAMES) { a->voff[a->nv] = b; a->vlen[a->nv] = s; a->nv++; }
@@ -167,12 +170,15 @@ void video_play(const uint8_t* d, uint32_t size, const char* title) {
     int ch = a->info.audio_channels ? a->info.audio_channels : 1;
     int rate = a->info.audio_rate;
     if (a->info.has_audio && a->na > 0 && a->info.audio_bits == 16) {
+        /* Sum chunk sizes without wrapping: chunks are disjoint ranges of the
+         * file, so a valid total never exceeds `size` — stop at that cap. */
         uint32_t bytes = 0;
-        for (int i = 0; i < a->na; i++) bytes += a->alen[i];
-        abuf = (int16_t*)kmalloc(bytes);
+        int nach = 0;
+        for (; nach < a->na && a->alen[nach] <= size - bytes; nach++) bytes += a->alen[nach];
+        abuf = bytes ? (int16_t*)kmalloc(bytes) : NULL;
         if (abuf) {
             uint32_t o = 0;
-            for (int i = 0; i < a->na; i++) {
+            for (int i = 0; i < nach; i++) {
                 memcpy((uint8_t*)abuf + o, d + a->aoff[i], a->alen[i]);
                 o += a->alen[i];
             }

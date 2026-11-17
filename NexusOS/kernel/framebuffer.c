@@ -36,8 +36,8 @@ static uint8_t  fb_bytes_per_pixel = 0;
 static bool     vesa_active = false;
 
 /* Phase 53: the 32-bit back buffer lives at 16MB. At 1920x1080x4 it is ~8MB
- * (0x01000000-0x017E9000), which sits ABOVE the heap (HEAP_MAX=0xA00000) and
- * above the 15MB demand-paging window, entirely inside the 32MB identity map
+ * (0x01000000-0x017E9000), which sits ABOVE the heap (4-8MB since Phase 57),
+ * .bss (8MB+) and the 15MB demand-paging window, entirely inside the 32MB identity map
  * (see paging.c IDENTITY_TABLES). pmm_reserve_range() marks these pages used so
  * the physical allocator never hands them out. Old location (0x500000) collided
  * with the heap region and could not hold a 1080p buffer. */
@@ -67,11 +67,14 @@ static inline void fb_memset32(uint32_t* dst, uint32_t color, uint32_t count) {
 }
 
 /* VGA 16-color to 32-bit RGB lookup table */
+/* Aurora palette: the 16 VGA attribute colours mapped onto macOS dark-mode
+ * system colours, so every cell-based app picks up the new look. Index 0 is
+ * the window/terminal background, 7 the body text. */
 static const uint32_t vga_palette[16] = {
-    0x000000, 0x0000AA, 0x00AA00, 0x00AAAA,
-    0xAA0000, 0xAA00AA, 0xAA5500, 0xAAAAAA,
-    0x555555, 0x5555FF, 0x55FF55, 0x55FFFF,
-    0xFF5555, 0xFF55FF, 0xFFFF55, 0xFFFFFF
+    0x1E1E20, 0x0A60D0, 0x28A850, 0x0096AA,
+    0xD73A32, 0xA046C8, 0xC8781E, 0xC8C8CD,
+    0x6E6E76, 0x409CFF, 0x32D75F, 0x5AC8FA,
+    0xFF5F55, 0xDC78F0, 0xFFD60A, 0xF5F5F7
 };
 
 /* ============================================================================
@@ -108,9 +111,13 @@ void fb_init(void) {
     fb_bytes_per_pixel = fb_bpp / 8;
 
     /* DEBUG: print values to COM1 */
-    while ((port_byte_in(0x3F8 + 5) & 0x20) == 0); port_byte_out(0x3F8, 'F');
-    while ((port_byte_in(0x3F8 + 5) & 0x20) == 0); port_byte_out(0x3F8, 'B');
-    while ((port_byte_in(0x3F8 + 5) & 0x20) == 0); port_byte_out(0x3F8, '\n');
+    {
+        static const char tag[3] = { 'F', 'B', '\n' };
+        for (int i = 0; i < 3; i++) {
+            while ((port_byte_in(0x3F8 + 5) & 0x20) == 0) { }
+            port_byte_out(0x3F8, tag[i]);
+        }
+    }
     serial_print_hex(fb_phys_addr);
     serial_print_hex(fb_width);
     serial_print_hex(fb_height);
@@ -169,6 +176,7 @@ bool fb_is_vesa(void) { return vesa_active; }
 uint32_t fb_get_width(void)  { return fb_width; }
 uint32_t fb_get_height(void) { return fb_height; }
 uint32_t fb_get_pitch(void)  { return fb_pitch; }
+uint32_t fb_get_bpp(void)    { return fb_bpp; }
 uint32_t fb_get_phys_addr(void) { return fb_phys_addr; }
 uint32_t* fb_get_backbuffer(void) { return fb_back; }
 

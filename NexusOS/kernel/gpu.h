@@ -32,11 +32,14 @@ void gpu_init(void);
 bool gpu_active(void);
 
 /* Present the whole back buffer via the GPU. Returns false when the GPU is
- * inactive (caller should fall back to the legacy VESA copy). */
+ * inactive (caller should fall back to the legacy VESA copy). Any command
+ * failure (timeout / error reply) resets the device, repaints the VESA
+ * framebuffer and leaves gpu_active() false from then on. */
 bool gpu_flip(void);
 
-/* Present only a dirty rectangle of the back buffer (clipped). */
-void gpu_present(int x, int y, int w, int h);
+/* Present only a dirty rectangle of the back buffer (clipped). Returns
+ * false when the GPU is (now) inactive — present via VESA instead. */
+bool gpu_present(int x, int y, int w, int h);
 
 /* Accelerated 2D ops on the back buffer (rep stosl / rep movsl). */
 void gpu_fill(int x, int y, int w, int h, uint32_t color);

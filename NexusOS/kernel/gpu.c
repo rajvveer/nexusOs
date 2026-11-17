@@ -120,6 +120,20 @@ static bool gpu_cmd(uint32_t type, uint32_t cmd_len, uint32_t resp_len, uint32_t
 }
 
 /* --------------------------------------------------------------------------
+ * gpu_fail: give up on the GPU for good. Resetting the device makes QEMU
+ * hand the display back to the VGA/VBE path; the back buffer is copied to
+ * the LFB at once and gpu_active() going false routes every later present
+ * through the legacy VESA copy (instead of failing silently forever).
+ * -------------------------------------------------------------------------- */
+static void gpu_fail(const char* why) {
+    gpu.active = false;
+    if (gpu.vdev.common) gpu.vdev.common->device_status = 0;
+    gpu.controlq.size = 0;
+    strcpy(gpu.status, why);
+    fb_flip_region(0, 0, gpu.width, gpu.height);
+}
+
+/* --------------------------------------------------------------------------
  * Presentation: TRANSFER_TO_HOST_2D + RESOURCE_FLUSH of a rectangle
  * -------------------------------------------------------------------------- */
 static bool gpu_present_rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
@@ -129,18 +143,20 @@ static bool gpu_present_rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
     /* Backing stride is resource width: offset = (y*width + x) * 4 */
     cmd.transfer.offset_lo = (y * (uint32_t)gpu.width + x) * 4;
     cmd.transfer.resource_id = FB_RESOURCE_ID;
-    if (!gpu_cmd(GPU_CMD_TRANSFER_TO_HOST_2D, sizeof(cmd.transfer),
-                 sizeof(gpu_hdr_t), GPU_RESP_OK_NODATA))
+    bool ok = gpu_cmd(GPU_CMD_TRANSFER_TO_HOST_2D, sizeof(cmd.transfer),
+                      sizeof(gpu_hdr_t), GPU_RESP_OK_NODATA);
+    if (ok) {
+        memset(&cmd.flush, 0, sizeof(cmd.flush));
+        cmd.flush.r.x = x; cmd.flush.r.y = y;
+        cmd.flush.r.w = w; cmd.flush.r.h = h;
+        cmd.flush.resource_id = FB_RESOURCE_ID;
+        ok = gpu_cmd(GPU_CMD_RESOURCE_FLUSH, sizeof(cmd.flush),
+                     sizeof(gpu_hdr_t), GPU_RESP_OK_NODATA);
+    }
+    if (!ok) {   /* timeout (queue retired) or error reply: fall back */
+        gpu_fail("VirtIO-GPU: present failed (VESA fallback)");
         return false;
-
-    memset(&cmd.flush, 0, sizeof(cmd.flush));
-    cmd.flush.r.x = x; cmd.flush.r.y = y;
-    cmd.flush.r.w = w; cmd.flush.r.h = h;
-    cmd.flush.resource_id = FB_RESOURCE_ID;
-    if (!gpu_cmd(GPU_CMD_RESOURCE_FLUSH, sizeof(cmd.flush),
-                 sizeof(gpu_hdr_t), GPU_RESP_OK_NODATA))
-        return false;
-
+    }
     gpu.presents++;
     return true;
 }
@@ -150,14 +166,14 @@ bool gpu_flip(void) {
     return gpu_present_rect(0, 0, (uint32_t)gpu.width, (uint32_t)gpu.height);
 }
 
-void gpu_present(int x, int y, int w, int h) {
-    if (!gpu.active) return;
+bool gpu_present(int x, int y, int w, int h) {
+    if (!gpu.active) return false;
     if (x < 0) { w += x; x = 0; }
     if (y < 0) { h += y; y = 0; }
     if (x + w > gpu.width)  w = gpu.width - x;
     if (y + h > gpu.height) h = gpu.height - y;
-    if (w <= 0 || h <= 0) return;
-    gpu_present_rect((uint32_t)x, (uint32_t)y, (uint32_t)w, (uint32_t)h);
+    if (w <= 0 || h <= 0) return true;
+    return gpu_present_rect((uint32_t)x, (uint32_t)y, (uint32_t)w, (uint32_t)h);
 }
 
 /* --------------------------------------------------------------------------
@@ -235,7 +251,7 @@ void gpu_init(void) {
     if (!virtio_pci_setup(&gpu.vdev, dev) ||
         !virtio_negotiate(&gpu.vdev, 0, 0) ||
         !virtio_queue_init(&gpu.vdev, &gpu.controlq, 0, CONTROLQ_MAX)) {
-        strcpy(gpu.status, "VirtIO-GPU: transport setup failed");
+        gpu_fail("VirtIO-GPU: transport setup failed");
         vga_print_color("[!!] ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
         vga_print("VirtIO-GPU: transport setup failed\n");
         return;
@@ -305,8 +321,9 @@ void gpu_init(void) {
     return;
 
 fail:
-    gpu.active = false;
-    strcpy(gpu.status, "VirtIO-GPU: command failed (VESA fallback)");
+    /* Reset too: a half-configured device may already have taken the
+     * display away from the VGA path. */
+    gpu_fail("VirtIO-GPU: command failed (VESA fallback)");
     vga_print_color("[!!] ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
     vga_print("VirtIO-GPU: init command failed, using VESA\n");
 }

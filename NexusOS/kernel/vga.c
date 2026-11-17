@@ -10,6 +10,8 @@
 #include "string.h"
 #include "framebuffer.h"
 #include "font.h"
+#include "macui.h"
+#include "posix.h"
 
 /* Scrollable area = rows 0-23, row 24 = status bar */
 #define SCROLL_HEIGHT 24
@@ -30,9 +32,13 @@ static uint8_t current_color = VGA_DEFAULT_COLOR;
 /* VESA mode flag — set after fb_init() */
 static bool vesa_mode = false;
 
-/* No offset — text starts at top-left corner */
-#define TEXT_OFFSET_X  0
-#define TEXT_OFFSET_Y  0
+/* In VESA mode the 80x25 console is drawn as a macOS Terminal window
+ * centred on the wallpaper; con_ox/con_oy are its text origin in pixels. */
+static int con_ox = 0, con_oy = 0;
+#define TEXT_OFFSET_X  con_ox
+#define TEXT_OFFSET_Y  con_oy
+#define CON_PAD        10
+#define CON_TITLE_H    28
 
 /* --------------------------------------------------------------------------
  * Make a VGA entry: char + color packed into 16 bits
@@ -53,7 +59,7 @@ static void vga_set_cell(int offset, uint16_t entry) {
  * vesa_render_char: Render a character at (row, col) on framebuffer
  * -------------------------------------------------------------------------- */
 static void vesa_render_char(int row, int col, char c, uint8_t color) {
-    if (!vesa_mode) return;
+    if (!vesa_mode || ui_splash_active()) return;
     int px = TEXT_OFFSET_X + col * FONT_WIDTH;
     int py = TEXT_OFFSET_Y + row * FONT_HEIGHT;
     uint32_t fg = vga_attr_fg(color);
@@ -67,7 +73,7 @@ static void vesa_render_char(int row, int col, char c, uint8_t color) {
  * vesa_scroll_up: Redraw entire screen after a scroll in VESA mode
  * -------------------------------------------------------------------------- */
 static void vesa_scroll_up(void) {
-    if (!vesa_mode) return;
+    if (!vesa_mode || ui_splash_active()) return;
     /* Redraw all rows from the RAM text model */
     for (int row = 0; row < SCROLL_HEIGHT; row++) {
         for (int col = 0; col < VGA_WIDTH; col++) {
@@ -77,6 +83,35 @@ static void vesa_scroll_up(void) {
             vesa_render_char(row, col, ch, color);
         }
     }
+}
+
+/* --------------------------------------------------------------------------
+ * console_backdrop: wallpaper + Terminal window chrome around the 80x25 grid
+ * -------------------------------------------------------------------------- */
+static void console_backdrop(uint32_t bg) {
+    int sw = (int)fb_get_width(), sh = (int)fb_get_height();
+    int cw = VGA_WIDTH * FONT_WIDTH, ch = VGA_HEIGHT * FONT_HEIGHT;
+    if (sw < cw + 2 * CON_PAD || sh < ch + CON_TITLE_H + 2 * CON_PAD) {
+        con_ox = con_oy = 0;
+        fb_clear(bg);
+        return;
+    }
+    int ww = cw + 2 * CON_PAD, wh = ch + CON_TITLE_H + 2 * CON_PAD;
+    int wx = sw / 2 - ww / 2, wy = sh / 2 - wh / 2;
+    con_ox = wx + CON_PAD;
+    con_oy = wy + CON_TITLE_H + CON_PAD;
+    ui_wallpaper_draw();
+    ui_shadow(wx, wy, ww, wh, 10, 30, 130, 12);
+    ui_rrect(wx, wy, ww, wh, 10, bg, 255);
+    ui_rrect_vgrad(wx, wy, ww, CON_TITLE_H + 10, 10, UI_RGB(60, 60, 64), UI_RGB(52, 52, 56), 255);
+    ui_blend_rect(wx, wy + CON_TITLE_H, ww, 12, bg, 255);
+    ui_blend_rect(wx, wy + CON_TITLE_H, ww, 1, 0x000000, 150);
+    ui_rrect_stroke(wx, wy, ww, wh, 10, 0x000000, 170);
+    static const uint32_t lights[3] = { UI_RGB(255, 95, 87), UI_RGB(254, 188, 46), UI_RGB(40, 200, 64) };
+    for (int i = 0; i < 3; i++) ui_circle(wx + 19 + i * 20, wy + CON_TITLE_H / 2, 6, lights[i], 255);
+    ui_text_center(wx + ww / 2, wy + (CON_TITLE_H - ui_font_height(UF_UIB)) / 2 + 1,
+                   "nexus  -  console  -  80x25", UF_UIB, UI_RGB(228, 228, 232));
+    fb_mark_dirty_all();
 }
 
 /* --------------------------------------------------------------------------
@@ -104,9 +139,8 @@ void vga_clear(void) {
     cursor_col = 0;
 
     if (vesa_mode) {
-        /* Clear the framebuffer to background color */
-        uint32_t bg = vga_attr_bg(current_color);
-        fb_clear(bg);
+        /* Repaint the Terminal-window backdrop (not during the boot splash) */
+        if (!ui_splash_active()) console_backdrop(vga_attr_bg(current_color));
     } else {
         vga_update_cursor();
     }
@@ -134,6 +168,8 @@ static void scroll(void) {
  * vga_putchar: Print a single character at cursor position
  * -------------------------------------------------------------------------- */
 void vga_putchar(char c) {
+    /* `cmd > file`: the shell captures console output instead of drawing it */
+    if (posix_is_capturing()) { posix_capture_putc(c); return; }
     if (c == '\n') {
         cursor_col = 0;
         cursor_row++;
@@ -181,6 +217,8 @@ void vga_print(const char* str) {
  * vga_print_color: Print string with specific color, then restore
  * -------------------------------------------------------------------------- */
 void vga_print_color(const char* str, uint8_t color) {
+    /* Each "[OK] subsystem" line during boot advances the splash bar. */
+    if (ui_splash_active() && str[0] == '[' && str[1] == 'O' && str[2] == 'K') ui_splash_step();
     uint8_t old_color = current_color;
     current_color = color;
     vga_print(str);
@@ -247,6 +285,13 @@ void vga_update_cursor(void) {
  * -------------------------------------------------------------------------- */
 int vga_get_cursor_row(void) { return cursor_row; }
 int vga_get_cursor_col(void) { return cursor_col; }
+
+/* Phase 57 apps: read back a cell (char | attr << 8) so the VT100 engine can
+ * seed itself with what is already on the console before a program draws. */
+uint16_t vga_get_cell(int row, int col) {
+    if (row < 0 || row >= VGA_HEIGHT || col < 0 || col >= VGA_WIDTH) return 0;
+    return vga_shadow[row * VGA_WIDTH + col];
+}
 
 /* --------------------------------------------------------------------------
  * vga_putchar_at: Write a character at a specific position with color
@@ -350,8 +395,11 @@ void vga_reinit_vesa(void) {
     vesa_mode = fb_is_vesa();
     if (!vesa_mode) return;
 
-    /* Clear framebuffer to black */
-    fb_clear(0x000000);
+    /* Aurora: show the boot splash; console text keeps accumulating in the
+     * RAM model (and is shown when the console is next cleared/redrawn). */
+    ui_splash_begin();
+    if (ui_splash_active()) return;
+    console_backdrop(vga_attr_bg(VGA_DEFAULT_COLOR));
 
     /* Redraw everything currently in the RAM text model onto framebuffer */
     for (int row = 0; row < VGA_HEIGHT; row++) {

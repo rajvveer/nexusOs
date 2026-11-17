@@ -9,6 +9,7 @@
 #include "font8x8.h"
 #include "framebuffer.h"
 #include "string.h"
+#include "macui.h"
 
 /* Active font size state */
 static FontSize active_font_size = FONT_SIZE_8x16;
@@ -380,6 +381,9 @@ int font_get_active_height(void) {
  * into garbage. GUI text uses font_draw_char (which honors the scale). */
 void font_draw_char_fixed(int x, int y, uint8_t c, uint32_t fg, uint32_t bg) {
     if (!fb_is_vesa()) return;
+    /* Aurora: printable ASCII in the 8x16 cell uses the anti-aliased
+     * Cascadia Mono glyphs; CP437 box/shade/symbol glyphs keep the bitmap. */
+    if (active_font_size == FONT_SIZE_8x16 && ui_cell_glyph(x, y, c, fg, bg)) return;
     uint32_t fb_w = fb_get_width();
     uint32_t fb_h = fb_get_height();
     int h = font_get_active_height();
