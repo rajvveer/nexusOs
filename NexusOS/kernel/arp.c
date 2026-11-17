@@ -10,6 +10,7 @@
 #include "net.h"
 #include "vga.h"
 #include "string.h"
+#include "irqflags.h"
 
 /* ARP cache */
 static arp_entry_t arp_cache[ARP_CACHE_SIZE];
@@ -105,6 +106,8 @@ void arp_handle_packet(const void* data, uint16_t len) {
     /* Validate: must be Ethernet/IPv4 */
     if (ntohs(arp->hw_type) != ARP_HW_ETHERNET) return;
     if (ntohs(arp->proto_type) != ARP_PROTO_IPV4) return;
+    if (arp->hw_len != ETH_ALEN || arp->proto_len != 4 ||
+        (ntohs(arp->opcode) != ARP_OP_REQUEST && ntohs(arp->opcode) != ARP_OP_REPLY)) return;
 
     uint32_t sender_ip = ntohl(arp->sender_ip);
     uint32_t target_ip = ntohl(arp->target_ip);
@@ -135,12 +138,34 @@ bool arp_resolve(uint32_t ip, mac_addr_t* mac_out) {
 
     /* Check cache first */
     if (arp_lookup(ip, mac_out)) {
+#ifdef NEXUS_NATIVE64
+        /* The native kernel resolves with IF=0, so a miss drops the packet (and
+         * stalls a TCP flow until a retransmission). Re-ask for an entry in use
+         * once it is past half its lifetime, at most once a second; the reply
+         * refreshes it long before it expires. */
+        static uint32_t refreshed[ARP_CACHE_SIZE];
+        for (int i = 0; i < ARP_CACHE_SIZE; i++) {
+            if (!arp_cache[i].valid || arp_cache[i].ip != ip) continue;
+            if (system_ticks - arp_cache[i].timestamp > (ARP_CACHE_TTL / 2) * 18 &&
+                system_ticks - refreshed[i] > 18) {
+                refreshed[i] = system_ticks;
+                arp_send(ARP_OP_REQUEST, arp_cache[i].mac.addr, ip);
+            }
+            break;
+        }
+#endif
         return true;
     }
 
     /* Not in cache — send ARP request and wait for reply */
     uint8_t bcast[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
     arp_send(ARP_OP_REQUEST, bcast, ip);
+
+    /* Never wait with IF=0 (the timer IRQ's net_poll: hlt would never wake ->
+     * whole-OS freeze) or from inside net_poll dispatch (the nested net_poll
+     * we'd pump is a no-op). Drop instead: the reply gets cached by the next
+     * poll and the peer / caller retries. */
+    if (!irqs_enabled() || net_is_busy()) return false;
 
     /* Wait up to ~1 second for ARP reply (18 ticks at 18.2 Hz) */
     uint32_t start = system_ticks;

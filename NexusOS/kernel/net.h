@@ -17,7 +17,12 @@
 #define ETH_HEADER_LEN  14      /* dest(6) + src(6) + ethertype(2) */
 #define ETH_FRAME_MAX   (ETH_HEADER_LEN + ETH_MTU)
 
-#define NET_RX_RING_SIZE 8      /* RX packet ring buffer slots */
+#ifdef NEXUS_NATIVE64
+#define NET_RX_RING_SIZE 2      /* native drivers hand frames to net_deliver_packet(); this queue stays unused */
+#else
+#define NET_RX_RING_SIZE 32     /* RX packet ring buffer slots (Phase 57: was 8;
+                                   a 16 KB TCP window arrives as 11-segment bursts) */
+#endif
 #define NET_MAX_DEVICES  2      /* Max registered network devices */
 
 /* Ethernet types (big-endian on wire) */
@@ -102,11 +107,32 @@ int net_send_packet(net_device_t* dev, const void* data, uint16_t len);
 /* Called by NIC driver IRQ to queue a received packet */
 void net_receive_packet(const void* data, uint16_t len);
 
+#ifdef NEXUS_NATIVE64
+/* Native x86-64: dispatch one received frame to ARP/IPv4 right away (the
+ * driver drains its DMA ring from the network poll, not from the IRQ). */
+void net_deliver_packet(const void* data, uint16_t len);
+/* arch/x86_64/netdev.c: the native interface layer's receive/transmit taps for eth0 */
+bool netdev_receive_eth0(const void* data, unsigned length);
+void netdev_receive_done(void);
+void netdev_transmit_tap(net_device_t* dev, const void* data, unsigned length);
+#endif
+
 /* Get a received packet (returns NULL if none available) */
 net_packet_t* net_get_rx_packet(void);
 
-/* Poll: process queued RX packets (call from timer tick, NOT IRQ context) */
+/* Poll: process queued RX packets. Safe from task loops and the timer IRQ:
+ * it never re-enters, and a call made while a dispatch or a send is already
+ * in progress returns immediately. */
 void net_poll(void);
+
+/* True while net_poll dispatch or a packet send is running (re-entrancy
+ * guard). Code that would wait for the network — e.g. arp_resolve — must not
+ * block while this is set: the nested net_poll it would pump is a no-op. */
+bool net_is_busy(void);
+
+/* Phase 55: reset the re-entrancy guard after kguard recovered a fault inside
+ * net code (the interrupted dispatch/send never finishes). */
+void net_clear_busy(void);
 
 /* Utility: format MAC address as string "XX:XX:XX:XX:XX:XX" */
 void net_mac_to_string(const mac_addr_t* mac, char* buf);

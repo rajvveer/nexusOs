@@ -61,6 +61,34 @@ void ip_handle_packet(const void* data, uint16_t len);
 /* Send an IP packet: builds IPv4 header, resolves next-hop MAC, sends */
 int ip_send_packet(uint32_t dst_ip, uint8_t protocol,
                    const void* payload, uint16_t payload_len);
+/* Same with an explicit source address (0: ip_source_address(dst_ip)) */
+int ip_send_packet_from(uint32_t src_ip, uint32_t dst_ip, uint8_t protocol,
+                        const void* payload, uint16_t payload_len);
+/* Source address for a destination: 127.0.0.1 for 127.0.0.0/8, else our address */
+uint32_t ip_source_address(uint32_t dst_ip);
+/* UDP datagram from an explicit source address (udp.c; 0: ip_source_address(dst_ip)), e.g. a bound socket's */
+int udp_send_from(uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port,
+                  const void* data, uint16_t len);
+#ifdef NEXUS_NATIVE64
+/* Loopback: 127.0.0.0/8 and our own address never leave the host (queued, delivered by ip_loopback_poll) */
+int ip_is_local(uint32_t ip);
+int ip_loopback_pending(void);
+int ip_loopback_room(void);   /* free loopback ring slots */
+void ip_loopback_poll(void);
+int ip_loopback_queue(const void* packet, uint16_t len);         /* a complete IPv4/IPv6 packet: 0, -11 full, -90 too big */
+void ip_deliver_reassembled(const void* data, uint16_t len, int loopback);
+/* arch/x86_64 native datapath (net4.c, ipv6.c) */
+struct ip6_send_options;
+int ip4_output(uint32_t src, uint32_t dst, uint8_t protocol, const void* payload, unsigned length, const struct ip6_send_options* options);
+uint32_t ip4_source_for(uint32_t dst);
+bool ip4_local_address(uint32_t address);
+bool ip4_accept_destination(uint32_t address);
+void ip4_fragment_input(const void* data, unsigned length, bool loopback);
+bool ip4_local_deliver_hook(const void* data, unsigned length, int loopback);   /* loopback 2: multicast loop copy */
+void ip_mc_loop_deliver(const void* data, uint16_t len);   /* IP_MULTICAST_LOOP copy of an outgoing datagram (net4.c) */
+bool ip4_ingress(const void* data, unsigned length, bool local);   /* forwarding and NAT before local delivery (forward.c) */
+void ipv6_loopback_input(const void* packet, unsigned length);
+#endif
 
 /* Get our IP address (host byte order) */
 uint32_t ip_get_addr(void);

@@ -13,6 +13,7 @@
  * Constants
  * -------------------------------------------------------------------------- */
 #define UDP_HEADER_LEN      8
+#define UDP_MTU_PAYLOAD     1472
 #define UDP_MAX_BINDINGS    8       /* Max bound ports */
 #define UDP_RX_BUF_SIZE     2       /* RX queue depth per binding */
 
@@ -56,7 +57,7 @@ typedef struct {
 void udp_init(void);
 
 /* Handle incoming UDP packet (called from IP layer) */
-void udp_handle_packet(uint32_t src_ip, const void* data, uint16_t len);
+void udp_handle_packet(uint32_t src_ip, uint32_t dst_ip, const void* data, uint16_t len);
 
 /* Send a UDP datagram */
 int udp_send(uint32_t dst_ip, uint16_t src_port, uint16_t dst_port,

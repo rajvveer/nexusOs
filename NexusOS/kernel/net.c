@@ -9,6 +9,7 @@
 #include "net.h"
 #include "arp.h"
 #include "ip.h"
+#include "tcp.h"      /* Phase 57: tcp_timer() */
 #include "vga.h"
 #include "string.h"
 
@@ -23,6 +24,21 @@ static int num_devices = 0;
 static net_packet_t rx_ring[NET_RX_RING_SIZE];
 static int rx_head = 0;    /* Next slot to write */
 static int rx_tail = 0;    /* Next slot to read */
+
+/* Re-entrancy guard. net_poll runs from task loops AND from the timer IRQ
+ * (kernel.c), with no locking. net_busy > 0 while a dispatch (net_poll) or a
+ * transmit (dev->send -> rtl8139_send's TX ring slot) is in progress; any
+ * nested net_poll — e.g. the timer IRQ landing mid-send or mid-dispatch —
+ * returns at once instead of racing TCBs, the TX ring and rx_tail. Single
+ * CPU: a nested call always completes before the interrupted one resumes, so
+ * a plain counter is enough. */
+static volatile int net_busy = 0;
+
+bool net_is_busy(void) { return net_busy != 0; }
+
+/* Phase 55: kguard abandons the frames of a faulting net_poll/send, so the
+ * counter would stay raised forever and silently disable networking. */
+void net_clear_busy(void) { net_busy = 0; }
 
 /* --------------------------------------------------------------------------
  * net_init: Initialize network subsystem
@@ -79,8 +95,13 @@ int net_send_packet(net_device_t* dev, const void* data, uint16_t len) {
     if (!dev || !dev->active || !dev->send) return -1;
     if (len > ETH_FRAME_MAX) return -1;
 
+    net_busy++;                 /* TX ring is part of the critical section */
     int ret = dev->send(dev, data, len);
+    net_busy--;
     if (ret == 0) {
+#ifdef NEXUS_NATIVE64
+        netdev_transmit_tap(dev, data, len);   /* packet sockets see outgoing frames (arch/x86_64/netdev.c) */
+#endif
         dev->stats.tx_packets++;
         dev->stats.tx_bytes += len;
     } else {
@@ -121,14 +142,45 @@ void net_receive_packet(const void* data, uint16_t len) {
      * so we don't block mouse/keyboard IRQs. */
 }
 
+#ifdef NEXUS_NATIVE64
 /* --------------------------------------------------------------------------
- * net_poll: Process queued packets (called from timer tick, NOT IRQ context)
- * This is the safe place to do heavy protocol processing.
+ * net_deliver_packet: native x86-64 receive path. The driver drains its DMA
+ * ring from native_network_poll (never from the IRQ), so frames go straight to
+ * the protocol handlers without the copy through rx_ring / the 8-frame limit.
+ * -------------------------------------------------------------------------- */
+void net_deliver_packet(const void* data, uint16_t len) {
+    if (!data || len < ETH_HEADER_LEN || len > ETH_FRAME_MAX) return;
+    if (num_devices > 0 && devices[0]) {
+        devices[0]->stats.rx_packets++;
+        devices[0]->stats.rx_bytes += len;
+    }
+    const eth_header_t* eth = (const eth_header_t*)data;
+    const uint8_t* payload = (const uint8_t*)data + ETH_HEADER_LEN;
+    uint16_t payload_len = len - ETH_HEADER_LEN;
+    net_busy++;
+    /* IPv6, packet sockets and the receive filter first (arch/x86_64/netdev.c); ARP and IPv4 stay here */
+    if (netdev_receive_eth0(data, len)) { net_busy--; return; }
+    switch (ntohs(eth->ethertype)) {
+        case ETH_TYPE_ARP:  arp_handle_packet(payload, payload_len); break;
+        case ETH_TYPE_IPV4: ip_handle_packet(payload, payload_len);  break;
+        default: break;
+    }
+    netdev_receive_done();
+    net_busy--;
+}
+#endif
+
+/* --------------------------------------------------------------------------
+ * net_poll: Process queued packets. Called from task loops and from the timer
+ * IRQ; never re-enters (see net_busy) — a nested call is a no-op.
  * -------------------------------------------------------------------------- */
 void net_poll(void) {
-    /* Process up to 4 packets per tick to avoid hogging the CPU */
+    if (net_busy) return;
+    net_busy++;
+
+    /* Process up to 8 packets per call to avoid hogging the CPU */
     int processed = 0;
-    while (processed < 4) {
+    while (processed < 8) {
         net_packet_t* pkt = net_get_rx_packet();
         if (!pkt) break;
 
@@ -151,6 +203,10 @@ void net_poll(void) {
         }
         processed++;
     }
+    /* ---- Phase 57: TCP retransmission / persist / reaper timers ---- */
+    tcp_timer();
+    /* ---- end Phase 57 ---- */
+    net_busy--;
 }
 
 /* --------------------------------------------------------------------------

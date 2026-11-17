@@ -9,6 +9,17 @@
 #include "net.h"
 #include "vga.h"
 #include "string.h"
+#ifdef NEXUS_NATIVE64
+#include "../arch/x86_64/native.h"
+#endif
+
+static uint16_t udp_checksum(uint32_t source, uint32_t destination, const uint8_t* bytes, uint16_t length) {
+    uint32_t sum = (source >> 16) + (source & 65535) + (destination >> 16) + (destination & 65535) + IP_PROTO_UDP + length;
+    while (length >= 2) { sum += ((uint16_t)bytes[0] << 8) | bytes[1]; bytes += 2; length -= 2; }
+    if (length) sum += (uint16_t)bytes[0] << 8;
+    while (sum >> 16) sum = (sum & 65535) + (sum >> 16);
+    return (uint16_t)~sum;
+}
 
 /* Port binding table */
 static udp_binding_t bindings[UDP_MAX_BINDINGS];
@@ -38,7 +49,7 @@ static udp_binding_t* find_binding(uint16_t port) {
 /* --------------------------------------------------------------------------
  * udp_handle_packet: Process incoming UDP datagram
  * -------------------------------------------------------------------------- */
-void udp_handle_packet(uint32_t src_ip, const void* data, uint16_t len) {
+void udp_handle_packet(uint32_t src_ip, uint32_t dst_ip, const void* data, uint16_t len) {
     if (len < UDP_HEADER_LEN) return;
 
     const udp_header_t* hdr = (const udp_header_t*)data;
@@ -47,9 +58,15 @@ void udp_handle_packet(uint32_t src_ip, const void* data, uint16_t len) {
     uint16_t udp_len  = ntohs(hdr->length);
 
     if (udp_len < UDP_HEADER_LEN || udp_len > len) return;
+    if (hdr->checksum && udp_checksum(src_ip, dst_ip, data, udp_len)) return;
 
     uint16_t payload_len = udp_len - UDP_HEADER_LEN;
     const uint8_t* payload = (const uint8_t*)data + UDP_HEADER_LEN;
+#ifdef NEXUS_NATIVE64
+    if (dst_port == 68 && src_port == 67) { native_dhcp_receive(payload, payload_len); return; } /* kernel DHCP client */
+    inet_datagram_receive(src_ip, dst_ip, src_port, dst_port, payload, payload_len);
+    return;
+#endif
 
     /* Find binding for this port */
     udp_binding_t* bind = find_binding(dst_port);
@@ -76,7 +93,16 @@ void udp_handle_packet(uint32_t src_ip, const void* data, uint16_t len) {
  * -------------------------------------------------------------------------- */
 int udp_send(uint32_t dst_ip, uint16_t src_port, uint16_t dst_port,
              const void* data, uint16_t len) {
-    if (len > 512) return -1; /* Too large for buffer */
+    return udp_send_from(0, dst_ip, src_port, dst_port, data, len);
+}
+int udp_send_from(uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port,
+                  const void* data, uint16_t len) {
+#ifdef NEXUS_NATIVE64
+    if (len > UDP_MTU_PAYLOAD) return -90;
+#else
+    if (len > 512) return -1;
+#endif
+    if (len && !data) return -22;
 
     /* Build UDP packet: header + payload */
     uint8_t pkt[UDP_HEADER_LEN + 1472];
@@ -90,8 +116,11 @@ int udp_send(uint32_t dst_ip, uint16_t src_port, uint16_t dst_port,
     if (data && len > 0) {
         memcpy(pkt + UDP_HEADER_LEN, data, len);
     }
+    if (!src_ip) src_ip = ip_source_address(dst_ip);
+    uint16_t checksum = udp_checksum(src_ip, dst_ip, pkt, UDP_HEADER_LEN + len);
+    hdr->checksum = htons(checksum ? checksum : 65535);
 
-    return ip_send_packet(dst_ip, IP_PROTO_UDP, pkt, UDP_HEADER_LEN + len);
+    return ip_send_packet_from(src_ip, dst_ip, IP_PROTO_UDP, pkt, UDP_HEADER_LEN + len);
 }
 
 /* --------------------------------------------------------------------------

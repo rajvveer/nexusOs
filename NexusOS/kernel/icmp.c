@@ -10,6 +10,9 @@
 #include "net.h"
 #include "vga.h"
 #include "string.h"
+#ifdef NEXUS_NATIVE64
+#include "../arch/x86_64/native.h"
+#endif
 
 /* Global ping tracking state */
 static ping_state_t ping_state;
@@ -36,6 +39,11 @@ void icmp_handle_packet(uint32_t src_ip, const void* data, uint16_t len) {
 
     /* Verify checksum */
     if (ip_checksum(data, len) != 0) return;
+#ifdef NEXUS_NATIVE64
+    if (hdr->type == ICMP_DEST_UNREACHABLE || hdr->type == ICMP_TIME_EXCEEDED || hdr->type == 12) {
+        inet_icmp_error(src_ip, data, len); return;
+    }
+#endif
 
     switch (hdr->type) {
         case ICMP_ECHO_REQUEST: {
