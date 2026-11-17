@@ -1,7 +1,8 @@
 /* ============================================================================
- * NexusOS — HTTP Client Header — Phase 28
+ * NexusOS — HTTP Client Header — Phase 28 / 57
  * ============================================================================
- * Simple HTTP/1.1 GET client over TCP.
+ * Legacy blocking GET API, now a thin wrapper over the streaming client in
+ * netstream.c (http:// and https://, redirects followed, 16 KB body cap).
  * ============================================================================ */
 
 #ifndef HTTP_H
@@ -13,12 +14,12 @@
  * Constants
  * -------------------------------------------------------------------------- */
 #define HTTP_DEFAULT_PORT   80
-#define HTTP_MAX_URL        128
-#define HTTP_MAX_HOST       64
-#define HTTP_MAX_PATH       64
-#define HTTP_MAX_BODY       2048    /* Max response body we store */
-#define HTTP_TIMEOUT_TICKS  54      /* ~3 seconds at 18.2 Hz */
-#define HTTP_CONNECT_TICKS  36      /* ~2 seconds for TCP connect */
+#define HTTP_MAX_URL        512
+#define HTTP_MAX_HOST       128
+#define HTTP_MAX_PATH       512
+#define HTTP_MAX_BODY       16384   /* Max response body we store (Phase 57: was 2 KB) */
+#define HTTP_TIMEOUT_TICKS  (30 * 18)
+#define HTTP_CONNECT_TICKS  (10 * 18)
 
 /* --------------------------------------------------------------------------
  * HTTP Response
@@ -38,7 +39,7 @@ typedef struct {
 /* Initialize HTTP client */
 void http_init(void);
 
-/* Perform HTTP GET request (URL like "http://host/path") */
+/* Perform HTTP(S) GET request (URL like "http://host/path" or "https://...") */
 http_response_t http_get(const char* url);
 
 #endif /* HTTP_H */
