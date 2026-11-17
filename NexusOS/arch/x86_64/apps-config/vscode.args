@@ -1,0 +1,8 @@
+ELECTRON_OZONE_PLATFORM_HINT=wayland
+/opt/vscode/code
+--ozone-platform=wayland
+--disable-gpu
+--user-data-dir=/home/nexus/vscode-data
+--extensions-dir=/home/nexus/vscode-extensions
+--disable-workspace-trust
+/home/nexus/project

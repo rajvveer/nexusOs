@@ -1,0 +1,7 @@
+MOZ_ENABLE_WAYLAND=1
+MOZ_CRASHREPORTER_DISABLE=1
+/opt/firefox/firefox-bin
+--profile
+/home/nexus/firefox-profile
+--no-remote
+about:blank

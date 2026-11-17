@@ -1,0 +1,213 @@
+{
+ "format": 1,
+ "generated": "2026-10-18T16:40:34Z",
+ "suites": {
+  "trixie": {
+   "inrelease_sha256": "0584fba32e13e0ab8285fb16c27adea1ec03a73669c18702821094fd6ca86675",
+   "packages_xz_sha256": "7778d3e3f303b7ddb8ce0fe7c8d57473a076c6bf2e8f241f75421d2396352498",
+   "date": "Sat, 12 Sep 2026 07:55:41 UTC",
+   "signed_by": [
+    "Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>",
+    "Debian Stable Release Key (13/trixie) <debian-release@lists.debian.org>"
+   ]
+  },
+  "trixie-updates": {
+   "inrelease_sha256": "4933c2b3e21ffbf47feec884081709c0c6fe0677a32b3e9fe1bbde58ecbf5b17",
+   "packages_xz_sha256": "10012cb384dc2613586d7b3d391d92a5637c9faa36017239739f2a6109a0d45f",
+   "date": "Sun, 18 Oct 2026 14:16:08 UTC",
+   "signed_by": [
+    "Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>"
+   ]
+  },
+  "trixie-security": {
+   "inrelease_sha256": "5510808993fdc57e97aca13dda7573e45cf39c201870faca02ed323874801713",
+   "packages_xz_sha256": "da000332b59fbd809b7e7a13c11cc78c36ad1430dd1869a49a514ff5ebc2bc90",
+   "date": "Sun, 18 Oct 2026 12:31:26 UTC",
+   "signed_by": [
+    "Debian Security Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Security Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>"
+   ]
+  },
+  "sid": {
+   "inrelease_sha256": "3f8c17e3850aa25e547cc7e4923802efa8ef369b3abc8b1e91d8170d48f31502",
+   "packages_xz_sha256": "9029ef5b2efbfd1390c72ab9e5e7dc3d11a8f784883d86374d3c5a3407f5412d",
+   "date": "Sun, 18 Oct 2026 14:16:08 UTC",
+   "signed_by": [
+    "Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>"
+   ]
+  }
+ },
+ "keyring": {
+  "name": "debian-archive-keyring",
+  "version": "2025.1",
+  "sha256": "9ea7778e443144ca490668737a8ab22dd3e748bb99e805e22ec055abeb3c7fac",
+  "url": "https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2025.1_all.deb",
+  "bytes": 179244
+ },
+ "present_from_chrome_and_apps_locks": {
+  "libc6": "2.41-12+deb13u4"
+ },
+ "skipped": {},
+ "packages": [
+  {
+   "name": "fontconfig",
+   "version": "2.15.0-2.3",
+   "url": "https://deb.debian.org/debian/pool/main/f/fontconfig/fontconfig_2.15.0-2.3_amd64.deb",
+   "sha256": "09794b188e042c90b4a89fcb5afeb276bc231b74ddf8a3efbbc7dfb6f0eac4cb",
+   "bytes": 463312,
+   "kind": "deb",
+   "app": "fonts",
+   "suite": "trixie",
+   "needed_by": [
+    "fonts"
+   ],
+   "filename": "debs/fontconfig_2.15.0-2.3_amd64.deb"
+  },
+  {
+   "name": "fonts-noto-cjk",
+   "version": "1:20240730+repack1-1",
+   "url": "https://deb.debian.org/debian/pool/main/f/fonts-noto-cjk/fonts-noto-cjk_20240730+repack1-1_all.deb",
+   "sha256": "f5dc28a754e17327d99f0a612134d92c8dd6187314ae967cb77f25df60860139",
+   "bytes": 56674044,
+   "kind": "deb",
+   "app": "fonts",
+   "suite": "trixie",
+   "needed_by": [
+    "fonts"
+   ],
+   "filename": "debs/fonts-noto-cjk_20240730+repack1-1_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20240810T212916Z/pool/main/f/fonts-noto-cjk/fonts-noto-cjk_20240730+repack1-1_all.deb"
+  },
+  {
+   "name": "fonts-noto-color-emoji",
+   "version": "2.051-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/f/fonts-noto-color-emoji/fonts-noto-color-emoji_2.051-0+deb13u1_all.deb",
+   "sha256": "03141cd51c0e9ff8ad858fcf2d8234f8a00ae4d7a0872df43a71519359c54e8c",
+   "bytes": 10110428,
+   "kind": "deb",
+   "app": "fonts",
+   "suite": "trixie",
+   "needed_by": [
+    "fonts"
+   ],
+   "filename": "debs/fonts-noto-color-emoji_2.051-0+deb13u1_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20251101T205120Z/pool/main/f/fonts-noto-color-emoji/fonts-noto-color-emoji_2.051-0+deb13u1_all.deb"
+  },
+  {
+   "name": "fonts-noto-core",
+   "version": "20201225-2",
+   "url": "https://deb.debian.org/debian/pool/main/f/fonts-noto/fonts-noto-core_20201225-2_all.deb",
+   "sha256": "97978d09b68445fcf85342b106cd2e812d7813e3d5626f9884a5f344c3a55973",
+   "bytes": 12188336,
+   "kind": "deb",
+   "app": "fonts",
+   "suite": "trixie",
+   "needed_by": [
+    "fonts"
+   ],
+   "filename": "debs/fonts-noto-core_20201225-2_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20230819T093249Z/pool/main/f/fonts-noto/fonts-noto-core_20201225-2_all.deb"
+  },
+  {
+   "name": "fonts-noto-mono",
+   "version": "20201225-2",
+   "url": "https://deb.debian.org/debian/pool/main/f/fonts-noto/fonts-noto-mono_20201225-2_all.deb",
+   "sha256": "7636f002caeb4a4082f69e2d9b8eb89da6c50b9c67f55db84e68638049b06006",
+   "bytes": 397580,
+   "kind": "deb",
+   "app": "fonts",
+   "suite": "trixie",
+   "needed_by": [
+    "fonts"
+   ],
+   "filename": "debs/fonts-noto-mono_20201225-2_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20230819T093249Z/pool/main/f/fonts-noto/fonts-noto-mono_20201225-2_all.deb"
+  },
+  {
+   "name": "libcrypt1",
+   "version": "1:4.4.38-1",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxcrypt/libcrypt1_4.4.38-1_amd64.deb",
+   "sha256": "0ebc144d662e3197982d1bf3a7b8b35ca845e54c68811de0328b1f0d7c67585c",
+   "bytes": 90072,
+   "kind": "deb",
+   "app": "auth",
+   "suite": "trixie",
+   "needed_by": [
+    "auth"
+   ],
+   "filename": "debs/libcrypt1_4.4.38-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250117T031715Z/pool/main/libx/libxcrypt/libcrypt1_4.4.38-1_amd64.deb"
+  }
+ ],
+ "sdk": [
+  {
+   "name": "libfreetype-dev",
+   "version": "2.13.3+dfsg-1+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/f/freetype/libfreetype-dev_2.13.3+dfsg-1+deb13u1_amd64.deb",
+   "sha256": "f58107859d9fa44206e64cf35bdbd4febdec66a33e456ce2e5e3712f01b6c895",
+   "bytes": 622868,
+   "kind": "deb",
+   "suite": "trixie",
+   "filename": "debs/libfreetype-dev_2.13.3+dfsg-1+deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20260318T213459Z/pool/updates/main/f/freetype/libfreetype-dev_2.13.3+dfsg-1+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libharfbuzz-dev",
+   "version": "10.2.0-1+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/h/harfbuzz/libharfbuzz-dev_10.2.0-1+deb13u1_amd64.deb",
+   "sha256": "2588a9535b4b08193418d076605ca0878545e5b06a1a86a1f952f88f33ce79f9",
+   "bytes": 145172,
+   "kind": "deb",
+   "suite": "trixie",
+   "filename": "debs/libharfbuzz-dev_10.2.0-1+deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20260508T024741Z/pool/main/h/harfbuzz/libharfbuzz-dev_10.2.0-1+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libfontconfig-dev",
+   "version": "2.15.0-2.3",
+   "url": "https://deb.debian.org/debian/pool/main/f/fontconfig/libfontconfig-dev_2.15.0-2.3_amd64.deb",
+   "sha256": "e7c533d87da316da3b127d136c0d1f0238a936c4b0797cb5ab67ebac3cf7151e",
+   "bytes": 414252,
+   "kind": "deb",
+   "suite": "trixie",
+   "filename": "debs/libfontconfig-dev_2.15.0-2.3_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250408T205804Z/pool/main/f/fontconfig/libfontconfig-dev_2.15.0-2.3_amd64.deb"
+  },
+  {
+   "name": "libegl-dev",
+   "version": "1.7.0-1+b2",
+   "url": "https://deb.debian.org/debian/pool/main/libg/libglvnd/libegl-dev_1.7.0-1+b2_amd64.deb",
+   "sha256": "97fcfff08a5de0a510066d55260a30fbd3ccbd87da6c2f317e6efe17566b9f5a",
+   "bytes": 19520,
+   "kind": "deb",
+   "suite": "trixie",
+   "filename": "debs/libegl-dev_1.7.0-1+b2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241029T234230Z/pool/main/libg/libglvnd/libegl-dev_1.7.0-1+b2_amd64.deb"
+  },
+  {
+   "name": "libgl-dev",
+   "version": "1.7.0-1+b2",
+   "url": "https://deb.debian.org/debian/pool/main/libg/libglvnd/libgl-dev_1.7.0-1+b2_amd64.deb",
+   "sha256": "2c5044a44bc7cd7a196d554ca6ff78ae0358fbb98b7d2cce49176bdc6a816fe4",
+   "bytes": 100680,
+   "kind": "deb",
+   "suite": "trixie",
+   "filename": "debs/libgl-dev_1.7.0-1+b2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241029T234230Z/pool/main/libg/libglvnd/libgl-dev_1.7.0-1+b2_amd64.deb"
+  },
+  {
+   "name": "libxkbregistry-dev",
+   "version": "1.7.0-2",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxkbcommon/libxkbregistry-dev_1.7.0-2_amd64.deb",
+   "sha256": "303dacb1911a9c6c3e1db02c3ae4d2455ea328198b5eaf5e68c998929964b651",
+   "bytes": 9500,
+   "kind": "deb",
+   "suite": "trixie",
+   "filename": "debs/libxkbregistry-dev_1.7.0-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241216T144229Z/pool/main/libx/libxkbcommon/libxkbregistry-dev_1.7.0-2_amd64.deb"
+  }
+ ]
+}

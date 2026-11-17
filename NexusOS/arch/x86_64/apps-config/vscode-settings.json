@@ -1,0 +1,20 @@
+{
+  "telemetry.telemetryLevel": "off",
+  "update.mode": "none",
+  "extensions.autoUpdate": false,
+  "extensions.autoCheckUpdates": false,
+  "workbench.startupEditor": "none",
+  "workbench.enableExperiments": false,
+  "workbench.tips.enabled": false,
+  "workbench.welcomePage.walkthroughs.openOnInstall": false,
+  "security.workspace.trust.enabled": false,
+  "files.simpleDialog.enable": true,
+  "window.titleBarStyle": "custom",
+  "window.restoreWindows": "none",
+  "window.commandCenter": false,
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "git.enabled": false,
+  "npm.autoDetect": "off",
+  "chat.disableAIFeatures": true,
+  "chat.commandCenter.enabled": false
+}

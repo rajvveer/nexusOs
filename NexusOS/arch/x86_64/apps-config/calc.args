@@ -1,0 +1,8 @@
+SAL_USE_VCLPLUGIN=gtk3
+GDK_BACKEND=wayland
+SAL_ENABLE_FILE_LOCKING=1
+/usr/lib/libreoffice/program/soffice
+--calc
+--norestore
+--nologo
+-env:UserInstallation=file:///home/nexus/libreoffice-profile

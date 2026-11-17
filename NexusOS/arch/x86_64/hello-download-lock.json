@@ -1,0 +1,8 @@
+{
+  "name": "hello",
+  "version": "2.10-5",
+  "url": "https://deb.debian.org/debian/pool/main/h/hello/hello_2.10-5_amd64.deb",
+  "filename": "hello_2.10-5_amd64.deb",
+  "sha256": "4536aabbb75ec21ffe161099ee4b97274945770bdb0682e25ec322421211ca5e",
+  "bytes": 53228
+}
