@@ -1,0 +1,37 @@
+[
+  {
+    "name": "libegl-mesa0",
+    "version": "25.0.7-2+deb13u1",
+    "url": "https://deb.debian.org/debian/pool/main/m/mesa/libegl-mesa0_25.0.7-2+deb13u1_amd64.deb",
+    "sha256": "0ddebd7e91b048aac812611d6bd008343386cb140b51e5e66df74c6b6263be65",
+    "bytes": 128456
+  },
+  {
+    "name": "libegl1",
+    "version": "1.7.0-1+b2",
+    "url": "https://deb.debian.org/debian/pool/main/libg/libglvnd/libegl1_1.7.0-1+b2_amd64.deb",
+    "sha256": "62e7bc8ccd47a60e55aad17f83d8d474310d782eb8589bbce2ab714c31712406",
+    "bytes": 34588
+  },
+  {
+    "name": "libgl1-mesa-dri",
+    "version": "25.0.7-2+deb13u1",
+    "url": "https://deb.debian.org/debian/pool/main/m/mesa/libgl1-mesa-dri_25.0.7-2+deb13u1_amd64.deb",
+    "sha256": "722fad9944bdfd29eb6421576331a2697f83bc4b3551d693edb7aefdde6bb198",
+    "bytes": 46240
+  },
+  {
+    "name": "libgles2",
+    "version": "1.7.0-1+b2",
+    "url": "https://deb.debian.org/debian/pool/main/libg/libglvnd/libgles2_1.7.0-1+b2_amd64.deb",
+    "sha256": "e12c18aa77939d122ee1dea520ba0440b97dc19200b7396e03dff03a3ece74c1",
+    "bytes": 17256
+  },
+  {
+    "name": "libglvnd0",
+    "version": "1.7.0-1+b2",
+    "url": "https://deb.debian.org/debian/pool/main/libg/libglvnd/libglvnd0_1.7.0-1+b2_amd64.deb",
+    "sha256": "887f74008166549ce9e100c906aa937e95d6e5ce1c8d86efe8c95fd953359b9c",
+    "bytes": 51960
+  }
+]
