@@ -1,0 +1,124 @@
+/* ============================================================================
+ * NexusOS — Virtual Filesystem Header
+ * ============================================================================
+ * Defines the VFS node structure and interface. All filesystem implementations
+ * (ramfs, future disk fs) plug into this layer via function pointers.
+ * ============================================================================ */
+
+#ifndef VFS_H
+#define VFS_H
+
+#include "types.h"
+
+/* File types */
+#define FS_FILE      0x01
+#define FS_DIRECTORY 0x02
+
+/* Max lengths */
+#define FS_NAME_MAX  32
+#define FS_PATH_MAX  128
+
+/* Phase 44: permission bits (Unix-style rwx for owner/group/other) */
+#define PERM_OR  0400
+#define PERM_OW  0200
+#define PERM_OX  0100
+#define PERM_GR  0040
+#define PERM_GW  0020
+#define PERM_GX  0010
+#define PERM_TR  0004   /* other read  */
+#define PERM_TW  0002   /* other write */
+#define PERM_TX  0001   /* other exec  */
+#define PERM_DEFAULT_FILE 0644
+#define PERM_DEFAULT_DIR  0755
+
+/* Access modes for vfs_check_perm() */
+#define ACC_READ  PERM_TR
+#define ACC_WRITE PERM_TW
+#define ACC_EXEC  PERM_TX
+
+/* Phase 55: fs_node_t.flags bits (persistence bookkeeping, see persist.h) */
+#define FS_FLAG_BUILTIN 0x01   /* created by boot-time init; not snapshotted unless modified */
+#define FS_FLAG_DIRTY   0x02   /* modified since the last snapshot (informational)          */
+/* bit 0x80 is reserved as a transient mark used while a snapshot is written */
+
+/* Forward declaration */
+struct fs_node;
+
+/* Function pointer types for filesystem operations */
+typedef int32_t (*read_fn)(struct fs_node*, uint32_t offset, uint32_t size, uint8_t* buffer);
+typedef int32_t (*write_fn)(struct fs_node*, uint32_t offset, uint32_t size, const uint8_t* buffer);
+typedef struct fs_node* (*readdir_fn)(struct fs_node*, uint32_t index);
+typedef struct fs_node* (*finddir_fn)(struct fs_node*, const char* name);
+
+/* Filesystem node */
+typedef struct fs_node {
+    char     name[FS_NAME_MAX];     /* Filename */
+    uint8_t  type;                  /* FS_FILE or FS_DIRECTORY */
+    uint32_t size;                  /* File size in bytes */
+    uint32_t inode;                 /* Unique node ID */
+
+    /* Phase 44: ownership & permissions (0 = root-owned, mode 0 until set) */
+    uint32_t uid;                   /* owning user id  */
+    uint32_t gid;                   /* owning group id */
+    uint16_t mode;                  /* rwx bits (see PERM_* in this header) */
+    uint8_t  flags;                 /* Phase 55: FS_FLAG_* persistence bits */
+
+    /* Data storage (implementation-specific) */
+    uint8_t* data;                  /* Pointer to file data */
+    uint32_t capacity;              /* Allocated capacity */
+
+    /* Operations */
+    read_fn    read;
+    write_fn   write;
+    readdir_fn readdir;
+    finddir_fn finddir;
+
+    /* Tree structure */
+    struct fs_node* parent;
+    struct fs_node* children;       /* First child (for directories) */
+    struct fs_node* next;           /* Next sibling */
+} fs_node_t;
+
+/* VFS API */
+void       vfs_init(void);
+int32_t    vfs_read(fs_node_t* node, uint32_t offset, uint32_t size, uint8_t* buffer);
+int32_t    vfs_write(fs_node_t* node, uint32_t offset, uint32_t size, const uint8_t* buffer);
+fs_node_t* vfs_readdir(fs_node_t* dir, uint32_t index);
+fs_node_t* vfs_finddir(fs_node_t* dir, const char* name);
+fs_node_t* vfs_get_root(void);
+
+/* --- Phase 44: permissions ---
+ * vfs_check_perm: does `uid` have `access` (ACC_READ/WRITE/EXEC) on `node`?
+ * root (uid 0) always passes. Owner uses the owner bits, everyone else the
+ * "other" bits (group is folded into owner==uid for this flat FS). */
+bool vfs_check_perm(fs_node_t* node, uint32_t uid, uint16_t access);
+/* Fill in default ownership/mode on a freshly created node (owner = current
+ * user). Called by the FS layer right after a node is allocated. */
+void vfs_init_perms(fs_node_t* node);
+/* chmod / chown — return 0 on success, negative on permission denial. Only the
+ * owner or root may change a node; only root may chown. */
+int  vfs_chmod(fs_node_t* node, uint16_t mode, uint32_t caller_uid);
+int  vfs_chown(fs_node_t* node, uint32_t new_uid, uint32_t caller_uid);
+/* Render type+mode as "drwxr-xr-x" into buf (needs >= 11 bytes incl NUL). */
+void vfs_mode_string(const fs_node_t* node, char* buf);
+
+/* Mount table */
+#define VFS_MAX_MOUNTS 8
+#define VFS_MOUNT_PATH_MAX 32
+
+typedef struct {
+    char       path[VFS_MOUNT_PATH_MAX];
+    fs_node_t* root;
+    bool       active;
+} vfs_mount_t;
+
+/* Mount a filesystem root at a path (e.g. "/disk") */
+int vfs_mount(const char* path, fs_node_t* fs_root);
+
+/* Get mount by path */
+fs_node_t* vfs_resolve_mount(const char* path);
+
+/* Get mount count */
+int vfs_mount_count(void);
+
+#endif /* VFS_H */

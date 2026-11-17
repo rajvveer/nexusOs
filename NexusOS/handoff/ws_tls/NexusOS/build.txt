@@ -1,0 +1,183 @@
+
+========================================
+ NexusOS Build System
+========================================
+
+[OK] Tools found
+[BUILD] Stage 1 bootloader...
+[BUILD] Stage 2 bootloader...
+[BUILD] Kernel assembly...
+[BUILD] Kernel C files...
+        kernel\ac97.c
+        kernel\accessibility.c
+        kernel\appearance.c
+        kernel\appstore.c
+        kernel\appui.c
+        kernel\arp.c
+        kernel\assistant.c
+        kernel\ata.c
+        kernel\audio.c
+        kernel\bignum.c
+        kernel\blkdev.c
+        kernel\breakout.c
+        kernel\browser.c
+        kernel\calculator.c
+        kernel\calendar.c
+        kernel\clipboard.c
+        kernel\clipmgr.c
+        kernel\clock.c
+        kernel\cocoa.c
+        kernel\colorpick.c
+        kernel\contacts.c
+        kernel\context_menu.c
+        kernel\crashtest.c
+        kernel\crypto.c
+        kernel\des.c
+        kernel\desktop.c
+        kernel\dhcp.c
+        kernel\dns.c
+        kernel\dock.c
+        kernel\doom.c
+        kernel\driver.c
+        kernel\dynlink.c
+        kernel\editor.c
+        kernel\elf.c
+        kernel\env.c
+        kernel\fat32.c
+        kernel\filemgr.c
+        kernel\fileops.c
+        kernel\finale.c
+        kernel\firewall.c
+        kernel\font.c
+        kernel\framebuffer.c
+        kernel\game.c
+        kernel\gamepad.c
+        kernel\gdt.c
+        kernel\gfx.c
+        kernel\gif.c
+        kernel\gpu.c
+        kernel\gui.c
+        kernel\heap.c
+        kernel\help.c
+        kernel\hexview.c
+        kernel\html.c
+        kernel\http.c
+        kernel\httpd.c
+        kernel\icmp.c
+        kernel\icons.c
+        kernel\idt.c
+        kernel\image.c
+        kernel\ip.c
+        kernel\jpeg.c
+        kernel\kernel.c
+        kernel\keyboard.c
+        kernel\kguard.c
+        kernel\libc.c
+        kernel\lockscreen.c
+        kernel\login.c
+        kernel\macho.c
+        kernel\macui.c
+        kernel\memory.c
+        kernel\menubar.c
+        kernel\minesweeper.c
+        kernel\mobile.c
+        kernel\mouse.c
+        kernel\music.c
+        kernel\net.c
+        kernel\netcmd.c
+        kernel\netstream.c
+        kernel\notepad.c
+        kernel\notifcenter.c
+        kernel\notify.c
+        kernel\npfs.c
+        kernel\ntp.c
+        kernel\paging.c
+        kernel\paint.c
+        kernel\palette.c
+        kernel\partition.c
+        kernel\pci.c
+        kernel\pe.c
+        kernel\perf.c
+        kernel\persist.c
+        kernel\pic.c
+        kernel\pipe.c
+        kernel\pkg.c
+        kernel\png.c
+        kernel\pong.c
+        kernel\posix.c
+        kernel\power.c
+        kernel\process.c
+        kernel\procfs.c
+        kernel\ramfs.c
+        kernel\recycle.c
+        kernel\registry.c
+        kernel\rshell.c
+        kernel\rtc.c
+        kernel\rtl8139.c
+        kernel\scheduler.c
+        kernel\screensaver.c
+        kernel\script.c
+        kernel\search.c
+        kernel\settings.c
+        kernel\shell.c
+        kernel\shortcuts.c
+        kernel\snake.c
+        kernel\socket.c
+        kernel\speaker.c
+        kernel\spotlight.c
+        kernel\sprite.c
+        kernel\start_menu.c
+        kernel\string.c
+        kernel\switcher.c
+        kernel\sync.c
+        kernel\syscall.c
+        kernel\sysinfo.c
+        kernel\syslog.c
+        kernel\sysmon.c
+        kernel\taskbar.c
+        kernel\taskmgr.c
+        kernel\tcp.c
+        kernel\termios.c
+        kernel\tetris.c
+        kernel\theme.c
+        kernel\tls.c
+        kernel\todo.c
+        kernel\udp.c
+        kernel\ui_widgets.c
+        kernel\uproc.c
+        kernel\usb.c
+        kernel\usb_ehci.c
+        kernel\usb_hid.c
+        kernel\usb_hub.c
+        kernel\usb_ohci.c
+        kernel\usb_storage.c
+        kernel\usb_uhci.c
+        kernel\usb_xhci.c
+        kernel\users.c
+        kernel\vfs.c
+        kernel\vga.c
+        kernel\video.c
+        kernel\virtio.c
+        kernel\vmm.c
+        kernel\vnc.c
+        kernel\wallpaper.c
+        kernel\wallpaper_img.c
+        kernel\widgets.c
+        kernel\win32.c
+        kernel\window.c
+        kernel\workspaces.c
+        kernel\x11.c
+        kernel\x509.c
+[BUILD] Optimizing graphics files (-O2)...
+[BUILD] Optimizing network/crypto files (-O2)...
+[BUILD] Linking kernel...
+[OK] kernel.bin 960876 / 1015808 bytes
+[BUILD] Creating disk image...
+Image size: 963436 bytes -> padded to 1474560 bytes
+[BUILD] Creating bootable ISO image...
+[mkiso] wrote nexus.iso: 1517568 bytes (741 x 2048), El Torito media 0x02, boot image nexus.img (1474560 bytes)
+
+========================================
+ BUILD SUCCESS: nexus.img
+========================================
+
