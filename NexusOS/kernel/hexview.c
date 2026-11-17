@@ -28,7 +28,7 @@ static void hv_load_first_file(void) {
     if (!f) { hv_size = 0; strcpy(hv_fname, "(none)"); return; }
     strncpy(hv_fname, f->name, 31); hv_fname[31] = '\0';
     f = vfs_finddir(root, hv_fname);
-    if (f) { hv_size = vfs_read(f, 0, HV_BUF, hv_data); }
+    if (f) { int rd = vfs_read(f, 0, HV_BUF, hv_data); hv_size = rd > 0 ? (uint32_t)rd : 0; }
     else hv_size = 0;
 }
 
@@ -101,7 +101,7 @@ static void hv_key(int id, char key) {
             if (found_current) {
                 strncpy(hv_fname, f->name, 31); hv_fname[31] = '\0';
                 f = vfs_finddir(root, hv_fname);
-                if (f) hv_size = vfs_read(f, 0, HV_BUF, hv_data); else hv_size = 0;
+                if (f) { int rd = vfs_read(f, 0, HV_BUF, hv_data); hv_size = rd > 0 ? (uint32_t)rd : 0; } else hv_size = 0;
                 hv_scroll = 0; return;
             }
             if (strcmp(f->name, hv_fname) == 0) found_current = true;

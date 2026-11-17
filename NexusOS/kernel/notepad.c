@@ -15,6 +15,8 @@
 #include "clipboard.h"
 #include "notify.h"
 #include "appui.h"
+#include "macui.h"
+#include "framebuffer.h"
 
 #define NP_LINES    16
 #define NP_COLS     36
@@ -75,37 +77,34 @@ static void np_save(void) {
 }
 
 static void np_draw(int id, int cx, int cy, int cw, int ch) {
-    (void)id;
-    appui_theme_t ui = appui_theme();
-    uint8_t tc = ui.text;
-    uint8_t cursor_col = VGA_COLOR(VGA_BLACK, VGA_WHITE);
+    (void)cx; (void)cy; (void)cw; (void)ch;
+    int x, y, w, h;
+    if (!appui_content(id, &x, &y, &w, &h)) return;
+    appui_px_fill(x, y, w, h, APPUI_BG);
 
-    appui_fill(cx, cy, cw, ch, ui.panel);
-    char pos[16]; char n1[6]; char n2[6];
-    int_to_str(np_cursor_y + 1, n1);
-    int_to_str(np_cursor_x + 1, n2);
-    strcpy(pos, "L"); strcat(pos, n1); strcat(pos, ":C"); strcat(pos, n2);
-    appui_header(cx, cy, cw, np_dirty ? "Notepad *" : "Notepad", pos);
+    /* title + line:col, like the Notes toolbar */
+    char pos[16], n1[6], n2[6];
+    int_to_str(np_cursor_y + 1, n1); int_to_str(np_cursor_x + 1, n2);
+    strcpy(pos, "Ln "); strcat(pos, n1); strcat(pos, ", Col "); strcat(pos, n2);
+    appui_px_text(x + 16, y + 10, np_dirty ? "Untitled *" : "Untitled", APPUI_F_BOLD, APPUI_TEXT);
+    appui_px_text_r(x + w - 16, y + 12, pos, APPUI_F_SMALL, APPUI_SUBTLE);
+    appui_px_sep(x, y + 34, w);
 
-    /* Text area */
-    int text_y = cy + 3;
-    int vis_lines = ch - 4;
-    for (int i = 0; i < vis_lines && i < np_line_count; i++) {
-        int j = 0;
-        while (np_buf[i][j] && j < cw - 1) {
-            bool at_cursor = (i == np_cursor_y && j == np_cursor_x);
-            gui_putchar(cx + j, text_y + i, np_buf[i][j], at_cursor ? cursor_col : tc);
-            j++;
-        }
-        /* Cursor at end of line */
-        if (i == np_cursor_y && np_cursor_x == j) {
-            char cc = ((system_ticks / 9) % 2) ? '_' : ' ';
-            gui_putchar(cx + j, text_y + i, cc, cursor_col);
-        }
+    /* text area — anti-aliased 8x16 monospace cells so the caret lines up */
+    int tx = x + 16, ty = y + 44, lh = 16;
+    for (int i = 0; i < np_line_count && ty + i * lh < y + h - 24; i++)
+        for (int j = 0; np_buf[i][j] && tx + j * 8 < x + w - 8; j++)
+            ui_cell_glyph(tx + j * 8, ty + i * lh, (uint8_t)np_buf[i][j], APPUI_TEXT, APPUI_BG);
+    /* thin blinking caret */
+    if ((system_ticks % 16) < 8) {
+        int caret_x = tx + np_cursor_x * 8;
+        int caret_y = ty + np_cursor_y * lh;
+        ui_blend_rect(caret_x, caret_y, 2, 15, APPUI_ACCENT, 255);
     }
 
-    /* Bottom hint */
-    appui_status(cx, cy + ch - 1, cw, "Ctrl+S Save   Ctrl+V Paste");
+    /* bottom hint */
+    appui_px_sep(x, y + h - 24, w);
+    appui_px_text(x + 16, y + h - 19, "Ctrl+S  Save      Ctrl+V  Paste", APPUI_F_SMALL, APPUI_FAINT);
 }
 
 static void np_key(int id, char key) {

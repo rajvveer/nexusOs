@@ -56,7 +56,7 @@ static void cal_draw(int id, int cx, int cy, int cw, int ch) {
     rtc_time_t now;
     rtc_read(&now);
     int cur_m = cal_month > 0 ? cal_month : now.month;
-    int cur_y = cal_year > 0 ? cal_year : 2000 + now.year;
+    int cur_y = cal_year > 0 ? cal_year : (now.year < 100 ? 2000 + now.year : now.year);
     int cur_d = now.day;
 
     appui_fill(cx, cy, cw, ch, ui.panel);
@@ -105,7 +105,7 @@ static void cal_draw(int id, int cx, int cy, int cw, int ch) {
 
     for (int d = 1; d <= total_days; d++) {
         int px = cx + 1 + col * 3;
-        bool is_today = (d == cur_d && (cal_month == 0 || cal_month == now.month) && (cal_year == 0 || cal_year == 2000 + now.year));
+        bool is_today = (d == cur_d && (cal_month == 0 || cal_month == now.month) && (cal_year == 0 || cal_year == (now.year < 100 ? 2000 + now.year : now.year)));
 
         char ds[4];
         if (d < 10) { ds[0] = ' '; ds[1] = '0' + d; ds[2] = '\0'; }
@@ -133,7 +133,7 @@ static void cal_key(int id, char key) {
     (void)id;
     rtc_time_t now; rtc_read(&now);
 
-    if (cal_month == 0) { cal_month = now.month; cal_year = 2000 + now.year; }
+    if (cal_month == 0) { cal_month = now.month; cal_year = (now.year < 100 ? 2000 + now.year : now.year); }
 
     if (key == '<' || key == ',' || (unsigned char)key == 0x82) {
         cal_month--;

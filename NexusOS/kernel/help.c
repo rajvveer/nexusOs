@@ -5,6 +5,7 @@
  * ============================================================================ */
 
 #include "help.h"
+#include "version.h"
 #include "window.h"
 #include "gui.h"
 #include "theme.h"
@@ -49,7 +50,7 @@ static const char* sec_shortcuts[] = {
 };
 
 static const char* sec_commands[] = {
-    "Shell Commands (v9.0):",
+    "Shell Commands:",
     "",
     "System:",
     "  help about clear reboot",
@@ -93,7 +94,7 @@ static const char* sec_apps[] = {
 };
 
 static const char* sec_about[] = {
-    "NexusOS v0.9.0",
+    NEXUS_VERSION_STRING,
     "The Hybrid Operating System",
     "",
     "Built from scratch in C and",

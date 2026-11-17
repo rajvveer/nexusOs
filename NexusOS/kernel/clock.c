@@ -72,7 +72,7 @@ static void clk_draw(int id, int cx, int cy, int cw, int ch) {
         row += 4;
         /* Date */
         char ds[16]; char n1[4], n2[4], n3[6];
-        int_to_str(time.day, n1); int_to_str(time.month, n2); int_to_str(2000 + time.year, n3);
+        int_to_str(time.day, n1); int_to_str(time.month, n2); int_to_str(time.year < 100 ? 2000 + time.year : time.year, n3);
         strcpy(ds, n1); strcat(ds, "/"); strcat(ds, n2); strcat(ds, "/"); strcat(ds, n3);
         gui_draw_text(cx + 8, row, ds, dim);
     }

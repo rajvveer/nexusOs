@@ -354,13 +354,20 @@ static void load_file(const char* filename) {
 
     if (node && node->size > 0) {
         char content[4096];
-        uint32_t bytes = vfs_read(node, 0, node->size < 4095 ? node->size : 4095, (uint8_t*)content);
+        /* vfs_read returns -1 on error (e.g. permission denied): treat as empty
+         * rather than using it as an index/size. */
+        int32_t rd = vfs_read(node, 0, node->size < 4095 ? node->size : 4095, (uint8_t*)content);
+        uint32_t bytes = rd > 0 ? (uint32_t)rd : 0;
+        if (bytes > 4095) bytes = 4095;
         content[bytes] = '\0';
 
-        /* Parse into lines */
+        /* Parse into lines. Lines past the buffer's EDITOR_MAX_LINES are
+         * dropped: advancing `line` to EDITOR_MAX_LINES would index one past
+         * lines[] (into the globals after it). */
         int line = 0, col = 0;
-        for (uint32_t i = 0; i < bytes && line < EDITOR_MAX_LINES; i++) {
+        for (uint32_t i = 0; i < bytes; i++) {
             if (content[i] == '\n') {
+                if (line == EDITOR_MAX_LINES - 1) break;
                 lines[line][col] = '\0';
                 line++;
                 col = 0;
