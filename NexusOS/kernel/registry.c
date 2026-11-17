@@ -111,11 +111,13 @@ LONG RegOpenKeyExA(HKEY hKey, LPCSTR lpSubKey, DWORD ulOptions, DWORD samDesired
         strncpy(base_path, ok->path, REG_KEY_LEN - 1);
     }
     
-    /* Append subkey */
+    /* Append subkey — refuse (rather than truncate, which could alias another
+     * key) a path that would not fit base_path[REG_KEY_LEN]. */
     if (lpSubKey && *lpSubKey) {
-        if (base_path[0] != '\0') {
-            strcat(base_path, "\\");
-        }
+        size_t bl = strlen(base_path);
+        if (bl + (bl ? 1 : 0) + strlen(lpSubKey) >= REG_KEY_LEN)
+            return ERROR_INVALID_PARAMETER;
+        if (bl) strcat(base_path, "\\");
         strcat(base_path, lpSubKey);
     }
     
@@ -126,9 +128,15 @@ LONG RegOpenKeyExA(HKEY hKey, LPCSTR lpSubKey, DWORD ulOptions, DWORD samDesired
     }
     if (slot < 0) return ERROR_MORE_DATA; /* No free handles */
     
+    /* HKEY_MAGIC|id aliased after 255 opens (id's bit 8 is already set in
+     * the magic). Add a 20-bit id instead and skip any value still in use,
+     * so a live handle is never duplicated. */
+    HKEY h;
+    do h = (HKEY)(HKEY_MAGIC + (next_hkey_id++ & 0xFFFFFu)); while (find_open_key(h));
+
     open_key_t* ok = &open_keys[slot];
     ok->active = true;
-    ok->handle = (HKEY)(HKEY_MAGIC | next_hkey_id++);
+    ok->handle = h;
     ok->root = root;
     strncpy(ok->path, base_path, REG_KEY_LEN - 1);
     ok->path[REG_KEY_LEN - 1] = '\0';

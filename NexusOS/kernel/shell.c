@@ -1,5 +1,5 @@
 /* ============================================================================
- * NexusOS - Interactive Shell v36.0
+ * NexusOS - Interactive Shell (release version lives in version.h)
  * ============================================================================
  * Phase 51: NPFS journaling filesystem (write-ahead journal + crash recovery,
  * direct+indirect blocks). 142 commands. ROADMAP COMPLETE (51/51).
@@ -15,6 +15,7 @@
 #include "ramfs.h"
 #include "process.h"
 #include "scheduler.h"
+#include "uproc.h"
 #include "rtc.h"
 #include "speaker.h"
 #include "audio.h"
@@ -81,14 +82,17 @@
 #include "httpd.h"
 #include "rshell.h"
 #include "vnc.h"
+#include "des.h"        /* Phase 55: `des selftest` */
 #include "sync.h"
 #include "clipboard.h"
 #include "assistant.h"
 #include "mobile.h"
 #include "perf.h"
 #include "appstore.h"
+#include "usys.h"        /* Phase 57 apps: user programs on /disk/bin */
 #include "finale.h"
 #include "npfs.h"
+#include "persist.h"   /* Phase 55 */
 #include "procfs.h"
 #include "termios.h"
 #include "posix.h"
@@ -98,9 +102,17 @@
 #include "registry.h"
 #include "win32.h"
 #include "pkg.h"
+#include "usb.h"
+#include "usb_hid.h"
+#include "usb_storage.h"
 #include "script.h"
 #include "macho.h"
 #include "cocoa.h"
+#include "env.h"
+#include "version.h"
+#include "kguard.h"      /* Phase 55: crash containment */
+#include "crashtest.h"   /* Phase 55: crashtest command */
+#include "netcmd.h"      /* Phase 57: wget / curl / tlsinfo / netstat extras */
 
 /* System tick counter */
 extern volatile uint32_t system_ticks;
@@ -149,7 +161,10 @@ static int shell_readline(char* buffer, int max_len) {
     char saved[INPUT_MAX];
     saved[0] = '\0';
 
-    while (i < max_len - 1) {
+    /* Only Enter submits; a full buffer just stops accepting characters (the
+     * old `while (i < max_len - 1)` auto-submitted at the limit, splitting a
+     * long line into two commands). */
+    for (;;) {
         vga_flush();
         char c = keyboard_getchar();
 
@@ -201,13 +216,25 @@ static int shell_readline(char* buffer, int max_len) {
         }
 
         /* Normal character */
-        if (c >= 32 && c < 127) {
+        if (c >= 32 && c < 127 && i < max_len - 1) {
             buffer[i++] = c;
             vga_putchar(c);
         }
     }
-    buffer[i] = '\0';
-    return i;
+}
+
+/* Read a line without echoing it (one '*' per char) — for passwords. */
+static void shell_read_secret(char* buf, int max) {
+    int i = 0;
+    for (;;) {
+        vga_flush();
+        char c = keyboard_getchar();
+        if (c == '\n') break;
+        if (c == '\b') { if (i > 0) { i--; vga_backspace(); } }
+        else if (c >= 32 && c < 127 && i < max - 1) { buf[i++] = c; vga_putchar('*'); }
+    }
+    buf[i] = '\0';
+    vga_putchar('\n');
 }
 
 /* --------------------------------------------------------------------------
@@ -231,14 +258,24 @@ static void print_prompt(void) {
 static int parse_args(char* input, char* argv[]) {
     int argc = 0;
     char* p = input;
-
+    char* out = input;
     while (*p && argc < MAX_ARGS) {
-        while (*p == ' ') p++;
+        while (*p == ' ' || *p == '\t') p++;
         if (*p == '\0') break;
-        argv[argc++] = p;
-        while (*p && *p != ' ') p++;
-        if (*p) *p++ = '\0';
+        argv[argc++] = out;
+        char quote = 0;
+        while (*p && (quote || (*p != ' ' && *p != '\t'))) {
+            char c = *p++;
+            if ((c == '\'' || c == '"') && (!quote || quote == c)) { quote = quote ? 0 : c; continue; }
+            if (c == '\\' && quote != '\'' && *p) c = *p++;
+            *out++ = c;
+        }
+        if (quote) { vga_print("  Unclosed quote.\n"); return 0; }
+        if (*p) p++;
+        *out++ = 0;
     }
+    while (*p == ' ' || *p == '\t') p++;
+    if (*p) { vga_print("  Too many arguments.\n"); return 0; }
     return argc;
 }
 
@@ -247,17 +284,23 @@ static int parse_args(char* input, char* argv[]) {
  * -------------------------------------------------------------------------- */
 
 static void cmd_help(void) {
-    vga_print_color("\n  NexusOS Shell Commands v36.0\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
-    vga_print_color("  ===========================\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    vga_print_color("\n  " NEXUS_VERSION_STRING " - Shell Commands\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  ===================================\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
 
     vga_print_color("  System:     ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
     vga_print("help  clear  about  meminfo  heapinfo  uptime  date  reboot\n");
     vga_print_color("  Files:      ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
-    vga_print("ls  cat <f>  touch <f>  write <f> <text>  rm <f>  edit <f>\n");
+    vga_print("ls [path]  pwd  cd <path>  mkdir <d>  rmdir <d>  cat/touch/rm <path>  write <f> <text>  edit <f>\n");
+    vga_print_color("  Redirect:   ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("<cmd> > <f>  <cmd> >> <f>  <cmd> | grep <pattern>\n");
     vga_print_color("  Processes:  ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
     vga_print("ps  kill <pid>  run <name>\n");
     vga_print_color("  Network:    ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
     vga_print("net  ifconfig  ping <ip>  netstat  arp  dns <host>  wget <url>  browse <url>\n");
+    /* ---- Phase 57: HTTPS / streaming client ---- */
+    vga_print_color("  Internet:   ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("wget [-k] <url> [/disk/path]  curl [-I|-q|-k] <url>  tlsinfo <host[:port]>\n");
+    /* ---- end Phase 57 ---- */
     vga_print_color("  Desktop:    ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
     vga_print("gui  theme <name>  calc  files  sysmon  settings\n");
     vga_print_color("  Apps:       ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
@@ -296,6 +339,9 @@ static void cmd_help(void) {
     vga_print("id  users  passwd  useradd  userdel  chmod  chown  firewall\n");
     vga_print_color("  Cloud:      ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
     vga_print("vnc  sync  synccfg  clipsync   (remote desktop + file/settings/clipboard sync)\n");
+    /* ---- Phase 55: authenticated network services ---- */
+    vga_print_color("  Servers:    ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("vnc [--insecure|stop|status]  vncpasswd <pw>|clear  httpd [stop|status|root <dir>]  rshell  des selftest\n");
     vga_print_color("  AI:         ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
     vga_print("ask <english>  ai [cmd]  find <query>   (offline assistant)\n");
     vga_print_color("  Mobile:     ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
@@ -305,9 +351,22 @@ static void cmd_help(void) {
     vga_print_color("  App Store:  ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
     vga_print("store [list|info|install|update|upgrade|sdk]   (ecosystem over npkg)\n");
     vga_print_color("  Finale:     ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
-    vga_print("urun <file>  install [disk yes]  finale   (v5.0: universal bins + installer)\n");
+    vga_print("urun <file>  install [disk yes]  finale   (universal bins + installer)\n");
     vga_print_color("  NPFS:       ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
-    vga_print("npfs [format|mount|ls|write|cat|rm|stat|journal|crashtest]   (journaling FS)\n\n");
+    vga_print("npfs [format|mount|ls|write|cat|rm|stat|journal|crashtest]   (journaling FS)\n");
+    /* ---- Phase 57 apps ---- */
+    vga_print_color("  Userland:   ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("apps  which <prog>  ls/cat /disk/...  any unknown command runs /disk/bin/<prog> [args] [&]\n");
+    vga_print_color("              ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("(lua, kilo <file>, 2048, tetris, sh, ls, cat, grep, sort, hexdump ... Ctrl+C kills)\n");
+    /* ---- Phase 55: kernel self-protection + crash containment ---- */
+    vga_print_color("  Kernel:     ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("crashtest <null|gpf|ud|div|wp|stack|app|stats>   (contained ring-0 faults)\n");
+    vga_print_color("  Persist:    ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("persist [status|on|off|restore|dev <blk>]   (ramfs snapshot on disk, survives reboot)\n");
+    /* ---- Phase 57: memory & storage foundation ---- */
+    vga_print_color("  Storage:    ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
+    vga_print("sum <path> (size+CRC32)  mkfile <path> <bytes>[k] [text] (pattern file <=256 KB)  ~/Downloads\n\n");
 
     vga_print_color("  Tip: ", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
     vga_print("Use Up/Down arrows for command history\n\n");
@@ -318,7 +377,7 @@ static void cmd_clear(void) {
 }
 
 static void cmd_about(void) {
-    vga_print_color("\n  NexusOS v1.3.0\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("\n  " NEXUS_VERSION_STRING "\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
     vga_print_color("  The Hybrid Operating System\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
     vga_print_color("  Built from scratch in C and Assembly\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
 }
@@ -329,10 +388,16 @@ static void cmd_meminfo(void) {
     uint32_t used  = pmm_get_used_pages();
     uint32_t free  = pmm_get_free_pages();
 
+    /* The kernel identity-maps the first 32 MB; pages above it are installed
+     * RAM the kernel does not address yet, so report the two pools apart. */
     vga_print_color("\n  Memory Info\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
-    vga_print("  Total: "); int_to_str(total * 4, buf); vga_print(buf); vga_print(" KB\n");
-    vga_print("  Used:  "); int_to_str(used * 4, buf);  vga_print(buf); vga_print(" KB\n");
-    vga_print("  Free:  "); int_to_str(free * 4, buf);  vga_print(buf); vga_print(" KB\n\n");
+    vga_print("  Installed RAM:     "); int_to_str(total * 4, buf); vga_print(buf); vga_print(" KB\n");
+    vga_print("  Kernel-addressable: "); int_to_str(32 * 1024, buf); vga_print(buf); vga_print(" KB (identity map)\n");
+    vga_print("    in use:          "); int_to_str(used * 4, buf);  vga_print(buf); vga_print(" KB (kernel, heap, frame buffers)\n");
+    vga_print("    free:            "); int_to_str(free * 4, buf);  vga_print(buf); vga_print(" KB\n");
+    /* Phase 57: 4 MB kernel heap at 4-8MB (heap.h) */
+    vga_print("  Kernel heap:       "); int_to_str(HEAP_INITIAL / 1024, buf); vga_print(buf);
+    vga_print(" KB at "); hex_to_str(HEAP_START, buf); vga_print(buf); vga_print(" (see heapinfo)\n\n");
 }
 
 static void cmd_heapinfo(void) {
@@ -341,6 +406,10 @@ static void cmd_heapinfo(void) {
     uint32_t free_mem = heap_get_free();
 
     vga_print_color("\n  Heap Info\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    /* Phase 57: the heap is 4 MB at 0x400000-0x800000 (heap.h) */
+    vga_print("  Region: "); hex_to_str(HEAP_START, buf); vga_print(buf);
+    vga_print(" - "); hex_to_str(HEAP_START + HEAP_INITIAL, buf); vga_print(buf);
+    vga_print(" ("); int_to_str(HEAP_INITIAL / 1024, buf); vga_print(buf); vga_print(" KB)\n");
     vga_print("  Total:  "); int_to_str(used + free_mem, buf); vga_print(buf); vga_print(" bytes\n");
     vga_print("  Used:   "); int_to_str(used, buf);  vga_print(buf); vga_print(" bytes\n");
     vga_print("  Free:   "); int_to_str(free_mem, buf);   vga_print(buf); vga_print(" bytes\n\n");
@@ -374,6 +443,7 @@ static void cmd_date(void) {
 }
 
 static void cmd_reboot(void) {
+    persist_flush();   /* Phase 55: save pending ramfs edits before the reset */
     vga_print_color("  Rebooting...\n", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
     /* Triple-fault reboot */
     uint8_t good = 0x02;
@@ -429,17 +499,103 @@ static void cmd_history_show(void) {
 
 /* --- File commands --- */
 
-static void cmd_ls(int argc, char* argv[]) {
-    fs_node_t* root = vfs_get_root();
-    if (!root) { vga_print("  No filesystem mounted.\n"); return; }
+/* Phase 54: the shell's current working directory (NULL == root). All file
+ * commands resolve their path argument relative to this. */
+static fs_node_t* shell_cwd = NULL;
 
-    /* Phase 44: 'ls -l' shows mode/owner/size like Unix. */
-    bool long_fmt = (argc >= 2 && strcmp(argv[1], "-l") == 0);
+static fs_node_t* cwd_node(void) {
+    return shell_cwd ? shell_cwd : vfs_get_root();
+}
+
+/* ---- Phase 57: let netcmd.c (wget) resolve paths relative to the cwd ---- */
+fs_node_t* shell_get_cwd(void) { return cwd_node(); }
+/* ---- end Phase 57 ---- */
+
+/* Sync the PWD env var to the current working directory. */
+static void cwd_update_env(void) {
+    char path[FS_PATH_MAX];
+    ramfs_abspath(cwd_node(), path, sizeof(path));
+    env_set("PWD", path);
+}
+
+static void cmd_pwd(void) {
+    char path[FS_PATH_MAX];
+    ramfs_abspath(cwd_node(), path, sizeof(path));
+    vga_print("  "); vga_print(path); vga_print("\n");
+}
+
+static void cmd_cd(int argc, char* argv[]) {
+    const char* target = (argc >= 2) ? argv[1] : env_get("HOME");
+    if (!target || !target[0]) target = "/";
+    fs_node_t* n = ramfs_resolve(target, cwd_node());
+    if (!n) {
+        vga_print_color("  No such directory: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print(target); vga_print("\n");
+        return;
+    }
+    if (n->type != FS_DIRECTORY) {
+        vga_print_color("  Not a directory: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print(target); vga_print("\n");
+        return;
+    }
+    shell_cwd = n;
+    cwd_update_env();
+}
+
+static void cmd_mkdir(int argc, char* argv[]) {
+    if (argc < 2) { vga_print("  Usage: mkdir <dir>\n"); return; }
+    int rc = ramfs_mkdir(argv[1], cwd_node());
+    if (rc == 0) {
+        vga_print_color("  Created directory: ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+        vga_print(argv[1]); vga_print("\n");
+    } else if (rc == -2) {
+        vga_print_color("  Permission denied.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+    } else if (rc == -3) {
+        vga_print_color("  No such parent directory.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+    } else {
+        vga_print_color("  mkdir failed (exists or bad name).\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+    }
+}
+
+static void cmd_rmdir(int argc, char* argv[]) {
+    if (argc < 2) { vga_print("  Usage: rmdir <dir>\n"); return; }
+    int rc = ramfs_rmdir(argv[1], cwd_node());
+    if (rc == 0) {
+        vga_print_color("  Removed directory: ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+        vga_print(argv[1]); vga_print("\n");
+    } else if (rc == -2) {
+        vga_print_color("  Permission denied.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+    } else if (rc == -3) {
+        vga_print_color("  Directory not empty.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+    } else if (rc == -4) {
+        vga_print_color("  Not a directory.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+    } else {
+        vga_print_color("  Directory not found.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+    }
+}
+
+static void cmd_ls(int argc, char* argv[]) {
+    /* Phase 44: 'ls -l' shows mode/owner/size like Unix.
+     * Phase 54: optional path arg; defaults to the current directory. */
+    bool long_fmt = false;
+    const char* path = NULL;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-l") == 0) long_fmt = true;
+        else path = argv[i];
+    }
+
+    fs_node_t* dir = path ? ramfs_resolve(path, cwd_node()) : cwd_node();
+    if (!dir) { vga_print_color("  No such path.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK)); return; }
+    if (dir->type != FS_DIRECTORY) {
+        /* ls on a file just prints its name. */
+        vga_print("  "); vga_print(dir->name); vga_print("\n");
+        return;
+    }
 
     fs_node_t* entry;
     uint32_t index = 0;
     vga_print_color("\n  Files:\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
-    while ((entry = vfs_readdir(root, index)) != NULL) {
+    while ((entry = vfs_readdir(dir, index)) != NULL) {
         vga_print("  ");
         if (long_fmt) {
             char modes[12];
@@ -475,67 +631,126 @@ static void cmd_ls(int argc, char* argv[]) {
     vga_print("\n");
 }
 
+/* Load a /proc path or a file (first max-1 bytes) into buf, NUL-terminated.
+ * Returns the length, or -1 after printing why (missing, or vfs_read refused
+ * it — e.g. no read permission). buf is always a valid string on return. */
+static int shell_load(const char* fname, char* buf, int max) {
+    int len = -1;
+    buf[0] = '\0';
+    if (procfs_is_proc(fname)) {
+        len = procfs_read(fname, buf, max);
+    } else {
+        fs_node_t* node = ramfs_resolve(fname, cwd_node());
+        if (node && node->type == FS_DIRECTORY) {
+            vga_print_color("  Is a directory: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+            vga_print(fname); vga_print("\n");
+            return -1;
+        }
+        if (node) {
+            uint32_t n = node->size < (uint32_t)(max - 1) ? node->size : (uint32_t)(max - 1);
+            len = vfs_read(node, 0, n, (uint8_t*)buf);
+            if (len < 0) {
+                vga_print_color("  Permission denied: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+                vga_print(fname); vga_print("\n");
+                return -1;
+            }
+        }
+    }
+    if (len < 0) {
+        vga_print_color("  Not found: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print(fname); vga_print("\n");
+        return -1;
+    }
+    buf[len] = '\0';
+    return len;
+}
+
+/* Write len bytes to file `name` (created if missing), truncating it first
+ * unless `append`. Returns false after printing why on failure. */
+static bool shell_store(const char* name, const char* data, int len, bool append) {
+    fs_node_t* node = ramfs_resolve(name, cwd_node());
+    if (node && node->type == FS_DIRECTORY) node = NULL;   /* can't write a dir */
+    if (!node) {
+        char leaf[FS_NAME_MAX];
+        fs_node_t* parent = ramfs_resolve_parent(name, cwd_node(), leaf);
+        if (parent) node = ramfs_mknode(parent, leaf, FS_FILE);
+    }
+    if (!node || !vfs_check_perm(node, users_current_uid(), ACC_WRITE)) {
+        vga_print_color("  Cannot write: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print(name); vga_print("\n");
+        return false;
+    }
+    if (!append) node->size = 0;           /* truncate (ramfs keeps the buffer) */
+    if (len > 0) vfs_write(node, node->size, (uint32_t)len, (const uint8_t*)data);
+    return true;
+}
+
+/* Phase 57: print one chunk of a file for `cat`, keeping line-number state
+ * across chunks (files are streamed 4 KB at a time now that they can be 256 KB).
+ * NUL bytes are skipped so a binary file does not stop the output early. */
+static void cat_emit(const char* p, int n, bool nums, int* ln, bool* bol) {
+    for (int i = 0; i < n; i++) {
+        char c = p[i];
+        if (c == '\0') continue;
+        if (*bol) {
+            if (nums) {
+                char nb[12]; int_to_str(*ln, nb);
+                vga_print("  ");
+                vga_print_color(nb, VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+                vga_print("  ");
+            } else if (*ln == 1) {
+                vga_print("  ");                    /* classic 2-space indent on the first line */
+            }
+            *bol = false;
+        }
+        vga_putchar(c);
+        if (c == '\n') { (*ln)++; *bol = true; }
+    }
+}
+
 static void cmd_cat(int argc, char* argv[]) {
     if (argc < 2) { vga_print("  Usage: cat [-n] <filename>\n"); return; }
     bool line_nums = false;
     int file_arg = 1;
     if (argc >= 3 && strcmp(argv[1], "-n") == 0) { line_nums = true; file_arg = 2; }
-    const char* fname = argv[file_arg];
 
-    /* Check /proc paths */
-    if (procfs_is_proc(fname)) {
-        char pbuf[512];
-        int len = procfs_read(fname, pbuf, sizeof(pbuf));
-        if (len < 0) {
-            vga_print_color("  Not found: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
-            vga_print(fname); vga_print("\n"); return;
-        }
-        if (line_nums) {
-            int ln = 1; char nb[12];
-            char* p = pbuf;
-            while (*p) {
-                int_to_str(ln, nb); vga_print("  ");
-                vga_print_color(nb, VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
-                vga_print("  ");
-                while (*p && *p != '\n') { vga_putchar(*p++); }
-                vga_putchar('\n');
-                if (*p == '\n') p++;
-                ln++;
-            }
-        } else {
-            vga_print("  "); vga_print(pbuf);
-        }
-        return;
-    }
-
-    fs_node_t* root = vfs_get_root();
-    fs_node_t* node = vfs_finddir(root, fname);
-    if (!node) {
-        vga_print_color("  File not found: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
-        vga_print(fname); vga_print("\n"); return;
-    }
     char buf[4096];
-    uint32_t bytes = vfs_read(node, 0, node->size < 4095 ? node->size : 4095, (uint8_t*)buf);
-    buf[bytes] = '\0';
-    if (line_nums) {
-        int ln = 1; char nb[12]; char* p = buf;
-        while (*p) {
-            int_to_str(ln, nb); vga_print("  ");
-            vga_print_color(nb, VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
-            vga_print("  ");
-            while (*p && *p != '\n') { vga_putchar(*p++); }
-            vga_putchar('\n');
-            if (*p == '\n') p++;
-            ln++;
+    int ln = 1; bool bol = true; char last = '\n'; uint32_t total = 0;
+    fs_node_t* node = procfs_is_proc(argv[file_arg]) ? NULL
+                    : ramfs_resolve(argv[file_arg], cwd_node());
+    if (node && node->type == FS_FILE) {
+        /* Phase 57: stream the file through the 4 KB buffer (up to 256 KB). */
+        if (!vfs_check_perm(node, users_current_uid(), ACC_READ)) {
+            vga_print_color("  Permission denied: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+            vga_print(argv[file_arg]); vga_print("\n");
+            return;
+        }
+        while (total < node->size) {
+            int32_t n = vfs_read(node, total, sizeof(buf), (uint8_t*)buf);
+            if (n <= 0) break;
+            cat_emit(buf, (int)n, line_nums, &ln, &bol);
+            total += (uint32_t)n;
+            last = buf[n - 1];
         }
     } else {
-        vga_print("  "); vga_print(buf); vga_print("\n");
+        /* /proc entries, directories and missing files: the classic path. */
+        int len = shell_load(argv[file_arg], buf, sizeof(buf));
+        if (len < 0) return;
+        cat_emit(buf, len, line_nums, &ln, &bol);
+        total = (uint32_t)len;
+        if (len > 0) last = buf[len - 1];
     }
+    if (line_nums ? !bol : (total == 0 || last != '\n')) vga_print("\n");
 }
 
 static void cmd_touch(int argc, char* argv[]) {
     if (argc < 2) { vga_print("  Usage: touch <filename>\n"); return; }
-    fs_node_t* node = ramfs_create(argv[1], FS_FILE);
+    fs_node_t* node = ramfs_resolve(argv[1], cwd_node());
+    if (!node) {
+        char leaf[FS_NAME_MAX];
+        fs_node_t* parent = ramfs_resolve_parent(argv[1], cwd_node(), leaf);
+        node = parent ? ramfs_mknode(parent, leaf, FS_FILE) : NULL;
+    }
     if (node) {
         vga_print_color("  Created: ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
         vga_print(argv[1]); vga_print("\n");
@@ -546,12 +761,6 @@ static void cmd_touch(int argc, char* argv[]) {
 
 static void cmd_write(int argc, char* argv[]) {
     if (argc < 3) { vga_print("  Usage: write <filename> <content>\n"); return; }
-    fs_node_t* root = vfs_get_root();
-    fs_node_t* node = vfs_finddir(root, argv[1]);
-    if (!node) {
-        node = ramfs_create(argv[1], FS_FILE);
-    }
-    if (!node) { vga_print("  Error creating file.\n"); return; }
 
     /* Concatenate remaining args */
     char content[1024];
@@ -560,24 +769,146 @@ static void cmd_write(int argc, char* argv[]) {
         if (i > 2) strcat(content, " ");
         strcat(content, argv[i]);
     }
-    vfs_write(node, 0, strlen(content), (uint8_t*)content);
+    /* Replace the contents (the old code overwrote in place without
+     * truncating, leaving the tail of a longer previous version). */
+    if (!shell_store(argv[1], content, strlen(content), false)) return;
     vga_print_color("  Written to: ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
     vga_print(argv[1]); vga_print("\n");
 }
 
 static void cmd_rm(int argc, char* argv[]) {
     if (argc < 2) { vga_print("  Usage: rm <filename>\n"); return; }
-    int rc = ramfs_delete(argv[1]);
+    int rc = ramfs_rm_path(argv[1], cwd_node());
     if (rc == 0) {
         vga_print_color("  Deleted: ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
         vga_print(argv[1]); vga_print("\n");
     } else if (rc == -2) {
         vga_print_color("  Permission denied: not the owner.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+    } else if (rc == -4) {
+        vga_print_color("  Is a directory (use rmdir).\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
     } else {
         vga_print_color("  File not found: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
         vga_print(argv[1]); vga_print("\n");
     }
 }
+
+/* ---- Phase 57: memory & storage foundation — checksum + test-file tools ---- */
+
+/* Print a 32-bit value as 8 lowercase hex digits (zero-padded, no prefix). */
+static void print_hex32(uint32_t v) {
+    const char* hx = "0123456789abcdef";
+    char s[9];
+    for (int i = 7; i >= 0; i--) { s[i] = hx[v & 0xF]; v >>= 4; }
+    s[8] = '\0';
+    vga_print(s);
+}
+
+/* sum <path>: size in bytes + CRC32 (IEEE, same as zlib.crc32 / persist's).
+ * Streams the file 4 KB at a time through vfs_read (permission-checked). */
+static void cmd_sum(int argc, char* argv[]) {
+    if (argc < 2) { vga_print("  Usage: sum <path>    (size + CRC32)\n"); return; }
+    fs_node_t* node = ramfs_resolve(argv[1], cwd_node());
+    if (!node) {
+        vga_print_color("  Not found: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print(argv[1]); vga_print("\n"); return;
+    }
+    if (node->type != FS_FILE) {
+        vga_print_color("  Is a directory: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print(argv[1]); vga_print("\n"); return;
+    }
+    uint8_t buf[4096];
+    uint32_t off = 0, crc = persist_crc32_begin();
+    while (off < node->size) {
+        int32_t n = vfs_read(node, off, sizeof(buf), buf);
+        if (n < 0) {
+            vga_print_color("  Permission denied: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+            vga_print(argv[1]); vga_print("\n"); return;
+        }
+        if (n == 0) break;
+        crc = persist_crc32_feed(crc, buf, (uint32_t)n);
+        off += (uint32_t)n;
+    }
+    crc = persist_crc32_end(crc);
+    char nb[16];
+    vga_print("  "); vga_print_color(argv[1], VGA_COLOR(VGA_WHITE, VGA_BLACK));
+    vga_print(": "); int_to_str((int)off, nb); vga_print(nb);
+    vga_print(" bytes  crc32 ");
+    vga_print_color("", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK)); print_hex32(crc);
+    vga_print("\n");
+}
+
+/* Deterministic byte patterns for mkfile (host check: python zlib.crc32 over
+ * the same formula). Binary: (k*31 + (k>>8)*17 + (k>>16)*7) & 0xFF. Text:
+ * 64-column lines, 63 letters cycling with the line number, then '\n'. */
+static uint8_t mkfile_byte(uint32_t k, bool text) {
+    if (!text) return (uint8_t)((k * 31u + (k >> 8) * 17u + (k >> 16) * 7u) & 0xFFu);
+    uint32_t col = k & 63u;
+    if (col == 63u) return (uint8_t)'\n';
+    return (uint8_t)('a' + ((col + (k >> 6)) % 26u));
+}
+
+/* mkfile <path> <bytes> [text]: create/replace a file of exactly <bytes> bytes
+ * (<= RAMFS_MAX_FILE_SIZE) filled with a deterministic pattern, written in
+ * 4 KB chunks so no network is needed to exercise big files. <bytes> accepts
+ * a trailing k/K (x1024). */
+static void cmd_mkfile(int argc, char* argv[]) {
+    if (argc < 3) {
+        vga_print("  Usage: mkfile <path> <bytes>[k] [text]   (pattern file, max ");
+        char nb[16]; int_to_str((int)RAMFS_MAX_FILE_SIZE, nb); vga_print(nb);
+        vga_print(" bytes)\n");
+        return;
+    }
+    uint32_t want = 0; const char* s = argv[2]; bool ok = *s != '\0';
+    for (; *s; s++) {
+        if (*s >= '0' && *s <= '9') {
+            if (want > 429496729u) { ok = false; break; }
+            want = want * 10u + (uint32_t)(*s - '0');
+        } else if ((*s == 'k' || *s == 'K') && s[1] == '\0') {
+            if (want > 0x3FFFFFu) { ok = false; break; }
+            want *= 1024u;
+        } else { ok = false; break; }
+    }
+    if (!ok || want > RAMFS_MAX_FILE_SIZE) {
+        vga_print_color("  Bad size (0..", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        char nb[16]; int_to_str((int)RAMFS_MAX_FILE_SIZE, nb); vga_print_color(nb, VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print_color(" bytes, optional k suffix).\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        return;
+    }
+    bool text = (argc >= 4 && strcmp(argv[3], "text") == 0);
+
+    fs_node_t* node = ramfs_resolve(argv[1], cwd_node());
+    if (node && node->type == FS_DIRECTORY) node = NULL;
+    if (!node) {
+        char leaf[FS_NAME_MAX];
+        fs_node_t* parent = ramfs_resolve_parent(argv[1], cwd_node(), leaf);
+        if (parent) node = ramfs_mknode(parent, leaf, FS_FILE);
+    }
+    if (!node || !vfs_check_perm(node, users_current_uid(), ACC_WRITE)) {
+        vga_print_color("  Cannot write: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print(argv[1]); vga_print("\n"); return;
+    }
+    node->size = 0;                                  /* replace the contents */
+    uint8_t buf[4096];
+    uint32_t off = 0;
+    while (off < want) {
+        uint32_t n = want - off;
+        if (n > sizeof(buf)) n = sizeof(buf);
+        for (uint32_t i = 0; i < n; i++) buf[i] = mkfile_byte(off + i, text);
+        int32_t w = vfs_write(node, off, n, buf);
+        if (w <= 0) {
+            vga_print_color("  Write failed at ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+            char nb[16]; int_to_str((int)off, nb); vga_print(nb);
+            vga_print(" bytes (heap full?)\n");
+            break;
+        }
+        off += (uint32_t)w;
+    }
+    char nb[16];
+    vga_print_color("  mkfile: ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    vga_print(argv[1]); vga_print("  "); int_to_str((int)node->size, nb); vga_print(nb);
+    vga_print(text ? " bytes (text pattern)\n" : " bytes (binary pattern)\n");
+}
+/* ---- end Phase 57 ---- */
 
 static void cmd_edit(int argc, char* argv[]) {
     if (argc < 2) { vga_print("  Usage: edit <filename>\n"); return; }
@@ -589,19 +920,24 @@ static void cmd_edit(int argc, char* argv[]) {
 /* --- Process commands --- */
 
 static void cmd_ps(void) {
-    vga_print_color("\n  PID  STATE     NAME\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
-    vga_print_color("  ---  --------  ----\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    vga_print_color("\n  PID  UID  STATE     NAME\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  ---  ---  --------  ----\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
 
+    process_t* t = process_get_table();
     for (int i = 0; i < MAX_PROCESSES; i++) {
-        process_t* p = process_get_by_pid(i);
-        if (!p || p->state == PROC_UNUSED || p->state == PROC_TERMINATED) continue;
+        process_t* p = &t[i];
+        if (p->state == PROC_UNUSED || p->state == PROC_TERMINATED) continue;
 
         char buf[8];
         int_to_str(p->pid, buf);
         vga_print("  ");
         vga_print(buf);
-        /* Pad */
         int len = strlen(buf);
+        for (int j = len; j < 5; j++) vga_putchar(' ');
+
+        int_to_str(p->uid, buf);
+        vga_print(buf);
+        len = strlen(buf);
         for (int j = len; j < 5; j++) vga_putchar(' ');
 
         const char* state_str;
@@ -609,11 +945,13 @@ static void cmd_ps(void) {
             case PROC_READY:    state_str = "READY   "; break;
             case PROC_RUNNING:  state_str = "RUNNING "; break;
             case PROC_BLOCKED:  state_str = "BLOCKED "; break;
+            case PROC_STOPPED:  state_str = "STOPPED "; break;
             default:            state_str = "UNKNOWN "; break;
         }
         vga_print(state_str);
         vga_print("  ");
         vga_print(p->name);
+        vga_print(p->is_user ? "" : " [kernel]");
         vga_print("\n");
     }
     vga_print("\n");
@@ -650,8 +988,9 @@ static void cmd_kill(int argc, char* argv[]) {
         vga_print_color("  Cannot kill system process.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
         return;
     }
-    /* Phase 44: permission-checked kill (owner or root only). */
-    int rc = process_terminate_as(pid, users_current_uid());
+    /* Phase 54: permission-checked kill of a user process (owner or root).
+     * Frees its address space + kernel stack via the reaper. */
+    int rc = uproc_kill(pid, users_current_uid());
     if (rc == -2) {
         vga_print_color("  Permission denied: not the process owner.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
         return;
@@ -943,6 +1282,9 @@ static void cmd_netstat(void) {
     if (!any_tcp) {
         vga_print("  No active connections.\n");
     }
+    /* ---- Phase 57: streams in use + TCP reliability counters ---- */
+    netcmd_netstat_extra();
+    /* ---- end Phase 57 ---- */
     vga_print("\n");
 }
 
@@ -1141,17 +1483,8 @@ static void cmd_head(int argc, char* argv[]) {
         fi = 3;
     }
     if (fi >= argc) { vga_print("  Usage: head [-n N] <file>\n"); return; }
-    const char* fname = argv[fi];
-    char buf[4096]; int len;
-    if (procfs_is_proc(fname)) {
-        len = procfs_read(fname, buf, sizeof(buf));
-        if (len < 0) { vga_print("  Not found\n"); return; }
-    } else {
-        fs_node_t* node = vfs_finddir(vfs_get_root(), fname);
-        if (!node) { vga_print("  Not found\n"); return; }
-        len = vfs_read(node, 0, node->size < 4095 ? node->size : 4095, (uint8_t*)buf);
-        buf[len] = '\0';
-    }
+    char buf[4096];
+    if (shell_load(argv[fi], buf, sizeof(buf)) < 0) return;
     char* p = buf; int ln = 0;
     while (*p && ln < n) {
         vga_print("  ");
@@ -1169,17 +1502,9 @@ static void cmd_tail(int argc, char* argv[]) {
         fi = 3;
     }
     if (fi >= argc) { vga_print("  Usage: tail [-n N] <file>\n"); return; }
-    const char* fname = argv[fi];
-    char buf[4096]; int len;
-    if (procfs_is_proc(fname)) {
-        len = procfs_read(fname, buf, sizeof(buf));
-        if (len < 0) { vga_print("  Not found\n"); return; }
-    } else {
-        fs_node_t* node = vfs_finddir(vfs_get_root(), fname);
-        if (!node) { vga_print("  Not found\n"); return; }
-        len = vfs_read(node, 0, node->size < 4095 ? node->size : 4095, (uint8_t*)buf);
-        buf[len] = '\0';
-    }
+    char buf[4096];
+    int len = shell_load(argv[fi], buf, sizeof(buf));
+    if (len < 0) return;
     /* Count total lines */
     int total = 0;
     for (int i = 0; buf[i]; i++) if (buf[i] == '\n') total++;
@@ -1195,22 +1520,10 @@ static void cmd_tail(int argc, char* argv[]) {
     }
 }
 
-static void cmd_grep(int argc, char* argv[]) {
-    if (argc < 3) { vga_print("  Usage: grep <pattern> <file>\n"); return; }
-    const char* pattern = argv[1];
-    const char* fname = argv[2];
-    char buf[4096]; int len;
-    if (procfs_is_proc(fname)) {
-        len = procfs_read(fname, buf, sizeof(buf));
-        if (len < 0) { vga_print("  Not found\n"); return; }
-    } else {
-        fs_node_t* node = vfs_finddir(vfs_get_root(), fname);
-        if (!node) { vga_print("  Not found\n"); return; }
-        len = vfs_read(node, 0, node->size < 4095 ? node->size : 4095, (uint8_t*)buf);
-        buf[len] = '\0';
-    }
+/* Print the lines of `text` containing `pattern`, matches highlighted. */
+static void grep_text(const char* text, const char* pattern) {
     int count = 0;
-    char* p = buf;
+    const char* p = text;
     while (*p) {
         char line[256]; int li = 0;
         while (*p && *p != '\n' && li < 255) line[li++] = *p++;
@@ -1240,19 +1553,19 @@ static void cmd_grep(int argc, char* argv[]) {
     }
 }
 
+static void cmd_grep(int argc, char* argv[]) {
+    if (argc < 3) { vga_print("  Usage: grep <pattern> <file>\n"); return; }
+    char buf[4096];
+    if (shell_load(argv[2], buf, sizeof(buf)) < 0) return;
+    grep_text(buf, argv[1]);
+}
+
 static void cmd_wc(int argc, char* argv[]) {
     if (argc < 2) { vga_print("  Usage: wc <file>\n"); return; }
     const char* fname = argv[1];
-    char buf[4096]; int len;
-    if (procfs_is_proc(fname)) {
-        len = procfs_read(fname, buf, sizeof(buf));
-        if (len < 0) { vga_print("  Not found\n"); return; }
-    } else {
-        fs_node_t* node = vfs_finddir(vfs_get_root(), fname);
-        if (!node) { vga_print("  Not found\n"); return; }
-        len = vfs_read(node, 0, node->size < 4095 ? node->size : 4095, (uint8_t*)buf);
-        buf[len] = '\0';
-    }
+    char buf[4096];
+    int len = shell_load(fname, buf, sizeof(buf));
+    if (len < 0) return;
     int lines = 0, words = 0, chars = len;
     bool in_word = false;
     for (int i = 0; i < len; i++) {
@@ -1306,7 +1619,7 @@ static void cmd_export(int argc, char* argv[]) {
 }
 
 static void cmd_uname(void) {
-    vga_print("  NexusOS v3.2.0 i386 Phase 32\n");
+    vga_print("  " NEXUS_VERSION_STRING " i386\n");
 }
 
 static void cmd_whoami(void) {
@@ -1376,22 +1689,29 @@ static void cmd_userdel(int argc, char* argv[]) {
 
 static void cmd_passwd(int argc, char* argv[]) {
     /* passwd <newpass>          -> change own password
-     * passwd <user> <newpass>   -> change another (root only) */
-    const char* target;
-    const char* newpass;
-    if (argc == 2) {
-        target = users_current_name();
-        newpass = argv[1];
-    } else if (argc >= 3) {
-        if (!users_current_is_root()) {
+     * passwd <user> <newpass>   -> change another (root only)
+     * Non-root users must first re-enter their current password; root may
+     * set any account's password without it. */
+    if (argc < 2) {
+        vga_print("  Usage: passwd <newpass>   |   passwd <user> <newpass> (root)\n");
+        return;
+    }
+    const char* target  = (argc >= 3) ? argv[1] : users_current_name();
+    const char* newpass = (argc >= 3) ? argv[2] : argv[1];
+    if (!users_current_is_root()) {
+        if (strcmp(target, users_current_name()) != 0) {
             vga_print_color("  Permission denied: only root may change other users.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
             return;
         }
-        target = argv[1];
-        newpass = argv[2];
-    } else {
-        vga_print("  Usage: passwd <newpass>   |   passwd <user> <newpass> (root)\n");
-        return;
+        char cur[64];
+        vga_print("  Current password: ");
+        shell_read_secret(cur, sizeof(cur));
+        bool ok = users_authenticate(target, cur) != UID_INVALID;
+        memset(cur, 0, sizeof(cur));
+        if (!ok) {
+            vga_print_color("  Authentication failed: password unchanged.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+            return;
+        }
     }
     if (users_set_password(target, newpass)) {
         vga_print_color("  Password updated for ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
@@ -1409,7 +1729,8 @@ static void cmd_chmod(int argc, char* argv[]) {
         if (argv[1][i] < '0' || argv[1][i] > '7') { vga_print("  Mode must be octal (0-7 digits).\n"); return; }
         mode = (uint16_t)(mode * 8 + (argv[1][i] - '0'));
     }
-    fs_node_t* node = vfs_finddir(vfs_get_root(), argv[2]);
+    /* Phase 55: resolve paths / cwd-relative names, not just root entries */
+    fs_node_t* node = ramfs_resolve(argv[2], cwd_node());
     if (!node) { vga_print_color("  No such file.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK)); return; }
     if (vfs_chmod(node, mode, users_current_uid()) != 0) {
         vga_print_color("  Permission denied: not the owner.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
@@ -1425,7 +1746,7 @@ static void cmd_chown(int argc, char* argv[]) {
     if (argc < 3) { vga_print("  Usage: chown <user> <file>\n"); return; }
     user_t* u = users_find(argv[1]);
     if (!u) { vga_print_color("  No such user.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK)); return; }
-    fs_node_t* node = vfs_finddir(vfs_get_root(), argv[2]);
+    fs_node_t* node = ramfs_resolve(argv[2], cwd_node());   /* Phase 55: path-aware */
     if (!node) { vga_print_color("  No such file.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK)); return; }
     if (vfs_chown(node, u->uid, users_current_uid()) != 0) {
         vga_print_color("  Permission denied: only root may chown.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
@@ -1496,34 +1817,18 @@ static void cmd_regedit(void) {
     vga_print("\n");
 }
 
+/* Phase 54: launch a user program as an isolated ring-3 process. A trailing
+ * "&" runs it in the background (returns to the prompt immediately); otherwise
+ * the shell waits — yielding — until it exits. Shared by runexe/runelf/
+ * runmacho/urun and the ".exe" auto-run. */
+static void shell_launch(int argc, char* argv[]) {
+    if (argc < 2) { vga_print("  Usage: run <file> [&]   (ELF/PE/Mach-O)\n"); return; }
+    bool bg = (argc >= 3 && strcmp(argv[argc - 1], "&") == 0);
+    uproc_run_path(argv[1], bg);
+}
+
 static void cmd_runexe(int argc, char* argv[]) {
-    if (argc < 2) {
-        vga_print("  Usage: runexe <file.exe>\n");
-    } else {
-        const char* fname = argv[1];
-        fs_node_t* node = vfs_finddir(vfs_get_root(), fname);
-        if (!node || node->size == 0) {
-            vga_print_color("  File not found: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
-            vga_print((char*)fname); vga_print("\n");
-        } else {
-            uint8_t* buf = (uint8_t*)kmalloc(node->size);
-            if (buf) {
-                int32_t rd = vfs_read(node, 0, node->size, buf);
-                if (rd == (int32_t)node->size) {
-                    vga_print("  Loading PE32 executable...\n");
-                    int res = pe_exec(buf, node->size, fname);
-                    if (res != 0) {
-                        vga_print_color("  Failed to execute PE file.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
-                    }
-                } else {
-                    vga_print("  Read error.\n");
-                }
-                kfree(buf);
-            } else {
-                vga_print("  Out of memory.\n");
-            }
-        }
-    }
+    shell_launch(argc, argv);
 }
 
 /* --------------------------------------------------------------------------
@@ -1748,32 +2053,7 @@ static void cmd_machoinfo(void) {
 }
 
 static void cmd_runmacho(int argc, char* argv[]) {
-    if (argc < 2) { vga_print("  Usage: runmacho <file>\n"); return; }
-    const char* fname = argv[1];
-    fs_node_t* node = vfs_finddir(vfs_get_root(), fname);
-    if (!node || node->size == 0) {
-        vga_print_color("  File not found: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
-        vga_print((char*)fname); vga_print("\n");
-        return;
-    }
-    uint8_t* buf = (uint8_t*)kmalloc(node->size);
-    if (!buf) { vga_print("  Out of memory.\n"); return; }
-    int32_t rd = vfs_read(node, 0, node->size, buf);
-    if (rd != (int32_t)node->size) { vga_print("  Read error.\n"); kfree(buf); return; }
-
-    macho_info_t info;
-    if (!macho_get_info(buf, node->size, &info)) {
-        vga_print_color("  Not a valid i386 Mach-O executable.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
-        kfree(buf); return;
-    }
-    char b[12];
-    vga_print_color("  Mach-O ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK)); vga_print("i386 executable\n");
-    vga_print("    segments: "); int_to_str(info.nsegments, b); vga_print(b);
-    vga_print("   dylibs: ");    int_to_str(info.ndylibs, b);   vga_print(b);
-    vga_print("   entry: 0x");   hex_to_str(info.entry, b);     vga_print(b); vga_print("\n");
-    vga_print("  Loading and executing...\n");
-    macho_exec(buf, node->size, fname);   /* irets to ring 3 on success */
-    kfree(buf);
+    shell_launch(argc, argv);
 }
 
 static void cmd_cocoademo(void) {
@@ -1821,7 +2101,8 @@ static void cmd_volume(int argc, char* argv[]) {
         return;
     }
     int v = shell_atoi(argv[1]);
-    if (v < 0) v = 0; if (v > 100) v = 100;
+    if (v < 0) v = 0;
+    if (v > 100) v = 100;
     audio_set_master_volume((uint8_t)v);
     vga_print_color("  Master volume set to ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
     int_to_str(v, buf); vga_print(buf); vga_print("%\n");
@@ -1891,7 +2172,9 @@ static void cmd_mixer(void) {
     int16_t* c = mk_loop_tone(392, rate, &fc);   /* G4 */
     if (!a || !b || !c) {
         vga_print("  Out of memory.\n");
-        if (a) kfree(a); if (b) kfree(b); if (c) kfree(c);
+        if (a) kfree(a);
+        if (b) kfree(b);
+        if (c) kfree(c);
         return;
     }
     audio_voice_clear();
@@ -1939,7 +2222,7 @@ static void cmd_imginfo(void) {
             vga_print("x"); int_to_str(img.height, b); vga_print(b);
             if (img.frames > 1) { vga_print("  frames="); int_to_str(img.frames, b); vga_print(b); }
             uint32_t c = img.pixels[(img.height / 2) * img.width + (img.width / 2)];
-            vga_print("  center=0x"); hex_to_str(c & 0xFFFFFF, b); vga_print(b);
+            vga_print("  center="); hex_to_str(c & 0xFFFFFF, b); vga_print(b);
             vga_print("\n");
             image_free(&img);
         } else {
@@ -2613,8 +2896,7 @@ static void cmd_store(int argc, char* argv[]) {
  * finale | v5      the v5.0 release banner + footprint report card
  */
 static void cmd_urun(int argc, char* argv[]) {
-    if (argc < 2) { vga_print("  Usage: urun <file>   (PE/ELF/Mach-O)\n"); return; }
-    finale_urun(argv[1]);
+    shell_launch(argc, argv);
 }
 
 static void cmd_install(int argc, char* argv[]) {
@@ -2814,61 +3096,89 @@ static void cmd_gamepad(void) {
     vga_print("\n");
 }
 
+/* ---- Phase 55: persistent ramfs ---------------------------------------- */
+static void cmd_persist(int argc, char* argv[]) {
+    if (argc < 2) { persist_save_ex(true); return; }       /* `persist` = save now */
+    const char* sub = argv[1];
+    if (strcmp(sub, "status") == 0) { persist_status(); return; }
+    if (strcmp(sub, "save") == 0)   { persist_save_ex(true); return; }
+    if (strcmp(sub, "on") == 0 || strcmp(sub, "off") == 0 ||
+        strcmp(sub, "restore") == 0 || strcmp(sub, "dev") == 0) {
+        if (!users_current_is_root()) {
+            vga_print_color("  Permission denied: root only.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+            return;
+        }
+    }
+    if (strcmp(sub, "on") == 0 || strcmp(sub, "off") == 0) {
+        persist_set_autosave(sub[1] == 'n');
+        vga_print("  Autosave "); vga_print(persist_autosave() ? "on" : "off");
+        vga_print(" (explicit `persist` and reboot/shutdown flushes still save).\n");
+    } else if (strcmp(sub, "restore") == 0) {
+        int rc = persist_restore();
+        if (rc == 0)       vga_print_color("  Snapshot reloaded from disk.\n", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+        else if (rc == -2) vga_print("  No valid snapshot on disk.\n");
+        else vga_print_color("  Restore failed (disabled or I/O error).\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+    } else if (strcmp(sub, "dev") == 0) {
+        if (argc < 3) { vga_print("  Usage: persist dev <hda|usb0>\n"); return; }
+        int rc = persist_set_device(argv[2]);
+        if (rc == 0) { vga_print_color("  Persistence device: ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK)); vga_print(argv[2]); vga_print("\n"); }
+        else if (rc == -1) vga_print_color("  No such block device (see blkdev/usbinfo).\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        else vga_print_color("  Device too small for the persist window.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+    } else {
+        vga_print("  Usage: persist              save the ramfs snapshot now\n"
+                  "         persist status       slots, generation, dirty state\n"
+                  "         persist on|off       autosave (2 s after a change)\n"
+                  "         persist restore      reload the snapshot from disk\n"
+                  "         persist dev <blk>    target device (default hda)\n");
+    }
+}
+
 /* --------------------------------------------------------------------------
- * shell_pipe_redirect: Handle |, >, < operators
+ * shell_pipe_redirect: Handle >, >> and | operators
  * Returns true if handled (caller should not execute_command)
  * -------------------------------------------------------------------------- */
+static void execute_command(char* input);
+
+static char* shell_operator(char* input, char op) {
+    char quote = 0;
+    for (char* p = input; *p; p++) {
+        if (*p == '\\' && quote != '\'' && p[1]) { p++; continue; }
+        if ((*p == '\'' || *p == '"') && (!quote || quote == *p)) { quote = quote ? 0 : *p; continue; }
+        if (!quote && *p == op) return p;
+    }
+    return NULL;
+}
+
 static bool shell_pipe_redirect(char* input) {
     /* Check for > redirect */
-    char* redir = NULL;
-    for (int i = 0; input[i]; i++) {
-        if (input[i] == '>' && (i == 0 || input[i-1] != '\\')) { redir = &input[i]; break; }
-    }
+    char* redir = shell_operator(input, '>');
     if (redir) {
-        /* Split at > */
+        /* Split at > ('>>' appends, '>' truncates) */
+        bool append = (redir[1] == '>');
         *redir = '\0';
-        char* filename = redir + 1;
+        char* filename = redir + (append ? 2 : 1);
         while (*filename == ' ') filename++;
         /* Trim trailing spaces from filename */
         int flen = strlen(filename);
         while (flen > 0 && filename[flen-1] == ' ') filename[--flen] = '\0';
         if (!*filename) { vga_print("  No output file specified\n"); return true; }
+        if (posix_is_capturing()) { vga_print("  Nested redirection is not supported\n"); return true; }
 
-        /* Capture command output */
+        /* Run the left-hand command for real with its console output diverted
+         * into the POSIX capture buffer, then store what it printed. */
         posix_capture_start();
-        /* Execute the left side command by temporarily restoring vga_print behavior */
-        /* We use a trick: run the command, and intercept its vga_print output */
-        char* argv[MAX_ARGS];
-        int argc = parse_args(input, argv);
-        if (argc > 0) {
-            /* Simple: re-execute just the echo part into capture */
-            for (int i = 0; i < argc; i++) {
-                if (i > 0) posix_capture_write(" ");
-                posix_capture_write(argv[i]);
-            }
-        }
+        execute_command(input);
         posix_capture_stop();
 
-        /* Write captured output to file */
         int cap_len;
         const char* cap = posix_capture_get(&cap_len);
-        fs_node_t* root = vfs_get_root();
-        fs_node_t* node = vfs_finddir(root, filename);
-        if (!node) node = ramfs_create(filename, FS_FILE);
-        if (node && cap_len > 0) {
-            vfs_write(node, 0, cap_len, (uint8_t*)cap);
-            vga_print_color("  Written to ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
-            vga_print(filename); vga_print("\n");
-        }
+        shell_store(filename, cap, cap_len, append);
         posix_capture_clear();
         return true;
     }
 
     /* Check for | pipe (simplified: only handles cmd | grep pattern) */
-    char* pipe = NULL;
-    for (int i = 0; input[i]; i++) {
-        if (input[i] == '|' && (i == 0 || input[i-1] != '\\')) { pipe = &input[i]; break; }
-    }
+    char* pipe = shell_operator(input, '|');
     if (pipe) {
         *pipe = '\0';
         char* right = pipe + 1;
@@ -2884,14 +3194,14 @@ static bool shell_pipe_redirect(char* input) {
         }
         const char* pattern = rargv[1];
 
-        /* We can't easily capture vga_print output without modifying vga.c,
-         * so we handle known commands specially */
+        /* Known left-hand commands are rendered as plain text here. */
         char cap[4096]; int clen = 0;
+        cap[0] = '\0';
 
         char* largv[MAX_ARGS];
         int largc = parse_args(input, largv);
         if (largc > 0 && strcmp(largv[0], "ls") == 0) {
-            fs_node_t* root = vfs_get_root();
+            fs_node_t* root = cwd_node();
             fs_node_t* entry; uint32_t idx = 0;
             while ((entry = vfs_readdir(root, idx)) != NULL) {
                 int nl = strlen(entry->name);
@@ -2927,46 +3237,14 @@ static bool shell_pipe_redirect(char* input) {
             }
             cap[clen] = '\0';
         } else if (largc > 1 && strcmp(largv[0], "cat") == 0) {
-            const char* fn = largv[1];
-            if (procfs_is_proc(fn)) {
-                clen = procfs_read(fn, cap, sizeof(cap));
-                if (clen < 0) clen = 0;
-            } else {
-                fs_node_t* node = vfs_finddir(vfs_get_root(), fn);
-                if (node) {
-                    clen = vfs_read(node, 0, node->size < 4095 ? node->size : 4095, (uint8_t*)cap);
-                    cap[clen] = '\0';
-                }
-            }
+            /* Missing/unreadable file: shell_load already said why. */
+            if (shell_load(largv[1], cap, sizeof(cap)) < 0) return true;
         } else {
             vga_print("  Pipe: unsupported left command\n");
             return true;
         }
 
-        /* Now grep the captured output */
-        char* p = cap;
-        int count = 0;
-        while (*p) {
-            char line[256]; int li = 0;
-            while (*p && *p != '\n' && li < 255) line[li++] = *p++;
-            line[li] = '\0';
-            if (*p == '\n') p++;
-            if (strstr(line, pattern)) {
-                vga_print("  ");
-                char* lp = line;
-                while (*lp) {
-                    char* m = strstr(lp, pattern);
-                    if (m) {
-                        while (lp < m) vga_putchar(*lp++);
-                        vga_print_color(pattern, VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
-                        lp = m + strlen(pattern);
-                    } else { vga_print(lp); break; }
-                }
-                vga_putchar('\n');
-                count++;
-            }
-        }
-        if (count == 0) vga_print_color("  No matches\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+        grep_text(cap, pattern);
         return true;
     }
 
@@ -2976,6 +3254,137 @@ static bool shell_pipe_redirect(char* input) {
 /* --------------------------------------------------------------------------
  * execute_command: Parse and execute a command
  * -------------------------------------------------------------------------- */
+/* Print a 16-bit value as 4 hex digits (no 0x prefix). */
+static void print_hex16(uint16_t v) {
+    const char* hx = "0123456789abcdef";
+    char s[5];
+    s[0] = hx[(v >> 12) & 0xF];
+    s[1] = hx[(v >> 8) & 0xF];
+    s[2] = hx[(v >> 4) & 0xF];
+    s[3] = hx[v & 0xF];
+    s[4] = '\0';
+    vga_print(s);
+}
+
+/* ---- Phase 55: usbinfo shows controllers, port paths, speeds, hub tree ---- */
+static void usbinfo_pad(const char* s, int width) {
+    int n = 0;
+    while (s[n]) n++;
+    vga_print(s);
+    for (int i = n; i < width; i++) vga_putchar(' ');
+}
+
+static void usbinfo_print_dev(usb_device_t* d, int indent) {
+    char path[24], line[32], b[12];
+    usb_port_path(d, path, sizeof(path));
+    int n = 0;
+    for (int i = 0; i < indent && n < 8; i++) line[n++] = ' ';
+    for (int i = 0; path[i] && n < 30; i++) line[n++] = path[i];
+    line[n] = '\0';
+
+    vga_print("  ");
+    usbinfo_pad(line, 12);                           /* fits "    1-5.1.1" (3 hub tiers) */
+    print_hex16(d->vendor_id); vga_print(":"); print_hex16(d->product_id);
+    vga_print("  ");
+    usbinfo_pad(usb_speed_name(d->speed), 4);
+
+    /* Human-readable kind derived from the descriptors. */
+    const char* kind = usb_class_name(d->class_code);
+    if (d->class_code == USB_CLASS_HID) {
+        if (d->protocol == USB_HID_PROTO_KEYBOARD) kind = "HID keyboard";
+        else if (d->protocol == USB_HID_PROTO_MOUSE) kind = "HID mouse";
+        else kind = "HID";
+    } else if (d->class_code == USB_CLASS_MASS_STORAGE) {
+        kind = "Mass Storage";
+    } else if (d->is_hub) {
+        kind = "Hub";
+    }
+    int klen = 0;
+    while (kind[klen]) klen++;
+    vga_print_color(kind, VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    if (d->is_hub) {
+        vga_print(" ("); int_to_str(d->hub_nports, b); vga_print(b); vga_print(" ports)");
+        int bl = 0; while (b[bl]) bl++;
+        klen += bl + 9;                              /* " (" + digits + " ports)" */
+    }
+    for (int i = klen; i < 21; i++) vga_putchar(' ');
+    vga_print(d->configured ? " cfg  " : " ---  ");
+    vga_print("a");
+    int_to_str(d->address, b);
+    usbinfo_pad(b, 4);
+    if (d->class_code == USB_CLASS_HID || d->is_hub) {
+        vga_print("rpt="); int_to_str(d->reports, b); vga_print(b);
+    }
+    vga_print("\n");
+
+    /* Children behind a hub, indented. */
+    if (d->is_hub) {
+        int idx = usb_device_index(d);
+        usb_device_t* devs = usb_get_devices();
+        int cnt = usb_device_count();
+        for (int i = 0; i < cnt; i++)
+            if (devs[i].active && devs[i].parent == idx) usbinfo_print_dev(&devs[i], indent + 2);
+    }
+}
+
+static void cmd_usbinfo(void) {
+    vga_print_color("\n  USB Devices\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+    vga_print_color("  ===========\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+
+    int nhc = usb_hcd_count();
+    if (nhc == 0) {
+        vga_print("  No USB host controller (UHCI/OHCI/EHCI/xHCI).\n\n");
+        return;
+    }
+    for (int i = 0; i < nhc; i++) {
+        usb_hcd_t* hc = usb_hcd_get(i);
+        char b[12];
+        vga_print("  bus "); int_to_str(hc->bus, b); vga_print(b); vga_print(": ");
+        vga_print_color(hc->name, VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
+        vga_print(hc->type == USB_HCD_UHCI ? " io 0x" : " mmio 0x");
+        int_to_hex(hc->base, b);
+        vga_print(hc->type == USB_HCD_UHCI ? b + 6 : b + 2);
+        vga_print(", "); int_to_str(hc->nports, b); vga_print(b); vga_print(" root ports\n");
+    }
+    vga_print("\n");
+
+    usb_device_t* devs = usb_get_devices();
+    int n = usb_device_count();
+    int shown = 0;
+    vga_print_color("  Path        VID:PID    Spd Device                Cfg  Addr\n",
+                    VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
+    for (int i = 0; i < n; i++) {
+        if (!devs[i].active || devs[i].parent >= 0) continue;
+        usbinfo_print_dev(&devs[i], 0);
+        shown++;
+    }
+    if (!shown) vga_print("  (no devices attached)\n");
+    {
+        char b[12];
+        vga_print("\n  HID reports received: ");
+        int_to_str(usb_hid_report_count(), b); vga_print(b); vga_print("\n");
+    }
+
+    if (usb_storage_present()) {
+        usb_storage_t* st = usb_storage_get();
+        vga_print("\n  Storage: ");
+        char b[12]; int_to_str(st->capacity_mb, b); vga_print(b);
+        vga_print(" MB registered as blkdev 'usb0'\n");
+
+        /* Prove SCSI READ(10) over bulk-only transport: read LBA 0. */
+        static uint8_t sec[512];
+        if (usb_storage_read(0, 1, sec) == 1) {
+            vga_print("  Sector 0: \"");
+            for (int k = 0; k < 16; k++)
+                vga_putchar((sec[k] >= 32 && sec[k] < 127) ? (char)sec[k] : '.');
+            vga_print("\"\n");
+        } else {
+            vga_print_color("  Sector 0 read failed\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        }
+    }
+    vga_print("\n");
+}
+
 static void execute_command(char* input) {
     /* Check for pipe/redirect operators first */
     char saved[INPUT_MAX]; strcpy(saved, input);
@@ -2984,6 +3393,17 @@ static void execute_command(char* input) {
     char* argv[MAX_ARGS];
     int argc = parse_args(input, argv);
     if (argc == 0) return;
+
+    /* ---- Phase 57 apps: /disk paths and the userland program commands ---- */
+    {
+        char cwdp[FS_PATH_MAX];
+        ramfs_abspath(cwd_node(), cwdp, sizeof(cwdp));
+        if (strcmp(argv[0], "apps") == 0)  { usys_cmd_apps(); return; }
+        if (strcmp(argv[0], "which") == 0) { usys_cmd_which(argc > 1 ? argv[1] : "", cwdp); return; }
+        if (argc >= 2 && strcmp(argv[0], "ls") == 0 && usys_disk_ls(argv[argc - 1])) return;
+        if (argc >= 2 && strcmp(argv[0], "cat") == 0 && usys_disk_cat(argv[argc - 1])) return;
+    }
+    /* ---- end Phase 57 ---- */
 
     if      (strcmp(argv[0], "help")     == 0) cmd_help();
     else if (strcmp(argv[0], "clear")    == 0) cmd_clear();
@@ -2997,6 +3417,10 @@ static void execute_command(char* input) {
     else if (strcmp(argv[0], "color")    == 0) cmd_color(argc, argv);
     else if (strcmp(argv[0], "history")  == 0) cmd_history_show();
     else if (strcmp(argv[0], "ls")       == 0) cmd_ls(argc, argv);
+    else if (strcmp(argv[0], "pwd")      == 0) cmd_pwd();
+    else if (strcmp(argv[0], "cd")       == 0) cmd_cd(argc, argv);
+    else if (strcmp(argv[0], "mkdir")    == 0) cmd_mkdir(argc, argv);
+    else if (strcmp(argv[0], "rmdir")    == 0) cmd_rmdir(argc, argv);
     else if (strcmp(argv[0], "cat")      == 0) cmd_cat(argc, argv);
     else if (strcmp(argv[0], "head")     == 0) cmd_head(argc, argv);
     else if (strcmp(argv[0], "tail")     == 0) cmd_tail(argc, argv);
@@ -3005,6 +3429,10 @@ static void execute_command(char* input) {
     else if (strcmp(argv[0], "touch")    == 0) cmd_touch(argc, argv);
     else if (strcmp(argv[0], "write")    == 0) cmd_write(argc, argv);
     else if (strcmp(argv[0], "rm")       == 0) cmd_rm(argc, argv);
+    /* ---- Phase 57: checksum + pattern-file tools ---- */
+    else if (strcmp(argv[0], "sum")      == 0) cmd_sum(argc, argv);
+    else if (strcmp(argv[0], "mkfile")   == 0) cmd_mkfile(argc, argv);
+    /* ---- end Phase 57 ---- */
     else if (strcmp(argv[0], "edit")     == 0) cmd_edit(argc, argv);
     else if (strcmp(argv[0], "ps")       == 0) cmd_ps();
     else if (strcmp(argv[0], "run")      == 0) cmd_run(argc, argv);
@@ -3063,6 +3491,9 @@ static void execute_command(char* input) {
     else if (strcmp(argv[0], "arp") == 0) {
         cmd_arp_show();
     }
+    else if (strcmp(argv[0], "usbinfo") == 0 || strcmp(argv[0], "lsusb") == 0) {
+        cmd_usbinfo();
+    }
     else if (strcmp(argv[0], "dns") == 0) {
         if (argc < 2) {
             vga_print("  Usage: dns <hostname>\n");
@@ -3084,7 +3515,13 @@ static void execute_command(char* input) {
             }
         }
     }
-    else if (strcmp(argv[0], "wget") == 0) {
+    /* ---- Phase 57: streaming HTTP/HTTPS commands (netcmd.c) ---- */
+    else if (strcmp(argv[0], "wget") == 0)    netcmd_wget(argc, argv);
+    else if (strcmp(argv[0], "curl") == 0)    netcmd_curl(argc, argv);
+    else if (strcmp(argv[0], "tlsinfo") == 0) netcmd_tlsinfo(argc, argv);
+    else if (strcmp(argv[0], "cryptotest") == 0) netcmd_cryptotest();
+    /* ---- end Phase 57 (the pre-57 wget stays reachable as `wget-simple`) ---- */
+    else if (strcmp(argv[0], "wget-simple") == 0) {
         if (argc < 2) {
             vga_print("  Usage: wget <url>\n");
         } else {
@@ -3126,12 +3563,10 @@ static void execute_command(char* input) {
         }
     }
     else if (strcmp(argv[0], "browse") == 0) {
-        if (argc < 2) {
-            vga_print("  Usage: browse <url>\n");
-        } else {
-            vga_print("  Browser requires GUI desktop.\n");
-            vga_print("  Type 'gui' first, then use 'browse' in desktop terminal.\n");
-        }
+        /* ---- Phase 57: GUI launcher - opens Nexus Browser at <url> (default: home) ---- */
+        browser_set_pending(argc >= 2 ? argv[1] : "about:home");
+        cmd_gui();
+        /* ---- end Phase 57 ---- */
     }
     else if (strcmp(argv[0], "dhcp") == 0) {
         vga_print_color("\n  DHCP Client\n", VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
@@ -3144,8 +3579,16 @@ static void execute_command(char* input) {
         vga_print("\n");
     }
     else if (strcmp(argv[0], "httpd") == 0) {
+        /* ---- Phase 55: httpd file server controls ---- */
         if (argc >= 2 && strcmp(argv[1], "stop") == 0) {
             httpd_stop();
+        } else if (argc >= 2 && strcmp(argv[1], "status") == 0) {
+            httpd_print_status();
+        } else if (argc >= 3 && strcmp(argv[1], "root") == 0) {
+            httpd_set_root(argv[2]);
+        } else if (argc >= 2 && strcmp(argv[1], "root") == 0) {
+            vga_print("  Document root: "); vga_print(httpd_get_root());
+            vga_print("   (httpd root <dir> to change)\n");
         } else {
             httpd_start();
         }
@@ -3165,6 +3608,7 @@ static void execute_command(char* input) {
             /* Interactive serve loop: start the server and pump it until Esc,
              * exactly like the ping/doom blocking-command pattern. */
             if (!vnc_is_running()) vnc_start();
+            if (vnc_is_running()) {   /* Phase 55: start may refuse (no vncpasswd) */
             vga_print_color("\n  VNC server running on port 5900.\n",
                             VGA_COLOR(VGA_LIGHT_CYAN, VGA_BLACK));
             vga_print("  Connect from the host:  vncviewer 127.0.0.1:5900\n");
@@ -3180,6 +3624,7 @@ static void execute_command(char* input) {
                 __asm__ volatile("hlt");
             }
             vga_print("  (VNC still serving in the background.)\n");
+            }
         } else if (argc >= 2 && strcmp(argv[1], "status") == 0) {
             vga_print("\n  VNC: ");
             vga_print(vnc_is_running() ? "running" : "stopped");
@@ -3187,12 +3632,20 @@ static void execute_command(char* input) {
                 vga_print(vnc_client_connected() ? ", client connected" : ", waiting for client");
                 char num[12]; int_to_str((int)vnc_frames_sent(), num);
                 vga_print("\n  Frames sent: "); vga_print(num);
+                int_to_str((int)vnc_auth_failures(), num);
+                vga_print("   Auth failures: "); vga_print(num);
             }
+            vga_print("\n  VNC password: "); vga_print(vnc_has_password() ? "set" : "not set");
             vga_print("\n\n");
+        } else if (argc >= 2 && strcmp(argv[1], "--insecure") == 0) {
+            vnc_start_mode(true);      /* Phase 55: security type None, with warning */
         } else {
             vnc_start();
         }
     }
+    /* ---- Phase 55: VNC password store + DES known-answer test ---- */
+    else if (strcmp(argv[0], "vncpasswd") == 0) vnc_cmd_passwd(argc, argv);
+    else if (strcmp(argv[0], "des") == 0) des_cmd(argc, argv);
     else if (strcmp(argv[0], "sync") == 0) {
         if (argc >= 2 && strcmp(argv[1], "serve") == 0) {
             sync_server_start();
@@ -3283,6 +3736,8 @@ static void execute_command(char* input) {
     else if (strcmp(argv[0], "finale")      == 0 || strcmp(argv[0], "v5") == 0) cmd_finale();
     /* ===================== Phase 51: NPFS journaling FS ============= */
     else if (strcmp(argv[0], "npfs")        == 0) cmd_npfs(argc, argv);
+    /* ===================== Phase 55: persistent ramfs =============== */
+    else if (strcmp(argv[0], "persist")     == 0) cmd_persist(argc, argv);
     /* Phase 32: Dynamic linking commands */
     else if (strcmp(argv[0], "ldd") == 0) {
         int count = dynlink_get_lib_count();
@@ -3301,8 +3756,7 @@ static void execute_command(char* input) {
                 vga_print(libs[i].name);
                 int pad = 22 - (int)strlen(libs[i].name);
                 for (int j = 0; j < pad && j < 22; j++) vga_putchar(' ');
-                vga_print("0x");
-                hex_to_str(libs[i].load_base, buf);
+                hex_to_str(libs[i].load_base, buf);   /* already "0x"-prefixed */
                 vga_print(buf);
                 vga_print("   ");
                 int_to_str(libs[i].load_size, buf);
@@ -3327,8 +3781,7 @@ static void execute_command(char* input) {
             vga_print(syms[i].name);
             int pad = 20 - (int)strlen(syms[i].name);
             for (int j = 0; j < pad && j < 20; j++) vga_putchar(' ');
-            vga_print("0x");
-            hex_to_str(syms[i].addr, buf);
+            hex_to_str(syms[i].addr, buf);        /* already "0x"-prefixed */
             vga_print(buf);
             vga_print("\n");
         }
@@ -3360,7 +3813,7 @@ static void execute_command(char* input) {
             if (addr) {
                 vga_print("  ");
                 vga_print_color(argv[2], VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
-                vga_print(" = 0x");
+                vga_print(" = ");
                 char buf[12]; hex_to_str(addr, buf); vga_print(buf); vga_print("\n");
             } else {
                 vga_print_color("  Symbol not found: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
@@ -3376,7 +3829,8 @@ static void execute_command(char* input) {
         char buf[12];
         vga_print_color("  Display:  ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
         int_to_str((int)fb_get_width(), buf); vga_print(buf); vga_print("x");
-        int_to_str((int)fb_get_height(), buf); vga_print(buf); vga_print("x24 TrueColor\n");
+        int_to_str((int)fb_get_height(), buf); vga_print(buf); vga_print("x");
+        int_to_str((int)fb_get_bpp(), buf); vga_print(buf); vga_print(" TrueColor\n");
         vga_print_color("  Protocol: ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
         vga_print("X11R6 compatible (kernel shim)\n");
         vga_print_color("  Server:   ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
@@ -3420,6 +3874,8 @@ static void execute_command(char* input) {
     else if (strcmp(argv[0], "win32info") == 0) cmd_win32info();
     else if (strcmp(argv[0], "regedit") == 0) cmd_regedit();
     else if (strcmp(argv[0], "runexe") == 0) cmd_runexe(argc, argv);
+    else if (strcmp(argv[0], "runelf") == 0) shell_launch(argc, argv);   /* Phase 54 */
+    else if (strcmp(argv[0], "crashtest") == 0) cmd_crashtest(argc, argv);   /* Phase 55 */
     /* === Phase 35: Package Manager === */
     else if (strcmp(argv[0], "npkg") == 0) cmd_npkg(argc, argv);
     /* === Phase 36: Scripting Engine === */
@@ -3471,6 +3927,17 @@ static void execute_command(char* input) {
             char* runexe_args[] = { "runexe", argv[0] };
             cmd_runexe(2, runexe_args);
         } else {
+            /* ---- Phase 57 apps: no built-in matched -> run a user program
+             * from /disk/bin (or /bin, or a path) with the original line, so
+             * quotes and a trailing '&' are honoured. ---- */
+            bool found = false;
+            {
+                char cwdp[FS_PATH_MAX];
+                ramfs_abspath(cwd_node(), cwdp, sizeof(cwdp));
+                usys_console_run(saved, cwdp, &found);
+            }
+            if (found) return;
+            /* ---- end Phase 57 ---- */
             vga_print_color("  Unknown command: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
             vga_print(argv[0]);
             vga_print("\n  Type 'help' for available commands.\n");
@@ -3488,14 +3955,48 @@ static void shell_idle_pump(void) {
     net_poll();
     vnc_poll();
     sync_poll();
+    rshell_poll();   /* Phase 54: authenticated remote shell */
+    httpd_poll();    /* Phase 55: HTTP file server */
     mobile_poll();   /* Phase 47: recognize touch gestures while idle */
+    usb_hid_poll();  /* Phase 54: poll USB HID boot devices (kbd/mouse) */
+    persist_poll();  /* Phase 55: debounced ramfs snapshot autosave */
+    /* Phase 54: give background user processes a time slice while the shell
+     * waits at the prompt, and reap any that have exited. sched_yield() is the
+     * kernel thread's one cooperative hand-off point (it is never pre-empted). */
+    uproc_reap();
+    sched_yield();
 }
+
+/* ---- Phase 55: kernel crash containment for shell commands ----------------
+ * Every command runs inside a kguard. A ring-0 fault in the command (NULL
+ * deref, divide by zero, write into kernel text, stack overflow...) is caught
+ * by the fault handlers, which long-jump back here with the fault code; the
+ * command's frames are abandoned and the prompt comes back. */
+static void shell_exec_guarded(char* input) {
+    kguard_ctx_t g;
+    int rc = kguard_try(&g, "shell command");
+    if (rc == 0) {
+        execute_command(input);
+        kguard_end();
+        return;
+    }
+    /* Recovered. A fullscreen app may have swapped the idle hook; restore ours. */
+    keyboard_set_idle_hook(shell_idle_pump);
+    char d[64];
+    kguard_describe(rc, d, sizeof(d));
+    vga_print_color("  Command crashed: ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+    vga_print_color(d, VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+    vga_print_color(" - recovered\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+}
+/* ---- end Phase 55 ---- */
 
 void shell_run(void) {
     char input[INPUT_MAX];
 
+    env_sync_user();     /* USER/HOME follow the logged-in account */
+
     vga_print("\n");
-    vga_print_color("  Welcome to NexusOS Shell v36.0!\n", VGA_COLOR(VGA_WHITE, VGA_BLACK));
+    vga_print_color("  Welcome to " NEXUS_VERSION_STRING "\n", VGA_COLOR(VGA_WHITE, VGA_BLACK));
     vga_print_color("  Type 'help' for commands. 'gui' for desktop.\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
 
     keyboard_set_idle_hook(shell_idle_pump);
@@ -3506,7 +4007,7 @@ void shell_run(void) {
         shell_readline(input, INPUT_MAX);
         if (input[0] != '\0') {
             history_add(input);
-            execute_command(input);
+            shell_exec_guarded(input);   /* Phase 55: faults are contained */
             vga_flush();
         }
     }
@@ -3523,5 +4024,5 @@ void shell_exec_line(const char* line) {
     int i = 0;
     while (line[i] && i < INPUT_MAX - 1) { buf[i] = line[i]; i++; }
     buf[i] = '\0';
-    execute_command(buf);
+    shell_exec_guarded(buf);   /* Phase 55: faults are contained */
 }

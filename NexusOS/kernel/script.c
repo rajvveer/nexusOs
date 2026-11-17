@@ -67,10 +67,15 @@ typedef struct {
     char     errmsg[80];
     int      errline;
     uint32_t steps;
-    int      depth;
 } interp_t;
 
 static int script_nest = 0;          /* guards `run "script ..."` recursion  */
+
+/* One recursion-depth counter for everything that recurses on the C stack:
+ * blocks (nested if/while), unary '-'/'not' chains and primaries (parens,
+ * builtin calls). It is global, so nested `run "script ..."` levels share the
+ * one budget instead of each getting a fresh SCRIPT_MAX_DEPTH. */
+static int script_depth = 0;
 
 /* ============================================================================
  * Small helpers
@@ -105,6 +110,14 @@ static void set_error(interp_t* it, const char* msg) {
     strncpy(it->errmsg, msg, sizeof(it->errmsg) - 1);
     it->errmsg[sizeof(it->errmsg) - 1] = '\0';
     it->errline = (it->pos < it->ntok) ? it->toks[it->pos].line : 0;
+}
+
+/* Enter one recursion level (false + error past SCRIPT_MAX_DEPTH). Each
+ * successful depth_enter() must be paired with script_depth--. */
+static bool depth_enter(interp_t* it) {
+    if (script_depth >= SCRIPT_MAX_DEPTH) { set_error(it, "nesting too deep"); return false; }
+    script_depth++;
+    return true;
 }
 
 static token_t* cur(interp_t* it) {
@@ -281,8 +294,7 @@ static void var_set(interp_t* it, const char* name, value_t v) {
 static value_t parse_expr(interp_t* it);
 
 static value_t parse_primary(interp_t* it) {
-    if (it->error) return val_int(0);
-    if (++it->depth > SCRIPT_MAX_DEPTH) { set_error(it, "expression too deep"); return val_int(0); }
+    if (it->error || !depth_enter(it)) return val_int(0);
 
     value_t result = val_int(0);
     token_t* t = cur(it);
@@ -350,14 +362,16 @@ static value_t parse_primary(interp_t* it) {
             break;
     }
 
-    it->depth--;
+    script_depth--;
     return result;
 }
 
 static value_t parse_unary(interp_t* it) {
     if (cur(it)->type == T_MINUS) {
         advance(it);
+        if (!depth_enter(it)) return val_int(0);
         value_t v = parse_unary(it);
+        script_depth--;
         if (v.is_str) { set_error(it, "cannot negate a string"); return val_int(0); }
         return val_int(-v.i);
     }
@@ -446,7 +460,9 @@ static value_t parse_cmp(interp_t* it) {
 static value_t parse_not(interp_t* it) {
     if (tok_is_kw(cur(it), "not")) {
         advance(it);
+        if (!depth_enter(it)) return val_int(0);
         value_t v = parse_not(it);
+        script_depth--;
         return val_int(val_truthy(&v) ? 0 : 1);
     }
     return parse_cmp(it);
@@ -639,13 +655,13 @@ static void exec_statement(interp_t* it) {
 
 /* Run statements until a block terminator or EOF; cursor left ON terminator. */
 static void exec_block(interp_t* it) {
-    for (;;) {
-        if (it->error) return;
+    if (!depth_enter(it)) return;          /* nested if/while and `run` levels */
+    while (!it->error) {
         skip_newlines(it);
-        if (cur(it)->type == T_EOF) return;
-        if (is_block_terminator(it)) return;
+        if (cur(it)->type == T_EOF || is_block_terminator(it)) break;
         exec_statement(it);
     }
+    script_depth--;
 }
 
 /* Skip a block body, honoring nested if/while, without executing.
@@ -686,6 +702,7 @@ const char* script_strerror(int code) {
 
 int script_run_source(const char* src, const char* name) {
     if (script_nest >= SCRIPT_MAX_NEST) return SCRIPT_ERR_NEST;
+    if (script_nest == 0) script_depth = 0;   /* outermost run: fresh budget */
 
     uint32_t srclen = (uint32_t)strlen(src);
     if (srclen >= SCRIPT_MAX_SRC) return SCRIPT_ERR_TOOBIG;

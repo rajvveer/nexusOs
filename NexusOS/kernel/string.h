@@ -23,6 +23,7 @@ int memcmp(const void* s1, const void* s2, size_t n);
 
 /* Extra utilities */
 void int_to_str(int value, char* buffer);
+void uint_to_str(uint32_t value, char* buffer);
 void hex_to_str(uint32_t value, char* buffer);
 void int_to_hex(uint32_t value, char* buffer);
 

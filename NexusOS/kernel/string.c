@@ -7,6 +7,14 @@
 
 #include "string.h"
 
+void uint_to_str(uint32_t value, char* buffer) {
+    char reversed[10]; int count = 0;
+    do { reversed[count++] = (char)('0' + value % 10); value /= 10; } while (value);
+    int out = 0;
+    while (count) buffer[out++] = reversed[--count];
+    buffer[out] = 0;
+}
+
 /* --------------------------------------------------------------------------
  * strlen: Return length of null-terminated string
  * -------------------------------------------------------------------------- */
@@ -98,7 +106,7 @@ void* memcpy(void* dest, const void* src, size_t n) {
     }
 
     /* Aligned fast path: rep movsl for whole dwords, then a byte tail. */
-    if ((((uint32_t)d | (uint32_t)s) & 3u) == 0) {
+    if ((((uintptr_t)d | (uintptr_t)s) & 3u) == 0) {
         size_t words = n >> 2;
         size_t tail  = n & 3u;
         if (words) {
@@ -123,7 +131,7 @@ void* memset(void* dest, int val, size_t n) {
     uint8_t* d = (uint8_t*)dest;
     uint8_t  b = (uint8_t)val;
 
-    if (((uint32_t)d & 3u) == 0 && n >= 4) {
+    if (((uintptr_t)d & 3u) == 0 && n >= 4) {
         uint32_t word = (uint32_t)b * 0x01010101u;   /* broadcast byte -> dword */
         size_t words = n >> 2;
         size_t tail  = n & 3u;

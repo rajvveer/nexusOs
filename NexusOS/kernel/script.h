@@ -33,8 +33,11 @@
 #define SCRIPT_STR_MAX      128      /* max runtime string value length       */
 #define SCRIPT_MAX_VARS     32       /* max variables per run                 */
 #define SCRIPT_MAX_STEPS    500000   /* statement/iteration budget            */
-#define SCRIPT_MAX_DEPTH    64       /* expression recursion guard            */
-#define SCRIPT_MAX_NEST     8        /* nested `run "script ..."` guard       */
+/* Recursion guard shared by blocks, unary chains and primaries across nested
+ * runs. Costliest level is a paren/call primary (~4KB of -O0 frames through
+ * the whole precedence chain), so 32 levels bound the stack to ~128KB. */
+#define SCRIPT_MAX_DEPTH    32
+#define SCRIPT_MAX_NEST     4        /* nested `run "script ..."` guard       */
 
 /* Result codes */
 #define SCRIPT_OK            0
