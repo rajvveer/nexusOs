@@ -37,6 +37,7 @@ extern volatile uint32_t system_ticks;
  * -------------------------------------------------------------------------- */
 static bool sync_running = false;
 static int  sync_conn_idx = -1;
+static uint32_t sync_conn_gen = 0;  /* Phase 55: TCB slot-reuse guard */
 
 /* Per-connection line/transfer reassembly (the 1 KB TCP RX window means a
  * request line or a PUT body can arrive across several polls). */
@@ -46,11 +47,21 @@ static bool     sv_in_put = false; /* receiving a PUT body                   */
 static char     sv_put_name[FS_NAME_MAX];
 static int      sv_put_size = 0;   /* expected body length                   */
 static int      sv_put_got  = 0;   /* body bytes received so far             */
-static uint8_t  sv_put_buf[RAMFS_MAX_FILE_SIZE];
+/* Phase 57: ramfs files grew to 256 KB, but sync transfers keep their Phase 55
+ * 4 KB cap (tcp_send has a 1 KB window / no retransmission, and five buffers
+ * of RAMFS_MAX_FILE_SIZE would add 1.25 MB of .bss plus a 256 KB stack frame). */
+#define SYNC_FILE_MAX   4096
+static uint8_t  sv_put_buf[SYNC_FILE_MAX];
 
 /* Stats */
 static uint32_t files_sent = 0;
 static uint32_t files_recv = 0;
+
+/* Phase 54: per-connection authentication against the OS user DB. A client
+ * MUST send "LOGIN <user> <pass>" before any LIST/GET/PUT; the session then
+ * runs as that uid so the ramfs per-uid permission checks apply. */
+static bool     sv_authed = false;
+static uint32_t sv_uid = UID_INVALID;
 
 /* Settings persistence path */
 #define SYNC_CFG_DEFAULT "settings.cfg"
@@ -82,6 +93,7 @@ static tcp_conn_t* sv_conn(void) {
     if (sync_conn_idx >= count) return NULL;
     tcp_conn_t* c = (tcp_conn_t*)&all[sync_conn_idx];
     if (!c->active) return NULL;
+    if (c->gen != sync_conn_gen) return NULL;   /* slot recycled for someone else */
     return c;
 }
 
@@ -186,7 +198,8 @@ int settings_load(const char* path) {
 /* --------------------------------------------------------------------------
  * Server: handle one complete request line
  * -------------------------------------------------------------------------- */
-static void sv_handle_line(tcp_conn_t* c, char* line) {
+/* The authenticated command set (runs with users_current_uid == sv_uid). */
+static void sv_dispatch_cmd(tcp_conn_t* c, char* line) {
     if (strncmp(line, "LIST", 4) == 0) {
         fs_node_t* root = vfs_get_root();
         uint32_t idx = 0;
@@ -208,7 +221,7 @@ static void sv_handle_line(tcp_conn_t* c, char* line) {
         const char* name = line + 4;
         fs_node_t* node = vfs_finddir(vfs_get_root(), name);
         if (!node || node->type != FS_FILE) { sv_send(c, "ERR nofile\r\n"); return; }
-        char buf[RAMFS_MAX_FILE_SIZE];
+        char buf[SYNC_FILE_MAX];
         uint32_t sz = node->size;
         if (sz > sizeof(buf)) sz = sizeof(buf);
         int32_t r = vfs_read(node, 0, sz, (uint8_t*)buf);
@@ -229,7 +242,7 @@ static void sv_handle_line(tcp_conn_t* c, char* line) {
         name[ni] = '\0';
         while (*p == ' ') p++;
         int size = parse_uint(p);
-        if (size < 0 || size > RAMFS_MAX_FILE_SIZE) { sv_send(c, "ERR size\r\n"); return; }
+        if (size < 0 || size > SYNC_FILE_MAX) { sv_send(c, "ERR size\r\n"); return; }
         strcpy(sv_put_name, name);
         sv_put_size = size;
         sv_put_got = 0;
@@ -242,24 +255,57 @@ static void sv_handle_line(tcp_conn_t* c, char* line) {
             else sv_send(c, "ERR create\r\n");
         }
     }
-    else if (strncmp(line, "BYE", 3) == 0) {
-        sv_send(c, "OK\r\n");
-        tcp_close(c);
-    }
     else if (line[0] != '\0') {
         sv_send(c, "ERR cmd\r\n");
     }
 }
 
-/* Commit a fully-received PUT body to the RAM-FS. */
+/* Authenticate "LOGIN <user> <pass>" against the OS account DB. */
+static void sv_do_login(tcp_conn_t* c, const char* line) {
+    char user[USER_NAME_MAX]; int ui = 0;
+    const char* p = line + 6;               /* past "LOGIN " */
+    while (*p == ' ') p++;
+    while (*p && *p != ' ' && ui < USER_NAME_MAX - 1) user[ui++] = *p++;
+    user[ui] = '\0';
+    while (*p == ' ') p++;                   /* rest of line = password */
+    uint32_t uid = users_authenticate(user, p);
+    if (uid == UID_INVALID) { sv_send(c, "ERR auth\r\n"); return; }
+    sv_authed = true;
+    sv_uid = uid;
+    sv_send(c, "OK auth\r\n");
+}
+
+/* Entry point: login/close are always allowed; everything else requires auth
+ * and runs with the current uid set to the authenticated account. */
+static void sv_handle_line(tcp_conn_t* c, char* line) {
+    if (strncmp(line, "LOGIN ", 6) == 0) { sv_do_login(c, line); return; }
+    if (strncmp(line, "BYE", 3) == 0) {
+        sv_send(c, "OK\r\n");
+        tcp_close(c);
+        sv_authed = false; sv_uid = UID_INVALID;
+        return;
+    }
+    if (line[0] == '\0') return;
+    if (!sv_authed) { sv_send(c, "ERR auth\r\n"); return; }
+
+    uint32_t prev = users_current_uid();
+    users_set_current(sv_uid);
+    sv_dispatch_cmd(c, line);
+    users_set_current(prev);
+}
+
+/* Commit a fully-received PUT body to the RAM-FS (runs as the auth'd uid). */
 static void sv_commit_put(tcp_conn_t* c) {
+    uint32_t prev = users_current_uid();
+    users_set_current(sv_uid);
     fs_node_t* node = vfs_finddir(vfs_get_root(), sv_put_name);
     if (!node) node = ramfs_create(sv_put_name, FS_FILE);
-    if (!node) { sv_send(c, "ERR create\r\n"); sv_in_put = false; return; }
+    if (!node) { sv_send(c, "ERR create\r\n"); sv_in_put = false; users_set_current(prev); return; }
     int32_t w = vfs_write(node, 0, (uint32_t)sv_put_size, sv_put_buf);
     if (w < 0) sv_send(c, "ERR write\r\n");
     else { files_recv++; sv_send(c, "OK\r\n"); }
     sv_in_put = false;
+    users_set_current(prev);
 }
 
 /* --------------------------------------------------------------------------
@@ -286,14 +332,18 @@ void sync_server_start(void) {
     sync_running = true;
     sv_linelen = 0;
     sv_in_put = false;
+    sv_authed = false; sv_uid = UID_INVALID;
 
     int count;
     const tcp_conn_t* all = tcp_get_connections(&count);
     sync_conn_idx = -1;
     for (int i = 0; i < count; i++)
         if (&all[i] == conn) { sync_conn_idx = i; break; }
+    sync_conn_gen = conn->gen;
 
     vga_print_color("  SYNC: Listening on port 7070\n", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    vga_print_color("  SYNC: login required (LOGIN <user> <pass>) against the OS user DB\n",
+                    VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
 }
 
 void sync_server_stop(void) {
@@ -302,6 +352,7 @@ void sync_server_stop(void) {
     if (c) tcp_close(c);
     sync_running = false;
     sync_conn_idx = -1;
+    sv_authed = false; sv_uid = UID_INVALID;
     vga_print_color("  SYNC: Stopped\n", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
 }
 
@@ -315,7 +366,9 @@ static bool sync_relisten(void) {
     const tcp_conn_t* all = tcp_get_connections(&count);
     for (int i = 0; i < count; i++)
         if (&all[i] == nc) { sync_conn_idx = i; break; }
+    sync_conn_gen = nc->gen;
     sv_linelen = 0; sv_in_put = false;
+    sv_authed = false; sv_uid = UID_INVALID;   /* each new client re-authenticates */
     return true;
 }
 
@@ -339,12 +392,15 @@ void sync_poll(void) {
 
     if (!c->connected || c->rx_len == 0) return;
 
-    /* Drain the RX window byte-by-byte through the reassembly state machine. */
-    for (int i = 0; i < c->rx_len; i++) {
-        uint8_t b = c->rx_buf[i];
+    /* Copy the RX window out via tcp_recv (IRQ-safe vs the timer-IRQ
+     * net_poll), then run it byte-by-byte through the reassembly machine. */
+    uint8_t in[TCP_RX_BUF_SIZE];
+    int n = tcp_recv(c, in, sizeof(in));
+    for (int i = 0; i < n; i++) {
+        uint8_t b = in[i];
 
         if (sv_in_put) {
-            if (sv_put_got < sv_put_size && sv_put_got < RAMFS_MAX_FILE_SIZE)
+            if (sv_put_got < sv_put_size && sv_put_got < SYNC_FILE_MAX)
                 sv_put_buf[sv_put_got++] = b;
             if (sv_put_got >= sv_put_size) {
                 sv_commit_put(c);
@@ -363,14 +419,27 @@ void sync_poll(void) {
             sv_line[sv_linelen++] = (char)b;
         }
     }
-    c->rx_len = 0;
 }
 
 /* --------------------------------------------------------------------------
  * Client helpers
  * -------------------------------------------------------------------------- */
 
-/* Open a connection and spin until established or timeout. NULL on failure. */
+/* Credentials the in-OS client logs in with (OS-to-OS sync). Defaults to the
+ * built-in root account; sync_set_login() can override before a transfer. */
+static char cl_user[USER_NAME_MAX] = "root";
+static char cl_pass[USER_NAME_MAX] = "root";
+
+void sync_set_login(const char* user, const char* pass) {
+    if (user) { strncpy(cl_user, user, USER_NAME_MAX - 1); cl_user[USER_NAME_MAX - 1] = '\0'; }
+    if (pass) { strncpy(cl_pass, pass, USER_NAME_MAX - 1); cl_pass[USER_NAME_MAX - 1] = '\0'; }
+}
+
+/* Forward decl (defined below). */
+static int cl_read_line(tcp_conn_t* c, char* line, int max, int timeout_ticks);
+
+/* Open a connection, log in, and spin until established or timeout. NULL on
+ * failure (connect timeout or authentication rejected). */
 static tcp_conn_t* cl_connect(uint32_t host_ip) {
     uint16_t lport = (uint16_t)(49200 + (system_ticks & 0x1FF));
     tcp_conn_t* c = tcp_connect(host_ip, SYNC_PORT, lport);
@@ -381,7 +450,21 @@ static tcp_conn_t* cl_connect(uint32_t host_ip) {
         __asm__ volatile("hlt");
         if (!c->active) return NULL;
     }
-    return c->connected ? c : NULL;
+    if (!c->connected) return NULL;
+
+    /* Phase 54: authenticate before any command. */
+    char req[96];
+    strcpy(req, "LOGIN "); strcat(req, cl_user); strcat(req, " ");
+    strcat(req, cl_pass); strcat(req, "\r\n");
+    sv_send(c, req);
+    char line[48];
+    int l = cl_read_line(c, line, sizeof(line), 54);
+    if (l < 0 || strncmp(line, "OK", 2) != 0) {
+        vga_print_color("  SYNC: login rejected by peer\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        tcp_close(c);
+        return NULL;
+    }
+    return c;
 }
 
 /* Read bytes from the connection until `want` collected, the peer closes, or
@@ -390,7 +473,7 @@ static int cl_read(tcp_conn_t* c, uint8_t* buf, int want, int timeout_ticks) {
     int got = 0;
     uint32_t last = system_ticks;
     while (got < want) {
-        int r = tcp_recv(c, buf + got, (uint16_t)(want - got));
+        int r = tcp_recv(c, buf + got, want - got);
         if (r > 0) { got += r; last = system_ticks; continue; }
         if (r < 0) break;                 /* closed */
         if ((system_ticks - last) >= (uint32_t)timeout_ticks) break;
@@ -478,9 +561,9 @@ int sync_client_pull(uint32_t host_ip, const char* name) {
         sv_send(c, "BYE\r\n"); tcp_close(c); return -1;
     }
     int size = parse_file_hdr(line, fname);
-    if (size < 0 || size > RAMFS_MAX_FILE_SIZE) { tcp_close(c); return -1; }
+    if (size < 0 || size > SYNC_FILE_MAX) { tcp_close(c); return -1; }
 
-    static uint8_t body[RAMFS_MAX_FILE_SIZE];
+    static uint8_t body[SYNC_FILE_MAX];
     int got = cl_read(c, body, size, 54);
 
     fs_node_t* node = vfs_finddir(vfs_get_root(), fname);
@@ -506,7 +589,7 @@ int sync_client_push(uint32_t host_ip, const char* name) {
         vga_print(name); vga_print("'\n");
         return -1;
     }
-    static uint8_t body[RAMFS_MAX_FILE_SIZE];
+    static uint8_t body[SYNC_FILE_MAX];
     uint32_t sz = node->size;
     if (sz > sizeof(body)) sz = sizeof(body);
     int32_t r = vfs_read(node, 0, sz, body);
@@ -565,8 +648,8 @@ int sync_client_pull_all(uint32_t host_ip) {
         int l = cl_read_line(c, line, sizeof(line), 36);
         if (l < 0 || strncmp(line, "FILE ", 5) != 0) continue;
         int size = parse_file_hdr(line, fname);
-        if (size < 0 || size > RAMFS_MAX_FILE_SIZE) continue;
-        static uint8_t body[RAMFS_MAX_FILE_SIZE];
+        if (size < 0 || size > SYNC_FILE_MAX) continue;
+        static uint8_t body[SYNC_FILE_MAX];
         int got = cl_read(c, body, size, 54);
         fs_node_t* node = vfs_finddir(vfs_get_root(), fname);
         if (!node) node = ramfs_create(fname, FS_FILE);

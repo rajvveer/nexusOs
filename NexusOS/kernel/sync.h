@@ -48,6 +48,9 @@ int sync_client_pull(uint32_t host_ip, const char* name); /* fetch one file    *
 int sync_client_push(uint32_t host_ip, const char* name); /* upload one file   */
 int sync_client_pull_all(uint32_t host_ip);             /* fetch every file    */
 
+/* Phase 54: credentials the client logs in with (defaults root/root). */
+void sync_set_login(const char* user, const char* pass);
+
 /* --- Settings sync -------------------------------------------------------- */
 /* Serialize live settings (theme/font-scale/reader/contrast/wallpaper) into a
  * RAM-FS file (default "settings.cfg"). Returns bytes written, or -1. */

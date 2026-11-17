@@ -1,22 +1,44 @@
 #!/usr/bin/env python3
-"""Tiny client for the NexusOS Phase 45 cloud-sync protocol (port 7070).
+"""Tiny client for the NexusOS cloud-sync protocol (port 7070).
 Verifies the sync SERVER from the host side over QEMU hostfwd.
 
+Phase 54: the server now requires authentication against the OS user DB. The
+client sends "LOGIN <user> <pass>" first and expects "OK auth"; pass creds with
+--user/--pass (default root/root).
+
 Usage:
-  python sync_client.py <host> <port> list
-  python sync_client.py <host> <port> get <name>
-  python sync_client.py <host> <port> put <name> <text>
+  python sync_client.py [--user U] [--pass P] <host> <port> list
+  python sync_client.py [--user U] [--pass P] <host> <port> get <name>
+  python sync_client.py [--user U] [--pass P] <host> <port> put <name> <text>
 """
 import socket, sys
 
 def main():
-    host, port, op = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+    argv = sys.argv[1:]
+    user, passwd = "root", "root"
+    out = []
+    i = 0
+    while i < len(argv):
+        if argv[i] == '--user':   user = argv[i+1]; i += 2
+        elif argv[i] == '--pass': passwd = argv[i+1]; i += 2
+        else: out.append(argv[i]); i += 1
+    host, port, op = out[0], int(out[1]), out[2]
+    sys.argv = [sys.argv[0]] + out      # so positional indexing below still works
+
     s = socket.create_connection((host, port), timeout=8)
     s.settimeout(8)
     f = s.makefile('rwb')
 
     def line():
         return f.readline().decode(errors='replace').rstrip('\r\n')
+
+    # --- authenticate ---
+    f.write(("LOGIN %s %s\r\n" % (user, passwd)).encode()); f.flush()
+    resp = line()
+    if not resp.startswith('OK'):
+        print("auth failed:", resp)
+        s.close()
+        sys.exit(1)
 
     if op == 'list':
         f.write(b"LIST\r\n"); f.flush()
