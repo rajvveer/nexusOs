@@ -1,0 +1,597 @@
+{
+ "format": 1,
+ "generated": "2026-10-30T01:18:15Z",
+ "suites": {
+  "trixie": {
+   "inrelease_sha256": "0584fba32e13e0ab8285fb16c27adea1ec03a73669c18702821094fd6ca86675",
+   "packages_xz_sha256": "7778d3e3f303b7ddb8ce0fe7c8d57473a076c6bf2e8f241f75421d2396352498",
+   "date": "Sat, 12 Sep 2026 07:55:41 UTC",
+   "signed_by": [
+    "Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>",
+    "Debian Stable Release Key (13/trixie) <debian-release@lists.debian.org>"
+   ]
+  },
+  "trixie-updates": {
+   "inrelease_sha256": "b710d5b7119bfae1ef61813b9428d5b7560501defd3123185efddbe26c80f6b2",
+   "packages_xz_sha256": "235fb859490d45c1490bc69836bd2607c9a8557b629ebc33bab1008edb6e9e6d",
+   "date": "Thu, 29 Oct 2026 20:22:16 UTC",
+   "signed_by": [
+    "Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>"
+   ]
+  },
+  "trixie-security": {
+   "inrelease_sha256": "227f74aa47dd38f82d03c8016f35d66621dff14bc65714760d42aa6aa94bd9d3",
+   "packages_xz_sha256": "7a15c5fa1bbde13b5b4d57154d5314a3305d96069002b22726cc7b95eb621be0",
+   "date": "Thu, 29 Oct 2026 21:33:12 UTC",
+   "signed_by": [
+    "Debian Security Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Security Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>"
+   ]
+  }
+ },
+ "keyring": {
+  "name": "debian-archive-keyring",
+  "version": "2025.1",
+  "sha256": "9ea7778e443144ca490668737a8ab22dd3e748bb99e805e22ec055abeb3c7fac",
+  "url": "https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2025.1_all.deb",
+  "bytes": 179244
+ },
+ "present": {
+  "libc6": "2.41-12+deb13u4"
+ },
+ "skipped": {
+  "adduser": {
+   "reason": "maintainer scripts create the messagebus user; NexusOS runs the bus with its own configuration",
+   "required_by": [
+    "bluez"
+   ]
+  },
+  "default-dbus-system-bus": {
+   "reason": "virtual package: the bus comes from dbus-daemon (a root of this lock)",
+   "required_by": [
+    "bluez"
+   ]
+  },
+  "init-system-helpers": {
+   "reason": "service management helpers (no systemd on NexusOS)",
+   "required_by": [
+    "bluez"
+   ]
+  },
+  "kmod": {
+   "reason": "modprobe of hidp/bnep/uhid for the input and network plugins (NexusOS has no loadable modules)",
+   "required_by": [
+    "bluez"
+   ]
+  },
+  "udev": {
+   "reason": "udev rules for hid2hci (no udevd on NexusOS)",
+   "required_by": [
+    "bluez"
+   ]
+  }
+ },
+ "packages": [
+  {
+   "name": "bluez",
+   "version": "5.82-1.1",
+   "url": "https://deb.debian.org/debian/pool/main/b/bluez/bluez_5.82-1.1_amd64.deb",
+   "sha256": "64a680d95abb11cf02f8170b2d57115dbdee4738a6163c2cf25021f546bce8ac",
+   "bytes": 1407164,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/bluez_5.82-1.1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250604T022813Z/pool/main/b/bluez/bluez_5.82-1.1_amd64.deb"
+  },
+  {
+   "name": "bluez-test-tools",
+   "version": "5.82-1.1",
+   "url": "https://deb.debian.org/debian/pool/main/b/bluez/bluez-test-tools_5.82-1.1_amd64.deb",
+   "sha256": "12a78c5138fe251bc5b15982c4a61022ac8d68a07e3f8f677416b7d38d93d514",
+   "bytes": 394228,
+   "kind": "deb",
+   "app": "bluez-test",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez-test"
+   ],
+   "filename": "debs/bluez-test-tools_5.82-1.1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250604T022813Z/pool/main/b/bluez/bluez-test-tools_5.82-1.1_amd64.deb"
+  },
+  {
+   "name": "dbus-bin",
+   "version": "1.16.2-2",
+   "url": "https://deb.debian.org/debian/pool/main/d/dbus/dbus-bin_1.16.2-2_amd64.deb",
+   "sha256": "a7c0785f89d3763bb83e2912237135a7d1c610e06f487c39b1d6408e88d46fb5",
+   "bytes": 80004,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez"
+   ],
+   "filename": "debs/dbus-bin_1.16.2-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250309T040517Z/pool/main/d/dbus/dbus-bin_1.16.2-2_amd64.deb"
+  },
+  {
+   "name": "dbus-daemon",
+   "version": "1.16.2-2",
+   "url": "https://deb.debian.org/debian/pool/main/d/dbus/dbus-daemon_1.16.2-2_amd64.deb",
+   "sha256": "c91558cbd019bd5ec3e9fde0084976d5f61977f4ef0a9ed1ff48fe3a129b91d4",
+   "bytes": 158660,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez"
+   ],
+   "filename": "debs/dbus-daemon_1.16.2-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250309T040517Z/pool/main/d/dbus/dbus-daemon_1.16.2-2_amd64.deb"
+  },
+  {
+   "name": "dbus-session-bus-common",
+   "version": "1.16.2-2",
+   "url": "https://deb.debian.org/debian/pool/main/d/dbus/dbus-session-bus-common_1.16.2-2_all.deb",
+   "sha256": "98bd27836c7170839ed9c84b00daad9ed7155bd3d42e3f0ec3faf497aafa5f5f",
+   "bytes": 52264,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez"
+   ],
+   "filename": "debs/dbus-session-bus-common_1.16.2-2_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250309T040517Z/pool/main/d/dbus/dbus-session-bus-common_1.16.2-2_all.deb"
+  },
+  {
+   "name": "gcc-14-base",
+   "version": "14.2.0-19",
+   "url": "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14-base_14.2.0-19_amd64.deb",
+   "sha256": "5b6825de4263824b78c4c51f6476414f3b4e89c2ab63e81dc8b9b5501e867cf6",
+   "bytes": 49432,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/gcc-14-base_14.2.0-19_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250315T204837Z/pool/main/g/gcc-14/gcc-14-base_14.2.0-19_amd64.deb"
+  },
+  {
+   "name": "libapparmor1",
+   "version": "4.1.0-1",
+   "url": "https://deb.debian.org/debian/pool/main/a/apparmor/libapparmor1_4.1.0-1_amd64.deb",
+   "sha256": "4158976c77038b93021967f425b4cc505df18c4f5e3f444732399e7ed4af4419",
+   "bytes": 43688,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez"
+   ],
+   "filename": "debs/libapparmor1_4.1.0-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250410T205407Z/pool/main/a/apparmor/libapparmor1_4.1.0-1_amd64.deb"
+  },
+  {
+   "name": "libasound2-data",
+   "version": "1.2.14-1+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/a/alsa-lib/libasound2-data_1.2.14-1+deb13u1_all.deb",
+   "sha256": "04688afdff3769c0f685541daed7b2f6f0cb946799ddf1d5847ddf11fe245559",
+   "bytes": 21188,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libasound2-data_1.2.14-1+deb13u1_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20260711T202405Z/pool/main/a/alsa-lib/libasound2-data_1.2.14-1+deb13u1_all.deb"
+  },
+  {
+   "name": "libasound2t64",
+   "version": "1.2.14-1+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/a/alsa-lib/libasound2t64_1.2.14-1+deb13u1_amd64.deb",
+   "sha256": "5495496142d57e5ad6d581ac5456ec3c87f872c109a2bfb815d154b673eebc67",
+   "bytes": 380896,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libasound2t64_1.2.14-1+deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20260711T202405Z/pool/main/a/alsa-lib/libasound2t64_1.2.14-1+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libatomic1",
+   "version": "14.2.0-19",
+   "url": "https://deb.debian.org/debian/pool/main/g/gcc-14/libatomic1_14.2.0-19_amd64.deb",
+   "sha256": "212b399aae2f7299203d261a57e49372e09565a9a5ea971905f94a3960366c05",
+   "bytes": 9308,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libatomic1_14.2.0-19_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250315T204837Z/pool/main/g/gcc-14/libatomic1_14.2.0-19_amd64.deb"
+  },
+  {
+   "name": "libaudit-common",
+   "version": "1:4.0.2-2+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/a/audit/libaudit-common_4.0.2-2+deb13u1_all.deb",
+   "sha256": "b9d32e5ff04fd747aacb7d6b3ebbbbf734ddefb2f1695f0b1b2a4b5e51b1052e",
+   "bytes": 12812,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez"
+   ],
+   "filename": "debs/libaudit-common_4.0.2-2+deb13u1_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20260905T205002Z/pool/main/a/audit/libaudit-common_4.0.2-2+deb13u1_all.deb"
+  },
+  {
+   "name": "libaudit1",
+   "version": "1:4.0.2-2+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/a/audit/libaudit1_4.0.2-2+deb13u1_amd64.deb",
+   "sha256": "3d1dd3f031a56f01b747e2acc0e14575212580e6fa63d800c44cb0a31f1edfd7",
+   "bytes": 57680,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez"
+   ],
+   "filename": "debs/libaudit1_4.0.2-2+deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20260905T205002Z/pool/main/a/audit/libaudit1_4.0.2-2+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libblkid1",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/libblkid1_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "81535f3c2c0efc732965907c8749103a0a26377c761622c9ce39b4c92dcde52f",
+   "bytes": 171612,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libblkid1_2.41.5-0+deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20260814T165831Z/pool/updates/main/u/util-linux/libblkid1_2.41.5-0+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libbz2-1.0",
+   "version": "1.0.8-6",
+   "url": "https://deb.debian.org/debian/pool/main/b/bzip2/libbz2-1.0_1.0.8-6_amd64.deb",
+   "sha256": "cba4cda04244b5e481bb15524bc3c983a7d1b6f330013b9b381706a2fcb65310",
+   "bytes": 37912,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libbz2-1.0_1.0.8-6_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20240819T204354Z/pool/main/b/bzip2/libbz2-1.0_1.0.8-6_amd64.deb"
+  },
+  {
+   "name": "libcap-ng0",
+   "version": "0.8.5-4+b1",
+   "url": "https://deb.debian.org/debian/pool/main/libc/libcap-ng/libcap-ng0_0.8.5-4+b1_amd64.deb",
+   "sha256": "20a9e4b0619a3eb2566338223bed135dde5a601eaa2f8fdd5f20b94506addcac",
+   "bytes": 17584,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez"
+   ],
+   "filename": "debs/libcap-ng0_0.8.5-4+b1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250227T025207Z/pool/main/libc/libcap-ng/libcap-ng0_0.8.5-4+b1_amd64.deb"
+  },
+  {
+   "name": "libcap2",
+   "version": "1:2.75-10+deb13u1+b3",
+   "url": "https://deb.debian.org/debian/pool/main/libc/libcap2/libcap2_2.75-10+deb13u1+b3_amd64.deb",
+   "sha256": "89fc4d34fc7a28ad6f0fcd0c561ab253b9dedf6f77f5a000b47c276c8295bf67",
+   "bytes": 28988,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libcap2_2.75-10+deb13u1+b3_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20260713T143636Z/pool/main/libc/libcap2/libcap2_2.75-10+deb13u1+b3_amd64.deb"
+  },
+  {
+   "name": "libdbus-1-3",
+   "version": "1.16.2-2",
+   "url": "https://deb.debian.org/debian/pool/main/d/dbus/libdbus-1-3_1.16.2-2_amd64.deb",
+   "sha256": "bbcb711daff7e104b5f80f9b05475b6142674bfe65518a36a56e96a91068a3f5",
+   "bytes": 177904,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libdbus-1-3_1.16.2-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250309T040517Z/pool/main/d/dbus/libdbus-1-3_1.16.2-2_amd64.deb"
+  },
+  {
+   "name": "libdw1t64",
+   "version": "0.192-4",
+   "url": "https://deb.debian.org/debian/pool/main/e/elfutils/libdw1t64_0.192-4_amd64.deb",
+   "sha256": "6b41d3895b40eff429dd8013f0c13b6e26371a26491f414dbf66ba86c4c2c3f1",
+   "bytes": 254872,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libdw1t64_0.192-4_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241022T144244Z/pool/main/e/elfutils/libdw1t64_0.192-4_amd64.deb"
+  },
+  {
+   "name": "libelf1t64",
+   "version": "0.192-4",
+   "url": "https://deb.debian.org/debian/pool/main/e/elfutils/libelf1t64_0.192-4_amd64.deb",
+   "sha256": "94497b7e17b6f574a0605b380d454e20d3f01a9c63b70c2a2263f679d30053e1",
+   "bytes": 189408,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libelf1t64_0.192-4_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241022T144244Z/pool/main/e/elfutils/libelf1t64_0.192-4_amd64.deb"
+  },
+  {
+   "name": "libexpat1",
+   "version": "2.9.0-1~deb13u1",
+   "url": "https://deb.debian.org/debian-security/pool/updates/main/e/expat/libexpat1_2.9.0-1~deb13u1_amd64.deb",
+   "sha256": "feff874772cae904ae4d24e917b35664952bec4b4ae9100a4edda5a7fa746832",
+   "bytes": 125744,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie-security",
+   "needed_by": [
+    "bluez"
+   ],
+   "filename": "debs/libexpat1_2.9.0-1~deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20261016T061025Z/pool/updates/main/e/expat/libexpat1_2.9.0-1~deb13u1_amd64.deb"
+  },
+  {
+   "name": "libffi8",
+   "version": "3.4.8-2",
+   "url": "https://deb.debian.org/debian/pool/main/libf/libffi/libffi8_3.4.8-2_amd64.deb",
+   "sha256": "0ebdc340de33333639c3c63874cd4b15ac2e83dfa1ef3053b7eefaf4919f4f68",
+   "bytes": 24144,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libffi8_3.4.8-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250425T084555Z/pool/main/libf/libffi/libffi8_3.4.8-2_amd64.deb"
+  },
+  {
+   "name": "libglib2.0-0t64",
+   "version": "2.84.4-3~deb13u5",
+   "url": "https://deb.debian.org/debian/pool/main/g/glib2.0/libglib2.0-0t64_2.84.4-3~deb13u5_amd64.deb",
+   "sha256": "e2baf92c57d1db1753e5781a61450d9a01e7833c7bd2dfe87776a6811c11ecc2",
+   "bytes": 1521120,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libglib2.0-0t64_2.84.4-3~deb13u5_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20260831T204404Z/pool/main/g/glib2.0/libglib2.0-0t64_2.84.4-3~deb13u5_amd64.deb"
+  },
+  {
+   "name": "liblzma5",
+   "version": "5.8.1-1+deb13u2",
+   "url": "https://deb.debian.org/debian-security/pool/updates/main/x/xz-utils/liblzma5_5.8.1-1+deb13u2_amd64.deb",
+   "sha256": "b38acab30f295bf1066a6632e31cbd0a1980f2924b38040cda131d5dea5384ec",
+   "bytes": 309696,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie-security",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/liblzma5_5.8.1-1+deb13u2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20261007T211543Z/pool/updates/main/x/xz-utils/liblzma5_5.8.1-1+deb13u2_amd64.deb"
+  },
+  {
+   "name": "libmount1",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/libmount1_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "6d00f45f2e80e078e906e3eedecd3ba6913e39fef49bff361ee583f17f00ec05",
+   "bytes": 210408,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libmount1_2.41.5-0+deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20260814T165831Z/pool/updates/main/u/util-linux/libmount1_2.41.5-0+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libpcre2-8-0",
+   "version": "10.46-1~deb13u3",
+   "url": "https://deb.debian.org/debian-security/pool/updates/main/p/pcre2/libpcre2-8-0_10.46-1~deb13u3_amd64.deb",
+   "sha256": "e226f661d918f04daf38cdbc4806b7ed7d6ef95c7eb0ade692fc350e31970040",
+   "bytes": 299148,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie-security",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libpcre2-8-0_10.46-1~deb13u3_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20260929T204601Z/pool/updates/main/p/pcre2/libpcre2-8-0_10.46-1~deb13u3_amd64.deb"
+  },
+  {
+   "name": "libreadline8t64",
+   "version": "8.2-6",
+   "url": "https://deb.debian.org/debian/pool/main/r/readline/libreadline8t64_8.2-6_amd64.deb",
+   "sha256": "eeadf2b5e755c9f183883feea2d9b5b28560284275d5f54d3e55d0923b1d0967",
+   "bytes": 168832,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libreadline8t64_8.2-6_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241213T203501Z/pool/main/r/readline/libreadline8t64_8.2-6_amd64.deb"
+  },
+  {
+   "name": "libselinux1",
+   "version": "3.8.1-1",
+   "url": "https://deb.debian.org/debian/pool/main/libs/libselinux/libselinux1_3.8.1-1_amd64.deb",
+   "sha256": "68bb8d32bd8d6d7d2f5952a169db03d1484b46ae1e52abccdec42a19dccea5d5",
+   "bytes": 84680,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libselinux1_3.8.1-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250316T145036Z/pool/main/libs/libselinux/libselinux1_3.8.1-1_amd64.deb"
+  },
+  {
+   "name": "libsystemd0",
+   "version": "257.13-1~deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/s/systemd/libsystemd0_257.13-1~deb13u1_amd64.deb",
+   "sha256": "ab0d4127b5e46e6f8c015a1db15a62ba9ae274cdefa150083adf90ada0600ea1",
+   "bytes": 454648,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libsystemd0_257.13-1~deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20260503T204801Z/pool/main/s/systemd/libsystemd0_257.13-1~deb13u1_amd64.deb"
+  },
+  {
+   "name": "libtinfo6",
+   "version": "6.5+20250216-2",
+   "url": "https://deb.debian.org/debian/pool/main/n/ncurses/libtinfo6_6.5+20250216-2_amd64.deb",
+   "sha256": "8b9f6a7983e9418564e48a627518de4c03917b56efe68d7f3e93bd8fffa1cc10",
+   "bytes": 348380,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libtinfo6_6.5+20250216-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250306T211336Z/pool/main/n/ncurses/libtinfo6_6.5+20250216-2_amd64.deb"
+  },
+  {
+   "name": "libudev1",
+   "version": "257.13-1~deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/s/systemd/libudev1_257.13-1~deb13u1_amd64.deb",
+   "sha256": "5d41c284f5a93b05bc7d648b61a02dd2bb9ff05b2261ad1a8b7d96044a0cfa88",
+   "bytes": 152300,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libudev1_257.13-1~deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20260503T204801Z/pool/main/s/systemd/libudev1_257.13-1~deb13u1_amd64.deb"
+  },
+  {
+   "name": "libzstd1",
+   "version": "1.5.7+dfsg-1",
+   "url": "https://deb.debian.org/debian/pool/main/libz/libzstd/libzstd1_1.5.7+dfsg-1_amd64.deb",
+   "sha256": "2f6a2aeacfc925eba8b00ac9139bc4bfccf8cacb09eb93de067074b26948eef9",
+   "bytes": 303836,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/libzstd1_1.5.7+dfsg-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250314T032421Z/pool/main/libz/libzstd/libzstd1_1.5.7+dfsg-1_amd64.deb"
+  },
+  {
+   "name": "readline-common",
+   "version": "8.2-6",
+   "url": "https://deb.debian.org/debian/pool/main/r/readline/readline-common_8.2-6_all.deb",
+   "sha256": "f77e8aa0bf0de618f11cb0b21658a4ed60f177d63b3cf26d7fc3706b6d0eaaa9",
+   "bytes": 69360,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/readline-common_8.2-6_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241213T203501Z/pool/main/r/readline/readline-common_8.2-6_all.deb"
+  },
+  {
+   "name": "zlib1g",
+   "version": "1:1.3.dfsg+really1.3.1-1+b1",
+   "url": "https://deb.debian.org/debian/pool/main/z/zlib/zlib1g_1.3.dfsg+really1.3.1-1+b1_amd64.deb",
+   "sha256": "015be740d6236ad114582dea500c1d907f29e16d6db00566ca32fb68d71ac90d",
+   "bytes": 88892,
+   "kind": "deb",
+   "app": "bluez",
+   "suite": "trixie",
+   "needed_by": [
+    "bluez",
+    "bluez-test"
+   ],
+   "filename": "debs/zlib1g_1.3.dfsg+really1.3.1-1+b1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241029T234230Z/pool/main/z/zlib/zlib1g_1.3.dfsg+really1.3.1-1+b1_amd64.deb"
+  }
+ ]
+}
