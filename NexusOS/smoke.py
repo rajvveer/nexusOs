@@ -32,7 +32,7 @@ for ch in 'root': raw('sendkey '+ch)
 raw('sendkey ret')
 time.sleep(4)
 shot('smoke_desktop')               # desktop
-raw('sendkey esc'); time.sleep(1.5)
+raw('sendkey f12'); time.sleep(1.5)   # desktop -> console
 shot('smoke_shell')                 # text shell
 for ch in 'help': raw('sendkey '+ch)
 raw('sendkey ret'); time.sleep(1)

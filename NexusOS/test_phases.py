@@ -27,7 +27,7 @@ os.makedirs(OUT, exist_ok=True)
 # QEMU monitor `screendump` splits its filename argument on spaces, so the dump
 # target MUST be a path with no spaces (our project path has "New folder").
 # Dump to a space-free scratch dir, then convert into OUT.
-TMP = os.environ.get("NEXUS_SHOT_TMP", r"C:\nexustest")
+TMP = os.environ.get("NEXUS_SHOT_TMP") or os.path.join(HERE, "arch", "x86_64", "out", "shot-tmp")   # must be space-free: set NEXUS_SHOT_TMP
 os.makedirs(TMP, exist_ok=True)
 
 QEMU = r"C:\Program Files\qemu\qemu-system-i386.exe"
@@ -86,7 +86,7 @@ def login_and_shell(m, boot_wait=14):
     m.line('root')      # username
     m.line('root')      # password
     time.sleep(3)
-    m.key('esc')        # desktop -> text shell
+    m.key('f12')        # desktop -> text shell (Aurora: F12 = Exit to Console)
     time.sleep(1.5)
 
 

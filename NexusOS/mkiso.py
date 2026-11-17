@@ -12,8 +12,12 @@ a Boot Record Volume Descriptor (El Torito), the boot catalog, a tiny root
 directory, and the boot image stored as a file. It is intentionally small and
 readable rather than a full ISO9660 implementation.
 
-Usage:  python mkiso.py [boot_image] [output.iso]
+Usage:  python mkiso.py [boot_image] [output.iso] [efi_image]
         defaults: nexus.img -> nexus.iso
+
+With efi_image (a FAT volume holding EFI/BOOT/BOOTX64.EFI, see mkuefi.py --efiboot) the boot
+catalog gains a second section for platform 0xEF (UEFI, no emulation), so the same ISO boots
+on BIOS (floppy emulation) and UEFI firmware.
 """
 
 import sys, os, struct
@@ -45,8 +49,13 @@ def main():
 
     with open(boot_img, 'rb') as f:
         boot_data = f.read()
+    efi_data = b''
+    if len(sys.argv) > 3:
+        with open(sys.argv[3], 'rb') as f:
+            efi_data = f.read()
 
     boot_sectors_2048 = (len(boot_data) + SECTOR - 1) // SECTOR
+    efi_sectors_2048 = (len(efi_data) + SECTOR - 1) // SECTOR
 
     # Choose El Torito floppy emulation type from the image size.
     n512 = len(boot_data) // 512
@@ -71,7 +80,8 @@ def main():
     LBA_ROOT  = 19
     LBA_CAT   = 20
     LBA_BOOT  = 21
-    total_sectors = LBA_BOOT + boot_sectors_2048
+    LBA_EFI   = LBA_BOOT + boot_sectors_2048     # optional UEFI FAT image follows the floppy image
+    total_sectors = LBA_EFI + efi_sectors_2048
 
     def vd_header(vtype, ident=b'CD001', ver=1):
         return bytes([vtype]) + ident + bytes([ver])
@@ -129,8 +139,11 @@ def main():
     r1 = dir_record(LBA_ROOT, SECTOR, 0x02, b'\x00')          # '.'
     r2 = dir_record(LBA_ROOT, SECTOR, 0x02, b'\x01')          # '..'
     boot_file = dir_record(LBA_BOOT, len(boot_data), 0x00, b'BOOT.IMG;1')
+    records = [r1, r2, boot_file]
+    if efi_data:
+        records.append(dir_record(LBA_EFI, len(efi_data), 0x00, b'EFIBOOT.IMG;1'))
     off = 0
-    for r in (r1, r2, boot_file):
+    for r in records:
         root[off:off+len(r)] = r
         off += len(r)
 
@@ -160,6 +173,20 @@ def main():
     ent[6:8] = struct.pack('<H', 1)            # sector count (virtual 512 sectors)
     ent[8:12] = struct.pack('<I', LBA_BOOT)    # boot image LBA (2048-byte units)
     cat[32:64] = ent
+    if efi_data:
+        # Section header (final, platform 0xEF = UEFI, one entry) + no-emulation section entry.
+        hdr = bytearray(32)
+        hdr[0] = 0x91
+        hdr[1] = 0xEF
+        hdr[2:4] = struct.pack('<H', 1)
+        hdr[4:4 + len(b'UEFI')] = b'UEFI'
+        cat[64:96] = hdr
+        efi = bytearray(32)
+        efi[0] = 0x88                 # bootable
+        efi[1] = 0x00                 # no emulation
+        efi[6:8] = struct.pack('<H', min((len(efi_data) + 511) // 512, 0xFFFF))  # 512-byte sectors
+        efi[8:12] = struct.pack('<I', LBA_EFI)
+        cat[96:128] = efi
 
     # ---- Assemble ----------------------------------------------------------
     img = bytearray(SECTOR * LBA_BOOT)
@@ -169,13 +196,16 @@ def main():
     img[SECTOR*LBA_ROOT:SECTOR*LBA_ROOT+SECTOR] = root
     img[SECTOR*LBA_CAT :SECTOR*LBA_CAT +SECTOR] = cat
     img += pad_to_sector(bytearray(boot_data))
+    if efi_data:
+        img += pad_to_sector(bytearray(efi_data))
 
     with open(out_iso, 'wb') as f:
         f.write(img)
 
     print(f"[mkiso] wrote {out_iso}: {len(img)} bytes "
           f"({total_sectors} x 2048), El Torito media 0x{media_type:02X}, "
-          f"boot image {boot_img} ({len(boot_data)} bytes)")
+          f"boot image {boot_img} ({len(boot_data)} bytes)"
+          + (f", UEFI image {sys.argv[3]} ({len(efi_data)} bytes)" if efi_data else ""))
     return 0
 
 if __name__ == '__main__':

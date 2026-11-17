@@ -53,10 +53,10 @@ def main():
     m.line('root'); m.line('root')
     time.sleep(4)
     m.shot("gui_00_desktop")          # Phases 4-18: desktop, taskbar, icons, wallpaper
-    m.key('esc'); time.sleep(1.5)     # -> text shell to launch apps
+    m.key('f12'); time.sleep(1.5)     # -> text shell to launch apps (F12 = Exit to Console)
 
     log=[]
-    def app(cmd, label, settle=2.0, exit_keys=('esc',), pre_keys=()):
+    def app(cmd, label, settle=2.0, exit_keys=('esc','f12'), pre_keys=()):
         m.line(cmd); time.sleep(settle)
         for k in pre_keys:
             m.key(k); time.sleep(0.4)
@@ -67,45 +67,45 @@ def main():
         log.append(f"{cmd} -> {label}")
 
     # --- GUI apps (windowed; launched, screenshot, q/esc to close) ---
-    app("calc", "gui_calc", 2.0, exit_keys=('esc','esc'))
-    app("notepad", "gui_notepad", 2.0, exit_keys=('esc','esc'))
-    app("files", "gui_filemgr", 2.0, exit_keys=('esc','esc'))
-    app("paint", "gui_paint", 2.0, exit_keys=('esc','esc'))
-    app("calendar", "gui_calendar", 2.0, exit_keys=('esc','esc'))
-    app("settings", "gui_settings", 2.0, exit_keys=('esc','esc'))
-    app("taskmgr", "gui_taskmgr", 2.0, exit_keys=('esc','esc'))
-    app("sysmon", "gui_sysmon", 2.0, exit_keys=('esc','esc'))
-    app("contacts", "gui_contacts", 2.0, exit_keys=('esc','esc'))
+    app("calc", "gui_calc", 2.0, exit_keys=('esc','f12'))
+    app("notepad", "gui_notepad", 2.0, exit_keys=('esc','f12'))
+    app("files", "gui_filemgr", 2.0, exit_keys=('esc','f12'))
+    app("paint", "gui_paint", 2.0, exit_keys=('esc','f12'))
+    app("calendar", "gui_calendar", 2.0, exit_keys=('esc','f12'))
+    app("settings", "gui_settings", 2.0, exit_keys=('esc','f12'))
+    app("taskmgr", "gui_taskmgr", 2.0, exit_keys=('esc','f12'))
+    app("sysmon", "gui_sysmon", 2.0, exit_keys=('esc','f12'))
+    app("contacts", "gui_contacts", 2.0, exit_keys=('esc','f12'))
     app("colors", "gui_colors", 2.0, exit_keys=('esc',))
-    app("clock", "gui_clock", 2.0, exit_keys=('esc','esc'))
+    app("clock", "gui_clock", 2.0, exit_keys=('esc','f12'))
 
     # --- Games ---
     # snake: move a couple of directions
     m.line('snake'); time.sleep(2)
     m.key('d 600'); time.sleep(1); m.key('s 600'); time.sleep(1)
-    m.shot("game_snake"); m.key('esc'); time.sleep(0.8); m.key('q'); time.sleep(1)
+    m.shot("game_snake"); m.key('esc'); time.sleep(0.8); m.key('q'); time.sleep(0.6); m.key('f12'); time.sleep(1)
     log.append("snake")
 
     # tetris
     m.line('tetris'); time.sleep(2)
     m.key('left'); time.sleep(0.4); m.key('down'); time.sleep(0.4)
-    m.shot("game_tetris"); m.key('esc'); time.sleep(0.8); m.key('q'); time.sleep(1)
+    m.shot("game_tetris"); m.key('esc'); time.sleep(0.8); m.key('q'); time.sleep(0.6); m.key('f12'); time.sleep(1)
     log.append("tetris")
 
     # pong
     m.line('pong'); time.sleep(2)
-    m.shot("game_pong"); m.key('esc'); time.sleep(0.8); m.key('q'); time.sleep(1)
+    m.shot("game_pong"); m.key('esc'); time.sleep(0.8); m.key('q'); time.sleep(0.6); m.key('f12'); time.sleep(1)
     log.append("pong")
 
     # minesweeper
     m.line('minesweeper'); time.sleep(2)
-    m.shot("game_minesweeper"); m.key('esc'); time.sleep(0.8); m.key('q'); time.sleep(1)
+    m.shot("game_minesweeper"); m.key('esc'); time.sleep(0.8); m.key('q'); time.sleep(0.6); m.key('f12'); time.sleep(1)
     log.append("minesweeper")
 
     # breakout
     m.line('breakout'); time.sleep(2)
     m.key('spc'); time.sleep(0.5); m.key('d 600'); time.sleep(0.8)
-    m.shot("game_breakout"); m.key('esc'); time.sleep(0.8); m.key('q'); time.sleep(1)
+    m.shot("game_breakout"); m.key('esc'); time.sleep(0.8); m.key('q'); time.sleep(0.6); m.key('f12'); time.sleep(1)
     log.append("breakout")
 
     # doom: title, start, look around, shoot
@@ -115,7 +115,7 @@ def main():
     m.key('w 800'); time.sleep(1.2)
     m.key('ctrl'); time.sleep(0.5)       # shoot
     m.shot("game_doom_play")
-    m.key('esc'); time.sleep(1); m.key('esc'); time.sleep(1)
+    m.key('esc'); time.sleep(1); m.key('f12'); time.sleep(1)
     log.append("doom")
 
     # sprites demo (Phase 41)
