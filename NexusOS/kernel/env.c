@@ -7,6 +7,7 @@
 #include "env.h"
 #include "string.h"
 #include "vga.h"
+#include "users.h"
 
 /* Environment table */
 static env_var_t env_table[ENV_MAX_VARS];
@@ -19,8 +20,10 @@ void env_init(void) {
 
     /* Set default variables */
     env_set("PATH", "/bin:/usr/bin");
-    env_set("HOME", "/home/nexus");
-    env_set("USER", "nexus");
+    /* Root until login (users_init runs later); env_sync_user() then
+     * switches these to the authenticated account. */
+    env_set("HOME", "/root");
+    env_set("USER", "root");
     env_set("SHELL", "/bin/nsh");
     env_set("TERM", "nexus-vt");
     env_set("OS", "NexusOS");
@@ -30,6 +33,18 @@ void env_init(void) {
 
     vga_print_color("[OK] ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
     vga_print("Environment: 9 vars set\n");
+}
+
+/* --------------------------------------------------------------------------
+ * env_sync_user: point USER/HOME at the current (logged-in) account
+ * -------------------------------------------------------------------------- */
+void env_sync_user(void) {
+    const char* name = users_current_name();
+    char home[ENV_VALUE_MAX];
+    strcpy(home, users_current_is_root() ? "/root" : "/home/");
+    if (!users_current_is_root()) strcat(home, name);
+    env_set("USER", name);
+    env_set("HOME", home);
 }
 
 /* --------------------------------------------------------------------------

@@ -17,9 +17,12 @@
 #include "heap.h"
 #include "vfs.h"
 #include "process.h"
+#include "elf.h"        /* USER_LOAD_BASE: legacy PE load window (GetModuleHandle) */
 #include "rtc.h"
 #include "registry.h"
 #include "framebuffer.h"
+#include "idt.h"
+#include "paging.h"
 
 extern volatile uint32_t system_ticks;
 
@@ -159,8 +162,10 @@ static void win32_win_key(int id, char key) {
 
 HMODULE GetModuleHandleA(LPCSTR lpModuleName) {
     (void)lpModuleName;
-    /* In our simple OS, the .exe base is usually available, but we'll return a fake handle */
-    return (HMODULE)0x400000;
+    /* In our simple OS, the .exe base is usually available, but we'll return a
+     * fake handle: the start of the legacy PE load window (elf.h; Phase 57
+     * moved it to 12MB — 0x400000 is the kernel heap now). */
+    return (HMODULE)USER_LOAD_BASE;
 }
 
 void ExitProcess(UINT uExitCode) {
@@ -750,6 +755,7 @@ uint32_t win32_resolve_import(const char* dll_name, const char* func_name) {
     
     char name_lower[64];
     strncpy(name_lower, dll_name, 63);
+    name_lower[63] = '\0';               /* strncpy doesn't terminate a 63+ char name */
     for (int i = 0; name_lower[i]; i++) {
         if (name_lower[i] >= 'A' && name_lower[i] <= 'Z')
             name_lower[i] += 32;
@@ -776,6 +782,68 @@ uint32_t win32_resolve_import(const char* dll_name, const char* func_name) {
     vga_print((char*)func_name);
     vga_print("\n");
     return 0; /* Unresolved imports will crash the PE if called */
+}
+
+/* ============================================================================
+ * Phase 54: ring-3 Win32 dispatch
+ * ----------------------------------------------------------------------------
+ * A ring-3 PE cannot call a kernel shim directly (it would fault). Instead the
+ * PE loader (uproc.c) points each IAT entry at a per-process stub that does
+ * `mov eax, 0x8000|<shim id>; int 0x80; ret <argbytes>`. The syscall handler
+ * routes eax>=0x8000 here. We read the stdcall args off the user stack (the
+ * process's CR3 is loaded), copy them in after validating the stack range, and
+ * call the existing cdecl shim implementation. `argbytes` lets the stub do the
+ * stdcall callee cleanup. Shims that take pointers dereference user addresses,
+ * which are valid under the current CR3; a bad pointer faults into a clean
+ * process kill (uproc_fault), never a kernel halt.
+ * ============================================================================ */
+typedef struct { const char* name; void* fn; uint16_t argbytes; } win32_shim_t;
+
+static const win32_shim_t win32_shims[] = {
+    { "ExitProcess",         (void*)ExitProcess,          4  },
+    { "OutputDebugStringA",  (void*)OutputDebugStringA,   4  },
+    { "GetCurrentProcessId", (void*)GetCurrentProcessId,  0  },
+    { "GetTickCount",        (void*)GetTickCount,         0  },
+    { "Sleep",               (void*)Sleep,                4  },
+    { "GetLastError",        (void*)GetLastError,         0  },
+    { "SetLastError",        (void*)SetLastError,         4  },
+    { "GetCommandLineA",     (void*)GetCommandLineA,      0  },
+    { "GetModuleHandleA",    (void*)GetModuleHandleA,     4  },
+    { "MessageBoxA",         (void*)MessageBoxA,          16 },
+};
+#define WIN32_SHIM_COUNT ((int)(sizeof(win32_shims)/sizeof(win32_shims[0])))
+
+/* Map an import (dll ignored; our shim names are globally unique) to a shim id
+ * and its stdcall arg byte count. Returns the id, or -1 if unsupported. */
+int win32_lookup_shim(const char* dll, const char* func, uint32_t* argbytes_out) {
+    (void)dll;
+    if (!func) return -1;
+    for (int i = 0; i < WIN32_SHIM_COUNT; i++) {
+        if (strcmp(win32_shims[i].name, func) == 0) {
+            if (argbytes_out) *argbytes_out = win32_shims[i].argbytes;
+            return i;
+        }
+    }
+    return -1;
+}
+
+uint32_t win32_dispatch(uint32_t id, struct registers* regs) {
+    if ((int)id >= WIN32_SHIM_COUNT) return 0;
+    const win32_shim_t* s = &win32_shims[id];
+    uint32_t uesp = regs->useresp;      /* -> [return addr][arg0][arg1]... */
+    uint32_t nargs = s->argbytes / 4;
+
+    /* Validate the stack slice we are about to read. */
+    if (!as_check_user(paging_current_cr3(), uesp, 4 + s->argbytes)) return 0;
+
+    const uint32_t* ua = (const uint32_t*)(uesp + 4);
+    uint32_t a[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    for (uint32_t i = 0; i < nargs && i < 8; i++) a[i] = ua[i];
+
+    typedef uint32_t (*fn8_t)(uint32_t, uint32_t, uint32_t, uint32_t,
+                              uint32_t, uint32_t, uint32_t, uint32_t);
+    fn8_t f = (fn8_t)s->fn;
+    return f(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]);  /* cdecl: caller cleans */
 }
 
 /* ============================================================================

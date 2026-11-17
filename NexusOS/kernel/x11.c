@@ -76,6 +76,9 @@ static void push_event(XEvent* ev) {
  * ============================================================================ */
 
 static void x11_win_draw(int id, int cx, int cy, int cw, int ch) {
+    /* The content rect is part of the WM callback signature; X clients get a
+     * whole-window Expose and repaint themselves, so it isn't needed here. */
+    (void)cx; (void)cy; (void)cw; (void)ch;
     /* Generate Expose event for the X11 window */
     for (int i = 0; i < X11_MAX_WINDOWS; i++) {
         if (x11_windows[i].active && x11_windows[i].nx_win_id == id) {

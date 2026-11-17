@@ -17,7 +17,6 @@
 
 /* ---- Library registry ---- */
 static loaded_lib_t libraries[DYNLINK_MAX_LIBS];
-static int next_load_slot = 0;
 
 /* ---- Built-in symbol table ---- */
 static builtin_sym_t builtins[DYNLINK_MAX_SYMBOLS];
@@ -100,6 +99,12 @@ uint32_t dynlink_lib_symbol(uint32_t handle, const char* name) {
     return resolve_in_library(lib, name);
 }
 
+/* True if image offset range [off, off+len) lies inside the library's loaded
+ * image (overflow-safe). All .dynamic-derived pointers are checked with it. */
+static bool in_image(const loaded_lib_t* lib, uint32_t off, uint32_t len) {
+    return off <= lib->load_size && len <= lib->load_size - off;
+}
+
 /* --------------------------------------------------------------------------
  * apply_relocations: Process REL relocations for a loaded library
  * -------------------------------------------------------------------------- */
@@ -113,6 +118,9 @@ static void apply_relocations(loaded_lib_t* lib, elf32_rel_t* rels,
         elf32_rel_t* rel = &rels[i];
         uint32_t sym_idx = ELF32_R_SYM(rel->r_info);
         uint32_t type    = ELF32_R_TYPE(rel->r_info);
+
+        /* The patched word must lie inside the image. */
+        if (!in_image(lib, rel->r_offset, 4)) continue;
 
         /* Compute the address to patch */
         uint32_t* target = (uint32_t*)(lib->load_base + rel->r_offset);
@@ -172,6 +180,7 @@ static void apply_relocations(loaded_lib_t* lib, elf32_rel_t* rels,
  * -------------------------------------------------------------------------- */
 static void parse_dynamic_section(loaded_lib_t* lib, uint32_t dyn_vaddr,
                                    uint32_t dyn_size) {
+    if (!in_image(lib, dyn_vaddr, dyn_size)) return;
     elf32_dyn_t* dyn = (elf32_dyn_t*)(lib->load_base + dyn_vaddr);
     uint32_t count = dyn_size / sizeof(elf32_dyn_t);
 
@@ -198,17 +207,19 @@ static void parse_dynamic_section(loaded_lib_t* lib, uint32_t dyn_vaddr,
         }
     }
 
-    /* Map addresses relative to load base */
-    if (symtab_addr) {
+    /* Map addresses relative to load base; every table must lie inside the
+     * loaded image or it is ignored. */
+    if (symtab_addr && in_image(lib, symtab_addr, 0)) {
         lib->symtab = (elf32_sym_t*)(lib->load_base + symtab_addr);
     }
-    if (strtab_addr) {
+    if (strtab_addr && strsz && in_image(lib, strtab_addr, strsz)) {
         lib->strtab = (const char*)(lib->load_base + strtab_addr);
         lib->strtab_size = strsz;
+        ((char*)lib->strtab)[strsz - 1] = '\0';   /* names can't run off the table */
     }
 
     /* Estimate symbol count from hash table or strtab/symtab gap */
-    if (hash_addr) {
+    if (hash_addr && in_image(lib, hash_addr, 8)) {
         uint32_t* hash = (uint32_t*)(lib->load_base + hash_addr);
         lib->sym_count = hash[1]; /* nchain = number of symbols */
     } else if (strtab_addr > symtab_addr && syment > 0) {
@@ -216,15 +227,22 @@ static void parse_dynamic_section(loaded_lib_t* lib, uint32_t dyn_vaddr,
     } else {
         lib->sym_count = 64; /* Conservative fallback */
     }
+    /* Clamp to the symbols that actually fit in the image after symtab. */
+    if (lib->symtab) {
+        uint32_t cap = (lib->load_size - symtab_addr) / sizeof(elf32_sym_t);
+        if (lib->sym_count > cap) lib->sym_count = cap;
+    } else {
+        lib->sym_count = 0;
+    }
 
     /* REL relocations */
-    if (rel_addr) {
+    if (rel_addr && in_image(lib, rel_addr, relsz)) {
         lib->rel = (elf32_rel_t*)(lib->load_base + rel_addr);
         lib->relsz = relsz;
     }
 
     /* PLT relocations */
-    if (jmprel_addr) {
+    if (jmprel_addr && in_image(lib, jmprel_addr, pltrelsz)) {
         lib->pltrel = (elf32_rel_t*)(lib->load_base + jmprel_addr);
         lib->pltrelsz = pltrelsz;
     }
@@ -277,10 +295,18 @@ uint32_t dynlink_load_library(const uint8_t* data, uint32_t size,
         vga_print("dynlink: not a shared object\n");
         return 0;
     }
+    /* Program header table must fit the file (overflow-safe check). */
+    if (!elf_validate(data, size)) {
+        vga_print_color("[!!] ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print("dynlink: bad program headers\n");
+        return 0;
+    }
 
     /* Determine load base address */
-    uint32_t load_base = DYNLINK_SO_BASE + (uint32_t)next_load_slot * DYNLINK_SO_STRIDE;
-    next_load_slot++;
+    /* One fixed STRIDE-sized window per registry slot (a free slot's pages
+     * were unmapped on unload). A global ever-incrementing counter here would
+     * eventually wrap load_base past 4GB onto kernel memory. */
+    uint32_t load_base = DYNLINK_SO_BASE + (uint32_t)slot * DYNLINK_SO_STRIDE;
 
     /* Initialize library descriptor */
     loaded_lib_t* lib = &libraries[slot];
@@ -302,8 +328,12 @@ uint32_t dynlink_load_library(const uint8_t* data, uint32_t size,
             uint32_t filesz = phdrs[i].p_filesz;
             uint32_t offset = phdrs[i].p_offset;
 
-            /* Validate */
-            if (offset + filesz > size) {
+            /* Validate (overflow-safe): file range in bounds, filesz <= memsz,
+             * and the segment inside this library's DYNLINK_SO_STRIDE slot so
+             * load_base + p_vaddr can't wrap onto kernel memory. */
+            if (offset > size || filesz > size - offset || filesz > memsz ||
+                phdrs[i].p_vaddr > DYNLINK_SO_STRIDE ||
+                memsz > DYNLINK_SO_STRIDE - phdrs[i].p_vaddr) {
                 vga_print_color("[!!] ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
                 vga_print("dynlink: segment out of bounds\n");
                 return 0;
@@ -363,9 +393,9 @@ uint32_t dynlink_load_library(const uint8_t* data, uint32_t size,
     vga_print_color("[OK] ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
     vga_print("dynlink: loaded \"");
     vga_print(name);
-    vga_print("\" at 0x");
+    vga_print("\" at ");
     char buf[12];
-    hex_to_str(load_base, buf);
+    hex_to_str(load_base, buf);         /* adds its own 0x */
     vga_print(buf);
     vga_print(" (");
     int_to_str(max_addr, buf);
@@ -484,7 +514,6 @@ int dl_close(uint32_t handle) {
  * -------------------------------------------------------------------------- */
 void dynlink_init(void) {
     memset(libraries, 0, sizeof(libraries));
-    next_load_slot = 0;
     builtin_count = 0;
 
     vga_print_color("[OK] ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));

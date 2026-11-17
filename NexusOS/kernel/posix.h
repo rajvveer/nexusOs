@@ -30,7 +30,11 @@ void posix_capture_clear(void);
 /* Check if currently capturing */
 bool posix_is_capturing(void);
 
-/* Write string to capture buffer (called by vga_print when capturing) */
+/* Write string to capture buffer */
 void posix_capture_write(const char* s);
+
+/* Append one character. vga_putchar() must call this (and skip drawing)
+ * while posix_is_capturing() — that hook is what makes `cmd > file` work. */
+void posix_capture_putc(char c);
 
 #endif /* POSIX_H */

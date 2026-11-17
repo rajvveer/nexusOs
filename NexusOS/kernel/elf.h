@@ -67,6 +67,25 @@ typedef struct __attribute__((packed)) {
     uint32_t p_align;   /* Alignment */
 } elf32_phdr_t;
 
+/* User image load window shared by the LEGACY single-address-space loaders
+ * (elf_exec / pe_exec / macho_exec, reached via `urun` and SYS_EXEC). They
+ * overlay identity-mapped pages at a fixed virtual address, so the window must
+ * not cover kernel memory. Phase 57 moved it from 4-8MB (now the kernel heap)
+ * to 0xC80000-0xD00000 (12.5-13MB, 512 KB): below sit the kernel (1MB), boot
+ * stack (3-4MB), heap (4-8MB) and .bss (8MB-~11.3MB, linker.ld — which ASSERTs
+ * _bss_end <= 0xC60000 so static buffers can never grow under the window); the
+ * legacy user stacks end at 0xC70000 (Mach-O) / 0xC80000 (ELF, PE) just under
+ * the window; shmem (13MB), mmap (14MB) and the PMM's first zone (15MB) follow
+ * it. (Phase 54 `runelf` processes use their own address spaces at
+ * USER_SPACE_START instead and are unaffected.) */
+#define USER_LOAD_BASE    0x00C80000  /* 12.5MB */
+#define USER_LOAD_END     0x00D00000  /* 13MB (exclusive) */
+
+/* True if [va, va+len) lies inside the user load window (overflow-safe). */
+static inline bool user_range_ok(uint32_t va, uint32_t len) {
+    return va >= USER_LOAD_BASE && va <= USER_LOAD_END && len <= USER_LOAD_END - va;
+}
+
 /* Validate an ELF32 binary in memory.
  * Returns true if it's a valid i386 ELF executable. */
 bool elf_validate(const uint8_t* data, uint32_t size);

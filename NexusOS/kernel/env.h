@@ -24,6 +24,10 @@ typedef struct {
 /* Initialize environment with defaults */
 void env_init(void);
 
+/* Set USER/HOME from the current user (users API). Call after login /
+ * any user switch; the text shell calls it on start. */
+void env_sync_user(void);
+
 /* Set a variable (creates or updates) */
 int env_set(const char* key, const char* value);
 

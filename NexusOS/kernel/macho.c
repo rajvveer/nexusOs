@@ -9,6 +9,7 @@
  * ============================================================================ */
 
 #include "macho.h"
+#include "elf.h"     /* user_range_ok(): shared user load window */
 #include "vga.h"
 #include "string.h"
 #include "memory.h"
@@ -17,7 +18,9 @@
 #include "gdt.h"
 
 /* User-mode layout — distinct stack top from elf.c/pe.c to avoid clashes. */
-#define USER_STACK_TOP    0x00B00000   /* 11MB */
+#define USER_STACK_TOP    0x00C70000   /* Phase 57: 16KB stack just under the ELF/PE stack
+                                          (0xC80000) and the 12.5MB load window; linker.ld
+                                          asserts .bss ends below 0xC60000 */
 #define USER_STACK_PAGES  4            /* 16KB user stack */
 
 static int macho_loaded_count = 0;     /* successful launches, for status */
@@ -29,8 +32,9 @@ bool macho_validate(const uint8_t* data, uint32_t size) {
     if (!data || size < sizeof(mach_header_t)) return false;
     const mach_header_t* h = (const mach_header_t*)data;
 
-    if (h->magic == MH_MAGIC_64) return false;           /* 64-bit not supported */
-    if (h->magic != MH_MAGIC && h->magic != MH_CIGAM) return false;
+    /* Host (little-endian) 32-bit only: 64-bit is unsupported, and byte-swapped
+     * MH_CIGAM files would need every field swapped, which we don't do. */
+    if (h->magic != MH_MAGIC) return false;
     if (h->cputype != CPU_TYPE_X86) return false;
     if (h->filetype != MH_EXECUTE) return false;
     /* Load commands must fit within the file. */
@@ -56,10 +60,10 @@ bool macho_get_info(const uint8_t* data, uint32_t size, macho_info_t* out) {
     uint32_t off = sizeof(mach_header_t);
 
     for (uint32_t i = 0; i < h->ncmds; i++) {
-        if (off + sizeof(load_command_t) > size) break;
+        if (size - off < sizeof(load_command_t)) break;      /* off <= size holds */
         const load_command_t* lc = (const load_command_t*)(data + off);
         uint32_t cmdsize = lc->cmdsize;
-        if (cmdsize < sizeof(load_command_t) || off + cmdsize > size) break;
+        if (cmdsize < sizeof(load_command_t) || cmdsize > size - off) break;
 
         switch (lc->cmd) {
             case LC_SEGMENT: {
@@ -125,40 +129,47 @@ int macho_exec(const uint8_t* data, uint32_t size, const char* name) {
 
     const mach_header_t* h = (const mach_header_t*)data;
     uint32_t flags = PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
-    uint32_t off = sizeof(mach_header_t);
 
-    /* Map and copy each loadable segment. */
-    for (uint32_t i = 0; i < h->ncmds; i++) {
-        if (off + sizeof(load_command_t) > size) break;
-        const load_command_t* lc = (const load_command_t*)(data + off);
-        if (lc->cmdsize < sizeof(load_command_t) || off + lc->cmdsize > size) break;
+    /* The entry must lie in the user load window (elf.h). */
+    if (!user_range_ok(info.entry, 1)) goto bad;
 
-        if (lc->cmd == LC_SEGMENT && lc->cmdsize >= sizeof(segment_command_t)) {
+    /* Two passes over the load commands: pass 0 validates every loadable
+     * segment (whole vm range inside the user load window, so it can't
+     * overlay kernel memory) before pass 1 maps and copies anything. */
+    for (int pass = 0; pass < 2; pass++) {
+        uint32_t off = sizeof(mach_header_t);
+        for (uint32_t i = 0; i < h->ncmds; i++) {
+            if (size - off < sizeof(load_command_t)) break;      /* off <= size holds */
+            const load_command_t* lc = (const load_command_t*)(data + off);
+            if (lc->cmdsize < sizeof(load_command_t) || lc->cmdsize > size - off) break;
+            off += lc->cmdsize;
+
+            if (lc->cmd != LC_SEGMENT || lc->cmdsize < sizeof(segment_command_t)) continue;
             const segment_command_t* seg = (const segment_command_t*)lc;
             /* Skip the null-guard segment and anything zero-sized. */
-            if (strncmp(seg->segname, "__PAGEZERO", 16) != 0 && seg->vmsize > 0 &&
-                seg->vmsize <= 0x01000000 /* 16MB sanity cap */) {
+            if (strncmp(seg->segname, "__PAGEZERO", 16) == 0 || seg->vmsize == 0) continue;
+            if (!user_range_ok(seg->vmaddr, seg->vmsize)) goto bad;
+            if (pass == 0) continue;
 
-                uint32_t page_start = seg->vmaddr & 0xFFFFF000;
-                uint32_t page_end   = (seg->vmaddr + seg->vmsize + 0xFFF) & 0xFFFFF000;
-                for (uint32_t page = page_start; page < page_end; page += 4096) {
-                    uint32_t phys = pmm_alloc_page();
-                    if (phys == 0) {
-                        vga_print_color("[!!] ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
-                        vga_print("Mach-O: out of memory mapping segment\n");
-                        return -1;
-                    }
-                    paging_map_page(page, phys, flags);
+            uint32_t page_start = seg->vmaddr & 0xFFFFF000;
+            uint32_t page_end   = (seg->vmaddr + seg->vmsize + 0xFFF) & 0xFFFFF000;
+            for (uint32_t page = page_start; page < page_end; page += 4096) {
+                uint32_t phys = pmm_alloc_page();
+                if (phys == 0) {
+                    vga_print_color("[!!] ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+                    vga_print("Mach-O: out of memory mapping segment\n");
+                    return -1;
                 }
-                memset((void*)seg->vmaddr, 0, seg->vmsize);
-
-                uint32_t fsize = seg->filesize;
-                if (fsize > seg->vmsize) fsize = seg->vmsize;
-                if (seg->fileoff + fsize <= size && fsize > 0)
-                    memcpy((void*)seg->vmaddr, data + seg->fileoff, fsize);
+                paging_map_page(page, phys, flags);
             }
+            memset((void*)seg->vmaddr, 0, seg->vmsize);
+
+            /* filesize > vmsize is clamped; the file range must not wrap. */
+            uint32_t fsize = seg->filesize;
+            if (fsize > seg->vmsize) fsize = seg->vmsize;
+            if (fsize > 0 && seg->fileoff <= size && fsize <= size - seg->fileoff)
+                memcpy((void*)seg->vmaddr, data + seg->fileoff, fsize);
         }
-        off += lc->cmdsize;
     }
 
     /* User stack. */
@@ -188,8 +199,8 @@ int macho_exec(const uint8_t* data, uint32_t size, const char* name) {
     vga_print_color("[OK] ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
     vga_print("Mach-O: loaded \"");
     vga_print(name);
-    vga_print("\" entry=0x");
-    char buf[12]; hex_to_str(info.entry, buf); vga_print(buf);
+    vga_print("\" entry=");
+    char buf[12]; hex_to_str(info.entry, buf); vga_print(buf);   /* adds its own 0x */
     vga_print("\n");
 
     __asm__ volatile(
@@ -213,6 +224,11 @@ int macho_exec(const uint8_t* data, uint32_t size, const char* name) {
         : "eax"
     );
     return 0;
+
+bad:
+    vga_print_color("[!!] ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+    vga_print("Mach-O: segment/entry out of bounds (user window 0xC80000-0xD00000)\n");
+    return -1;
 }
 
 void macho_init(void) {

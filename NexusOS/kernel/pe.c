@@ -7,6 +7,7 @@
  * ============================================================================ */
 
 #include "pe.h"
+#include "elf.h"     /* user_range_ok(): shared user load window */
 #include "vga.h"
 #include "string.h"
 #include "memory.h"
@@ -18,11 +19,17 @@
 uint32_t win32_resolve_import(const char* dll_name, const char* func_name);
 
 /* User-mode memory layout (similar to elf.c but different base to avoid conflict) */
-#define USER_STACK_TOP    0x00C00000  /* 12MB — user stack top */
+#define USER_STACK_TOP    0x00C80000  /* Phase 57: 16KB stack directly under the 12.5MB load window */
 #define USER_STACK_PAGES  4           /* 16KB user stack */
 
-/* Load base for PE if the default ImageBase (0x400000) conflicts.
-   For now, we honor PE ImageBase, so we map exactly where it asks to be. */
+/* We honor the PE ImageBase and map exactly where it asks to be — provided the
+   whole image fits the legacy user load window (elf.h, 12-13MB since Phase 57;
+   the MinGW default 0x400000 is the kernel heap and is rejected). */
+
+/* True if [rva, rva+len) lies inside an image of img_size bytes (overflow-safe). */
+static bool pe_in_image(uint32_t rva, uint32_t len, uint32_t img_size) {
+    return rva <= img_size && len <= img_size - rva;
+}
 
 /* --------------------------------------------------------------------------
  * pe_validate: Check if data is a valid i386 PE32 executable
@@ -33,7 +40,7 @@ bool pe_validate(const uint8_t* data, uint32_t size) {
     const IMAGE_DOS_HEADER* dos = (const IMAGE_DOS_HEADER*)data;
     if (dos->e_magic != IMAGE_DOS_SIGNATURE) return false;
 
-    if (dos->e_lfanew >= size || dos->e_lfanew + sizeof(IMAGE_NT_HEADERS32) > size) return false;
+    if (dos->e_lfanew > size || sizeof(IMAGE_NT_HEADERS32) > size - dos->e_lfanew) return false;
 
     const IMAGE_NT_HEADERS32* nt = (const IMAGE_NT_HEADERS32*)(data + dos->e_lfanew);
     if (nt->Signature != IMAGE_NT_SIGNATURE) return false;
@@ -59,8 +66,25 @@ int pe_exec(const uint8_t* data, uint32_t size, const char* name) {
     const IMAGE_DOS_HEADER* dos = (const IMAGE_DOS_HEADER*)data;
     const IMAGE_NT_HEADERS32* nt = (const IMAGE_NT_HEADERS32*)(data + dos->e_lfanew);
 
-    uint32_t img_base = nt->OptionalHeader.ImageBase;
-    uint32_t img_size = nt->OptionalHeader.SizeOfImage;
+    const IMAGE_OPTIONAL_HEADER32* oh = &nt->OptionalHeader;
+    uint32_t img_base = oh->ImageBase;
+    uint32_t img_size = oh->SizeOfImage;
+    uint32_t nsec     = nt->FileHeader.NumberOfSections;
+    uint32_t sec_off  = dos->e_lfanew + 4 + sizeof(IMAGE_FILE_HEADER) +
+                        nt->FileHeader.SizeOfOptionalHeader;   /* no wrap: e_lfanew validated */
+
+    /* Validate before mapping anything (all overflow-safe): the whole image in
+     * the user load window (so it can't overlay kernel/heap/stack/.bss/back
+     * buffer), headers within both file and image, the section table within
+     * the file, and the entry point inside the image. */
+    if (!user_range_ok(img_base, img_size) || oh->SizeOfHeaders > img_size ||
+        oh->SizeOfHeaders > size || sec_off > size ||
+        nsec * sizeof(IMAGE_SECTION_HEADER) > size - sec_off ||
+        oh->AddressOfEntryPoint >= img_size) {
+        vga_print_color("[!!] ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+        vga_print("PE: image out of bounds (user window 0xC80000-0xD00000)\n");
+        return -1;
+    }
 
     /* Map pages for the entire image in one go, backing with physical pages */
     uint32_t page_start = img_base & 0xFFFFF000;
@@ -81,54 +105,46 @@ int pe_exec(const uint8_t* data, uint32_t size, const char* name) {
     memset((void*)page_start, 0, page_end - page_start);
 
     /* Copy PE headers to Image Base */
-    memcpy((void*)img_base, data, nt->OptionalHeader.SizeOfHeaders);
+    memcpy((void*)img_base, data, oh->SizeOfHeaders);
 
-    /* Load sections */
-    const IMAGE_SECTION_HEADER* sections = (const IMAGE_SECTION_HEADER*)((uint8_t*)&nt->OptionalHeader + nt->FileHeader.SizeOfOptionalHeader);
-    
-    for (int i = 0; i < nt->FileHeader.NumberOfSections; i++) {
-        uint32_t vaddr = img_base + sections[i].VirtualAddress;
+    /* Load sections (a section whose file or image range is out of bounds is
+     * skipped; its pages stay zeroed) */
+    const IMAGE_SECTION_HEADER* sections = (const IMAGE_SECTION_HEADER*)(data + sec_off);
+
+    for (uint32_t i = 0; i < nsec; i++) {
+        uint32_t rva   = sections[i].VirtualAddress;
         uint32_t fsize = sections[i].SizeOfRawData;
-        uint32_t fptr = sections[i].PointerToRawData;
+        uint32_t fptr  = sections[i].PointerToRawData;
         uint32_t vsize = sections[i].Misc.VirtualSize;
+        uint32_t copy_size = (fsize > vsize) ? vsize : fsize;
 
-        if (fsize > 0 && fptr < size) {
-            uint32_t copy_size = (fsize > vsize) ? vsize : fsize;
-            if (fptr + copy_size <= size) {
-                memcpy((void*)vaddr, data + fptr, copy_size);
-            }
-        }
+        if (copy_size && fptr <= size && copy_size <= size - fptr &&
+            pe_in_image(rva, copy_size, img_size))
+            memcpy((void*)(img_base + rva), data + fptr, copy_size);
         /* BSS (uninitialized data) is implicitly 0 because we memset the mapped region. */
     }
 
-    /* Process Import Address Table (IAT) */
-    if (nt->OptionalHeader.NumberOfRvaAndSizes > IMAGE_DIRECTORY_ENTRY_IMPORT) {
-        uint32_t import_dir_rva = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress;
-        if (import_dir_rva != 0) {
-            IMAGE_IMPORT_DESCRIPTOR* import_desc = (IMAGE_IMPORT_DESCRIPTOR*)(img_base + import_dir_rva);
-            
-            while (import_desc->Name != 0) {
-                const char* dll_name = (const char*)(img_base + import_desc->Name);
-                
-                uint32_t* lookup_table = (uint32_t*)(img_base + (import_desc->OriginalFirstThunk ? import_desc->OriginalFirstThunk : import_desc->FirstThunk));
-                uint32_t* address_table = (uint32_t*)(img_base + import_desc->FirstThunk);
-                
-                while (*lookup_table != 0) {
-                    if ((*lookup_table & 0x80000000) == 0) { /* Import by name */
-                        /* IMAGE_IMPORT_BY_NAME */
-                        uint16_t* hint = (uint16_t*)(img_base + *lookup_table);
-                        const char* func_name = (const char*)(hint + 1);
-                        
-                        /* Resolve import from win32 shim layer */
-                        uint32_t func_addr = win32_resolve_import(dll_name, func_name);
-                        *address_table = func_addr;
-                    } 
-                    /* Else: Import by ordinal (unsupported in our simple shim for now) */
-                    
-                    lookup_table++;
-                    address_table++;
-                }
-                import_desc++;
+    /* Process Import Address Table (IAT). Every RVA (descriptor, name, thunk
+     * tables, hint/name entries) is bounds-checked against the image. */
+    if (oh->NumberOfRvaAndSizes > IMAGE_DIRECTORY_ENTRY_IMPORT) {
+        uint32_t drva = oh->DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress;
+        for (; drva && pe_in_image(drva, sizeof(IMAGE_IMPORT_DESCRIPTOR), img_size);
+             drva += sizeof(IMAGE_IMPORT_DESCRIPTOR)) {
+            const IMAGE_IMPORT_DESCRIPTOR* desc = (const IMAGE_IMPORT_DESCRIPTOR*)(img_base + drva);
+            if (desc->Name == 0) break;
+            if (desc->Name >= img_size) continue;
+            const char* dll_name = (const char*)(img_base + desc->Name);
+
+            uint32_t lt = desc->OriginalFirstThunk ? desc->OriginalFirstThunk : desc->FirstThunk;
+            for (uint32_t at = desc->FirstThunk;
+                 pe_in_image(lt, 4, img_size) && pe_in_image(at, 4, img_size); lt += 4, at += 4) {
+                uint32_t ent = *(const uint32_t*)(img_base + lt);
+                if (ent == 0) break;
+                /* Import by name (IMAGE_IMPORT_BY_NAME: 2-byte hint + name).
+                 * Import by ordinal is unsupported in our simple shim. */
+                if (!(ent & 0x80000000) && pe_in_image(ent, 3, img_size))
+                    *(uint32_t*)(img_base + at) =
+                        win32_resolve_import(dll_name, (const char*)(img_base + ent + 2));
             }
         }
     }
@@ -170,9 +186,9 @@ int pe_exec(const uint8_t* data, uint32_t size, const char* name) {
     vga_print_color("[OK] ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
     vga_print("PE: loaded \"");
     vga_print(name);
-    vga_print("\" entry=0x");
+    vga_print("\" entry=");
     char buf[12];
-    int_to_str(entry_point, buf);
+    hex_to_str(entry_point, buf);       /* adds its own 0x */
     vga_print(buf);
     vga_print("\n");
 

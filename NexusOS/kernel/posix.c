@@ -2,7 +2,8 @@
  * NexusOS — POSIX Output Capture — Phase 31
  * ============================================================================
  * Redirects vga_print output into a buffer for pipe/redirect operators.
- * When capturing is active, vga_print calls posix_capture_write().
+ * When capturing is active, vga_putchar() hands each char to
+ * posix_capture_putc() instead of drawing it.
  * ============================================================================ */
 
 #include "posix.h"
@@ -65,11 +66,17 @@ bool posix_is_capturing(void) {
 }
 
 /* --------------------------------------------------------------------------
+ * posix_capture_putc: Append one char ('\b' erases, like on screen)
+ * -------------------------------------------------------------------------- */
+void posix_capture_putc(char c) {
+    if (c == '\b') { if (capture_len > 0) capture_len--; }
+    else if (capture_len < POSIX_CAPTURE_SIZE - 1) capture_buf[capture_len++] = c;
+    capture_buf[capture_len] = '\0';
+}
+
+/* --------------------------------------------------------------------------
  * posix_capture_write: Append string to capture buffer
  * -------------------------------------------------------------------------- */
 void posix_capture_write(const char* s) {
-    while (*s && capture_len < POSIX_CAPTURE_SIZE - 1) {
-        capture_buf[capture_len++] = *s++;
-    }
-    capture_buf[capture_len] = '\0';
+    while (*s) posix_capture_putc(*s++);
 }

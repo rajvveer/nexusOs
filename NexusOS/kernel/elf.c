@@ -15,9 +15,9 @@
 #include "gdt.h"
 
 /* User-mode memory layout */
-#define USER_STACK_TOP    0x00C00000  /* 12MB — user stack top */
+#define USER_STACK_TOP    0x00C80000  /* Phase 57: 16KB stack directly under the 12.5MB load window */
 #define USER_STACK_PAGES  4           /* 16KB user stack */
-#define USER_LOAD_BASE    0x00400000  /* 4MB — default ELF load base */
+/* USER_LOAD_BASE / USER_LOAD_END / user_range_ok(): see elf.h */
 
 /* --------------------------------------------------------------------------
  * elf_validate: Check if data is a valid ELF32 i386 executable
@@ -42,8 +42,10 @@ bool elf_validate(const uint8_t* data, uint32_t size) {
     /* Check program headers exist */
     if (hdr->e_phnum == 0 || hdr->e_phoff == 0) return false;
 
-    /* Check program headers fit in file */
-    if (hdr->e_phoff + hdr->e_phnum * sizeof(elf32_phdr_t) > size) return false;
+    /* Check program headers fit in file (overflow-safe; we index them with
+     * the native 32-byte stride, so e_phentsize must match) */
+    if (hdr->e_phentsize != sizeof(elf32_phdr_t) || hdr->e_phoff > size ||
+        hdr->e_phnum * sizeof(elf32_phdr_t) > size - hdr->e_phoff) return false;
 
     return true;
 }
@@ -61,6 +63,17 @@ int elf_exec(const uint8_t* data, uint32_t size, const char* name) {
     const elf32_ehdr_t* hdr = (const elf32_ehdr_t*)data;
     const elf32_phdr_t* phdrs = (const elf32_phdr_t*)(data + hdr->e_phoff);
 
+    /* Validate every PT_LOAD (and the entry) before mapping anything: file
+     * range in bounds (overflow-safe), filesz <= memsz, and the whole segment
+     * inside the user load window so it cannot overwrite kernel memory. */
+    if (!user_range_ok(hdr->e_entry, 1)) goto bad;
+    for (int i = 0; i < hdr->e_phnum; i++) {
+        const elf32_phdr_t* ph = &phdrs[i];
+        if (ph->p_type != PT_LOAD || ph->p_memsz == 0) continue;
+        if (ph->p_offset > size || ph->p_filesz > size - ph->p_offset ||
+            ph->p_filesz > ph->p_memsz || !user_range_ok(ph->p_vaddr, ph->p_memsz)) goto bad;
+    }
+
     /* Load PT_LOAD segments into memory */
     for (int i = 0; i < hdr->e_phnum; i++) {
         if (phdrs[i].p_type != PT_LOAD) continue;
@@ -70,9 +83,6 @@ int elf_exec(const uint8_t* data, uint32_t size, const char* name) {
         uint32_t memsz = phdrs[i].p_memsz;
         uint32_t filesz = phdrs[i].p_filesz;
         uint32_t offset = phdrs[i].p_offset;
-
-        /* Validate file offset */
-        if (offset + filesz > size) return -1;
 
         /* Allocate and map pages for this segment */
         uint32_t page_start = vaddr & 0xFFFFF000;
@@ -118,9 +128,9 @@ int elf_exec(const uint8_t* data, uint32_t size, const char* name) {
     vga_print_color("[OK] ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
     vga_print("ELF: loaded \"");
     vga_print(name);
-    vga_print("\" entry=0x");
+    vga_print("\" entry=");
     char buf[12];
-    int_to_str(hdr->e_entry, buf);
+    hex_to_str(hdr->e_entry, buf);      /* adds its own 0x */
     vga_print(buf);
     vga_print("\n");
 
@@ -150,6 +160,11 @@ int elf_exec(const uint8_t* data, uint32_t size, const char* name) {
     );
 
     return 0; /* Never reached */
+
+bad:
+    vga_print_color("[!!] ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+    vga_print("ELF: segment/entry out of bounds (user window 0xC80000-0xD00000)\n");
+    return -1;
 }
 
 /* --------------------------------------------------------------------------
