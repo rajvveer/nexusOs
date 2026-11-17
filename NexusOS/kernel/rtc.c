@@ -72,9 +72,13 @@ void rtc_read(rtc_time_t* t) {
         t->year   = bcd_to_bin(t->year);
     }
 
-    /* Convert 12-hour to 24-hour if needed */
-    if (!(status_b & 0x02) && (t->hour & 0x80)) {
-        t->hour = ((t->hour & 0x7F) + 12) % 24;
+    /* 12-hour mode (status B bit 1 clear): hours are 1-12, bit 7 = PM.
+     * 12 AM -> 00, 1-11 AM as-is, 12 PM -> 12, 1-11 PM -> 13-23. (The old
+     * code left 12 AM as 12 and turned 12 PM into 00.) */
+    if (!(status_b & 0x02)) {
+        uint8_t pm = t->hour & 0x80;
+        t->hour = (t->hour & 0x7F) % 12;
+        if (pm) t->hour += 12;
     }
 
     /* Year is 2-digit, assume 2000s */
@@ -147,6 +151,14 @@ void rtc_set(rtc_time_t* t) {
     uint8_t mon  = t->month;
     uint8_t yr   = (uint8_t)(t->year % 100);
 
+    /* 12-hour mode: 0..23 -> 12,1..11 (+ PM flag in bit 7 after BCD). */
+    uint8_t pm = 0;
+    if (!(status_b & 0x02)) {
+        pm = (hr >= 12) ? 0x80 : 0;
+        hr %= 12;
+        if (hr == 0) hr = 12;
+    }
+
     if (is_bcd) {
         sec = bin_to_bcd(sec);
         min = bin_to_bcd(min);
@@ -155,6 +167,7 @@ void rtc_set(rtc_time_t* t) {
         mon = bin_to_bcd(mon);
         yr  = bin_to_bcd(yr);
     }
+    hr |= pm;
 
     /* Disable RTC updates while writing */
     cmos_write(RTC_STATUS_B, status_b | 0x80);

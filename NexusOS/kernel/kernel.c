@@ -1,5 +1,5 @@
 /* ============================================================================
- * NexusOS - Kernel Main (Phase 37 - v3.7)
+ * NexusOS - Kernel Main (5.1 "Aurora")
  * ============================================================================
  * Initializes all subsystems and launches the shell.
  * Phase 14: VESA VBE graphics mode (1024x768x32bpp).
@@ -18,6 +18,7 @@
  * ============================================================================ */
 
 #include "types.h"
+#include "version.h"
 #include "port.h"
 #include "vga.h"
 #include "gdt.h"
@@ -32,6 +33,7 @@
 #include "process.h"
 #include "scheduler.h"
 #include "syscall.h"
+#include "uproc.h"
 #include "rtc.h"
 #include "speaker.h"
 #include "mouse.h"
@@ -99,16 +101,19 @@
 #include "accessibility.h"
 #include "users.h"
 #include "firewall.h"
+#include "kguard.h"     /* Phase 55: kernel self-protection + crash containment */
+#include "persist.h"
 
 /* Timer tick counter */
 volatile uint32_t system_ticks = 0;
 
 /* Phase 48: until automated init finishes, the timer IRQ (which fires from
- * pic_init onward — idt_load does `sti` before the rest of init runs) must NOT
- * touch subsystems that are still being built. Only system_ticks++ runs early;
- * net_poll / schedule / the status-bar redraw (reads pmm/rtc/VGA) are deferred
- * behind this flag. This closes the window for the long-standing intermittent
- * boot double-fault. MUST be volatile (written in task ctx, read in IRQ ctx). */
+ * the sti right after pic_init onward) must NOT touch subsystems that are
+ * still being built. Only system_ticks++ runs early; net_poll / schedule /
+ * the status-bar redraw (reads pmm/rtc/VGA) are deferred behind this flag.
+ * (The boot double fault itself was IRQ0 arriving at the un-remapped BIOS
+ * vector 8 — fixed by masking the PIC in boot2 and the late sti.)
+ * MUST be volatile (written in task ctx, read in IRQ ctx). */
 volatile bool boot_init_done = false;
 
 /* Status bar update interval (~1 second at 18.2 Hz) */
@@ -119,7 +124,7 @@ volatile bool boot_init_done = false;
  * -------------------------------------------------------------------------- */
 static void update_statusbar(void) {
     /* Left: OS name + version */
-    char left[40] = " NexusOS v3.4.0";
+    char left[40] = " " NEXUS_VERSION_STRING;
 
     /* Center: time */
     rtc_time_t t;
@@ -180,7 +185,7 @@ static void print_banner(void) {
     vga_print_color("  ██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║╚██████╔╝███████║\n", VGA_COLOR(VGA_CYAN, VGA_BLACK));
     vga_print_color("  ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝ ╚═════╝ ╚══════╝\n", VGA_COLOR(VGA_CYAN, VGA_BLACK));
     vga_print("\n");
-    vga_print_color("  v3.4.0", VGA_COLOR(VGA_WHITE, VGA_BLACK));
+    vga_print_color("  " NEXUS_VERSION " " NEXUS_CODENAME, VGA_COLOR(VGA_WHITE, VGA_BLACK));
     vga_print_color(" — The Hybrid Operating System\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
     vga_print_color("  Best of Windows + macOS + Linux\n\n", VGA_COLOR(VGA_DARK_GREY, VGA_BLACK));
     vga_print_color("  Initializing kernel subsystems...\n\n", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
@@ -203,8 +208,12 @@ void kernel_main(void) {
     /* 4. Initialize PIC (remap hardware interrupts) */
     pic_init();
 
-    /* 5. Register timer (IRQ0) */
+    /* 5. Register timer (IRQ0), then enable interrupts for the first time.
+     * IF has been clear since boot2's cli and the 8259s were masked there:
+     * until pic_init remapped them, IRQ0 would have arrived as vector 8 and
+     * been misread as a #DF (the old intermittent boot double fault). */
     register_interrupt_handler(32, timer_callback);
+    __asm__ volatile("sti");
     vga_print_color("[OK] ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
     vga_print("Timer initialized (IRQ0, ~18.2 Hz)\n");
 
@@ -219,6 +228,15 @@ void kernel_main(void) {
 
     /* 8. Enable paging */
     paging_init();
+
+    /* ---- Phase 55: kernel self-protection + in-kernel crash containment ----
+     * Write-protect .text/.rodata, unmap the NULL page and the boot-stack
+     * guard band, then install kguard's double-fault task gate so a kernel
+     * stack overflow is recoverable too. Must follow paging_init (uses the
+     * live identity map and the kernel CR3) and precede everything else. */
+    paging_protect_kernel();
+    kguard_init();
+    /* ---- end Phase 55 ---- */
 
     /* === Phase 14: VESA Framebuffer (Bochs VBE) === */
 
@@ -406,6 +424,14 @@ void kernel_main(void) {
      * reserved high-LBA window; needs ata_init done above). === */
     npfs_init();
 
+    /* ---- Phase 55: persistent ramfs ----
+     * Everything created by the _inits above is a built-in demo file: stamp
+     * it, then restore the user's snapshot from the disk window (files,
+     * directories, modes, deleted built-ins, accounts). Must run BEFORE
+     * login_run so restored accounts/passwords can log in. */
+    persist_mark_builtins();
+    persist_init();
+
     /* === Phase 48: automated init is complete. Stamp the boot time, then let
      * the timer IRQ resume its full duties (status bar / net_poll / schedule).
      * Order matters: mark boot done AFTER the last _init and BEFORE login_run
@@ -438,6 +464,14 @@ void kernel_main(void) {
      * has already set the current user). */
     uint32_t login_uid = login_run();
 
+    /* ---- Phase 57: per-user Downloads folder ----
+     * Make sure /home/<user>/Downloads exists for the account that just logged
+     * in and is owned by it. Still inside the persist boot phase, so this is a
+     * built-in rather than a dirtying edit; files saved into it are snapshotted
+     * together with their directory chain. */
+    ramfs_ensure_user_dirs(users_name_of(login_uid), login_uid);
+    /* ---- end Phase 57 ---- */
+
     /* 20. Create shell as process PID 1, owned by the logged-in user. */
     process_t* shell_proc = process_create("shell", NULL);
     if (shell_proc != NULL) {
@@ -445,6 +479,15 @@ void kernel_main(void) {
         shell_proc->state = PROC_RUNNING;
         process_set_current(shell_proc);
     }
+
+    /* Phase 54: register the shell as the kernel thread (process 0), install
+     * the built-in demo binaries, and enable scheduling. Must run AFTER the
+     * shell PCB is current so the scheduler has a base context to return to. */
+    uproc_init();
+
+    /* Phase 55: the demo binaries uproc_init just installed are built-ins
+     * too; from here on every ramfs change is user state (autosaved). */
+    persist_boot_done();
 
     /* Phase 14: In VESA mode, launch desktop directly (full screen) */
     if (fb_is_vesa()) {

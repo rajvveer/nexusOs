@@ -191,17 +191,16 @@ void finale_install_plan(void) {
         return;
     }
 
-    uint32_t disk = ata_get_size();
-    uint32_t total_sectors = disk / 512u;
+    uint32_t total_sectors = ata_get_sectors();
     uint32_t part_sectors  = total_sectors > FINALE_PART_START_LBA
                            ? total_sectors - FINALE_PART_START_LBA : 0;
 
-    pr("  Target disk:   primary-master IDE ("); pr_kb(disk); pr(")\n");
+    pr("  Target disk:   primary-master IDE ("); pr_num(total_sectors / 2048u); pr(" MB)\n");
     pr("  Scheme:        MBR, 1 bootable partition\n");
     pr("  Partition 1:   type 0x0C (FAT32 LBA), active\n");
     pr("    start LBA:   "); pr_num(FINALE_PART_START_LBA); pr("\n");
     pr("    sectors:     "); pr_num(part_sectors);
-    pr("   ("); pr_kb(part_sectors * 512u); pr(")\n");
+    pr("   ("); pr_num(part_sectors / 2048u); pr(" MB)\n");
     pr("    Bytes/sector: 512   Boot signature: 0xAA55\n\n");
 
     prc("  This is a DRY RUN. Run 'install disk yes' to write it.\n\n",
@@ -216,7 +215,7 @@ int finale_install_disk(bool confirm) {
     }
     if (!confirm) { finale_install_plan(); return 0; }
 
-    uint32_t total_sectors = ata_get_size() / 512u;
+    uint32_t total_sectors = ata_get_sectors();
     if (total_sectors <= FINALE_PART_START_LBA) {
         prc("  Disk too small to install.\n", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
         return -1;
@@ -252,7 +251,7 @@ int finale_install_disk(bool confirm) {
     const char* manifest =
         "NEXUSOS-INSTALL v5.0\n"
         "system=NexusOS\n"
-        "kernel=high (1MB), <1MB image\n"
+        "kernel=high (1MB), <=1408KB image\n"
         "partition=1 type=0x0C active\n"
         "installed-by=finale\n";
     uint32_t mlen = (uint32_t)strlen(manifest);
@@ -310,7 +309,8 @@ void finale_show(void) {
     pr("PE32 + ELF32 + Mach-O via 'urun <file>'\n");
     prc("  Footprint:          ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
     pr("kernel "); pr_kb(finale_kernel_size());
-    pr(" (< 1 MB), RAM "); pr_kb(finale_ram_used()); pr(" (< 16 MB)\n");
+    pr(" (limit "); pr_kb(FINALE_KERNEL_MAX); pr(", boot2 load cap), RAM ");
+    pr_kb(finale_ram_used()); pr(" (< 32 MB)\n");
     prc("  Installer:          ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));
     pr("'install' (MBR partition + system to IDE disk)\n");
     prc("  ISO image:          ", VGA_COLOR(VGA_YELLOW, VGA_BLACK));

@@ -10,6 +10,7 @@
 #include "string.h"
 #include "port.h"
 #include "appui.h"
+#include "persist.h"   /* Phase 55: flush the ramfs snapshot before power actions */
 
 static bool pm_open = false;
 static int  pm_sel = 0;
@@ -62,6 +63,7 @@ int power_menu_handle_key(char key) {
 }
 
 void power_shutdown(void) {
+    persist_flush();   /* Phase 55: every shutdown path saves pending edits */
     /* Clear screen and show shutdown message */
     for (int y = 0; y < 25; y++)
         for (int x = 0; x < 80; x++)
@@ -73,6 +75,7 @@ void power_shutdown(void) {
 }
 
 void power_restart(void) {
+    persist_flush();   /* Phase 55: every restart path saves pending edits */
     /* Use keyboard controller to trigger reboot */
     uint8_t good = 0x02;
     while (good & 0x02) good = port_byte_in(0x64);

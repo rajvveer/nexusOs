@@ -24,10 +24,14 @@
 #define FINALE_H
 
 #include "types.h"
+#include "memory.h"     /* KERNEL_LOAD_LIMIT (boot2 KERNEL_SECTORS * 512) */
 
-/* v5.0 goal thresholds (the roadmap targets). */
-#define FINALE_KERNEL_MAX   (1u * 1024u * 1024u)    /* < 1 MB kernel  */
-#define FINALE_RAM_MAX      (16u * 1024u * 1024u)   /* < 16 MB RAM    */
+/* v5.0 goal thresholds (the roadmap targets). Phase 57: the kernel-size goal
+ * is the boot2 load limit (1,441,792 bytes) instead of the old "< 1 MB" target
+ * — the heap moved to 4MB, so the image may use 1-2.375MB; the footprint
+ * report measures the real image size against the real hard limit. */
+#define FINALE_KERNEL_MAX   KERNEL_LOAD_LIMIT           /* boot2 load limit */
+#define FINALE_RAM_MAX      (32u * 1024u * 1024u)   /* < 32 MB RAM incl. 16 MB of 1080p frame/wallpaper buffers */
 
 /* MBR install layout (LBA, primary master). Partition 1 holds the system. */
 #define FINALE_PART_START_LBA   2048u               /* 1 MiB aligned  */
