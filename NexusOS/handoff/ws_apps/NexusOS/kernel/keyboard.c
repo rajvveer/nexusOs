@@ -1,0 +1,292 @@
+/* ============================================================================
+ * NexusOS — PS/2 Keyboard Driver (Implementation)
+ * ============================================================================
+ * Handles IRQ1 (keyboard interrupt).
+ * Converts scancodes to ASCII using a lookup table.
+ * Supports shift, caps lock, and a key buffer.
+ * ============================================================================ */
+
+#include "keyboard.h"
+#include "idt.h"
+#include "port.h"
+#include "vga.h"
+
+/* Scancode Set 1 → ASCII lookup table (US QWERTY) */
+static const char scancode_ascii[] = {
+    0,   27,  '1', '2', '3', '4', '5', '6', '7', '8',  /* 0x00-0x09 */
+    '9', '0', '-', '=', '\b', '\t',                      /* 0x0A-0x0F */
+    'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p',  /* 0x10-0x19 */
+    '[', ']', '\n', 0,                                     /* 0x1A-0x1D (0x1D=ctrl) */
+    'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l',       /* 0x1E-0x26 */
+    ';', '\'', '`', 0, '\\',                              /* 0x27-0x2B (0x2A=lshift) */
+    'z', 'x', 'c', 'v', 'b', 'n', 'm',                  /* 0x2C-0x32 */
+    ',', '.', '/', 0,                                      /* 0x33-0x36 (0x36=rshift) */
+    '*', 0, ' '                                            /* 0x37=numpad*, 0x38=alt, 0x39=space */
+};
+
+/* Shifted variants */
+static const char scancode_ascii_shift[] = {
+    0,   27,  '!', '@', '#', '$', '%', '^', '&', '*',
+    '(', ')', '_', '+', '\b', '\t',
+    'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P',
+    '{', '}', '\n', 0,
+    'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L',
+    ':', '"', '~', 0, '|',
+    'Z', 'X', 'C', 'V', 'B', 'N', 'M',
+    '<', '>', '?', 0,
+    '*', 0, ' '
+};
+
+/* Key buffer */
+static char key_buffer[KEY_BUFFER_SIZE];
+static volatile int buffer_head = 0;
+static volatile int buffer_tail = 0;
+
+/* Modifier state */
+static bool shift_pressed = false;
+static bool caps_lock = false;
+static bool ctrl_pressed = false;
+static bool super_pressed = false; /* Windows/Command key */
+static bool e0_prefix = false;  /* Extended scancode prefix (0xE0) */
+
+/* Raw scancode observer (Phase 42 gaming framework) */
+static keyboard_raw_hook_t raw_hook = NULL;
+
+void keyboard_set_raw_hook(keyboard_raw_hook_t hook) {
+    raw_hook = hook;
+}
+
+/* --------------------------------------------------------------------------
+ * buffer_put: Add a character to the circular key buffer
+ * -------------------------------------------------------------------------- */
+static void buffer_put(char c) {
+    int next = (buffer_head + 1) % KEY_BUFFER_SIZE;
+    if (next != buffer_tail) {
+        key_buffer[buffer_head] = c;
+        buffer_head = next;
+    }
+}
+
+/* --------------------------------------------------------------------------
+ * keyboard_inject_char: Push a translated character into the key buffer as if
+ * it had been typed locally (Phase 45 — VNC KeyEvent injection). Goes through
+ * the same circular buffer that keyboard_getchar() drains, so remote keys are
+ * indistinguishable from local ones to the shell and apps.
+ * -------------------------------------------------------------------------- */
+void keyboard_inject_char(char c) {
+    /* buffer_put() is a non-atomic read-modify-write on buffer_head and the
+     * IRQ1 handler is the other producer. We run in task context (from
+     * vnc_poll), so guard the critical section by disabling interrupts around
+     * the put — save/restore EFLAGS rather than a bare sti so we don't enable
+     * interrupts if a caller had them off. The ISR path itself already runs
+     * with interrupts masked, so it needs no guard. */
+    uint32_t flags;
+    __asm__ volatile("pushf; pop %0; cli" : "=r"(flags) :: "memory");
+    buffer_put(c);
+    __asm__ volatile("push %0; popf" :: "r"(flags) : "memory", "cc");
+}
+
+/* --------------------------------------------------------------------------
+ * keyboard_callback: IRQ1 interrupt handler
+ * -------------------------------------------------------------------------- */
+static void keyboard_callback(struct registers* regs) {
+    (void)regs;
+    
+    uint8_t scancode = port_byte_in(KEYBOARD_DATA_PORT);
+
+    /* Extended scancode prefix — set flag and wait for next byte */
+    if (scancode == 0xE0) {
+        e0_prefix = true;
+        return;
+    }
+
+    bool ext = e0_prefix;
+    e0_prefix = false;
+
+    /* Raw observer (gaming framework) sees every make/break code */
+    bool consumed = false;
+    if (raw_hook) {
+        consumed = raw_hook(scancode & 0x7F, ext, (scancode & 0x80) != 0);
+    }
+
+    /* Handle extended (E0-prefixed) scancodes */
+    if (ext) {
+        uint8_t code = scancode & 0x7F;
+        bool release = (scancode & 0x80) != 0;
+        /* Right Ctrl and the Windows keys keep modifier state */
+        if (code == KEY_LCTRL) { ctrl_pressed = !release; return; }
+        if (code == 0x5B || code == 0x5C) { super_pressed = !release; return; }
+        if (release || consumed) return;
+
+        /* Extended key presses: arrows (Ctrl+arrow drives window snapping) */
+        switch (code) {
+            case KEY_UP:    buffer_put((char)(ctrl_pressed ? KEYC_MAXIMIZE : KEYC_UP)); return;
+            case KEY_DOWN:  buffer_put((char)(ctrl_pressed ? KEYC_RESTORE : KEYC_DOWN)); return;
+            case KEY_LEFT:  buffer_put((char)(ctrl_pressed ? KEYC_SNAP_LEFT : KEYC_LEFT)); return;
+            case KEY_RIGHT: buffer_put((char)(ctrl_pressed ? KEYC_SNAP_RIGHT : KEYC_RIGHT)); return;
+            case 0x53:      buffer_put((char)KEYC_DELETE); return;
+            /* Phase 57 apps: editing keys for user programs (kilo, sh) */
+            case 0x47:      buffer_put((char)KEYC_HOME); return;
+            case 0x4F:      buffer_put((char)KEYC_END); return;
+            case 0x49:      buffer_put((char)KEYC_PGUP); return;
+            case 0x51:      buffer_put((char)KEYC_PGDN); return;
+            case 0x52:      buffer_put((char)KEYC_INSERT); return;
+            default: return;  /* Ignore other extended keys */
+        }
+    }
+
+    /* Key release (bit 7 set) — modifier state updates even when consumed */
+    if (scancode & 0x80) {
+        uint8_t released = scancode & 0x7F;
+        if (released == KEY_LSHIFT || released == KEY_RSHIFT) {
+            shift_pressed = false;
+        }
+        if (released == KEY_LCTRL) {
+            ctrl_pressed = false;
+        }
+        return;
+    }
+
+    /* Key press */
+    switch (scancode) {
+        case KEY_LSHIFT:
+        case KEY_RSHIFT:
+            shift_pressed = true;
+            return;
+
+        case KEY_CAPS_LOCK:
+            caps_lock = !caps_lock;
+            return;
+
+        case KEY_LCTRL:
+            ctrl_pressed = true;
+            return;
+
+        case KEY_LALT:
+            return;
+
+        default:
+            break;
+    }
+
+    /* A game has claimed the keyboard — skip character translation */
+    if (consumed) return;
+
+    /* Ctrl+Space / Win+Space: Spotlight */
+    if ((ctrl_pressed || super_pressed) && scancode == 0x39) {
+        buffer_put((char)KEYC_SPOTLIGHT);
+        return;
+    }
+
+    /* Ctrl+key combos (Ctrl+A=1, Ctrl+Q=17, Ctrl+S=19, etc.) */
+    if (ctrl_pressed && scancode < sizeof(scancode_ascii)) {
+        char c = scancode_ascii[scancode];
+        if (c >= 'a' && c <= 'z') {
+            buffer_put(c - 'a' + 1);  /* Ctrl+A=1, Ctrl+B=2, ... */
+            return;
+        }
+    }
+
+    /* Function keys get their own codes so they can't collide with ASCII
+     * (F1's scancode 0x3B is also ';'). Ctrl+F5..F8 switch desktops. */
+    if ((scancode >= 0x3B && scancode <= 0x44) || scancode == 0x57 || scancode == 0x58) {
+        int n = scancode <= 0x44 ? scancode - 0x3B + 1 : scancode - 0x57 + 11;
+        if (ctrl_pressed && n >= 5 && n <= 8) buffer_put((char)KEYC_DESKTOP(n - 5));
+        else buffer_put((char)KEYC_F(n));
+        return;
+    }
+
+    /* Convert scancode to ASCII */
+    if (scancode < sizeof(scancode_ascii)) {
+        char c;
+
+        if (shift_pressed) {
+            c = scancode_ascii_shift[scancode];
+        } else {
+            c = scancode_ascii[scancode];
+        }
+
+        /* Apply caps lock (only affects letters) */
+        if (caps_lock && !shift_pressed && c >= 'a' && c <= 'z') {
+            c -= 32;
+        } else if (caps_lock && shift_pressed && c >= 'A' && c <= 'Z') {
+            c += 32;
+        }
+
+        if (c != 0) {
+            buffer_put(c);
+        }
+    }
+}
+
+/* --------------------------------------------------------------------------
+ * keyboard_init: Register IRQ1 handler
+ * -------------------------------------------------------------------------- */
+void keyboard_init(void) {
+    register_interrupt_handler(33, keyboard_callback);
+
+    vga_print_color("[OK] ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
+    vga_print("Keyboard driver initialized (PS/2, IRQ1)\n");
+}
+
+/* --------------------------------------------------------------------------
+ * keyboard_has_key: Check if a key is available
+ * -------------------------------------------------------------------------- */
+bool keyboard_has_key(void) {
+    return buffer_head != buffer_tail;
+}
+
+/* --------------------------------------------------------------------------
+ * keyboard_getchar: Get next character (blocks until available)
+ * -------------------------------------------------------------------------- */
+/* Optional idle hook (Phase 45): called once per wait iteration while blocked
+ * in keyboard_getchar(). Lets the shell pump backgrounded network servers
+ * (net_poll/vnc_poll/sync_poll) while idle at the prompt, so a remote desktop
+ * or sync client stays serviced without the desktop running. */
+static keyboard_idle_hook_t idle_hook = NULL;
+
+void keyboard_set_idle_hook(keyboard_idle_hook_t hook) {
+    idle_hook = hook;
+}
+
+/* Phase 57 apps: the user-program wait loop pumps the same servers the shell
+ * does while it waits, without knowing which hook the shell installed. */
+keyboard_idle_hook_t keyboard_get_idle_hook(void) {
+    return idle_hook;
+}
+
+char keyboard_getchar(void) {
+    while (!keyboard_has_key()) {
+        if (idle_hook) idle_hook();
+        __asm__ volatile("hlt");  /* Wait for interrupt */
+    }
+    char c = key_buffer[buffer_tail];
+    buffer_tail = (buffer_tail + 1) % KEY_BUFFER_SIZE;
+    return c;
+}
+
+/* --------------------------------------------------------------------------
+ * keyboard_readline: Read a line with echo and backspace support
+ * -------------------------------------------------------------------------- */
+int keyboard_readline(char* buffer, int max_len) {
+    int i = 0;
+    while (i < max_len - 1) {
+        char c = keyboard_getchar();
+
+        if (c == '\n') {
+            buffer[i] = '\0';
+            vga_putchar('\n');
+            return i;
+        } else if (c == '\b') {
+            if (i > 0) {
+                i--;
+                vga_backspace();
+            }
+        } else {
+            buffer[i++] = c;
+            vga_putchar(c);
+        }
+    }
+    buffer[i] = '\0';
+    return i;
+}
