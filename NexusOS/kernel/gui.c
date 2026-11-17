@@ -20,7 +20,10 @@
  * -------------------------------------------------------------------------- */
 
 /* Text-mode back buffer (used in both modes for getchar compatibility) */
-static uint16_t backbuf[GUI_WIDTH * GUI_HEIGHT];
+static uint16_t backbuf[GUI_MAX_COLS * GUI_MAX_ROWS];
+
+/* Live grid size (128x48 until gui_init sees the real framebuffer). */
+int gui_cols = 128, gui_rows = 48;
 
 /* VGA memory pointer (text mode only) */
 static uint16_t* vga_mem = (uint16_t*)0xB8000;
@@ -40,6 +43,13 @@ static uint16_t make_entry(char ch, uint8_t color) {
  * -------------------------------------------------------------------------- */
 void gui_init(void) {
     using_vesa = fb_is_vesa();
+
+    if (using_vesa) {
+        gui_cols = (int)fb_get_width() / GUI_CELL_W;
+        gui_rows = (int)fb_get_height() / GUI_CELL_H;
+        if (gui_cols > GUI_MAX_COLS) gui_cols = GUI_MAX_COLS;
+        if (gui_rows > GUI_MAX_ROWS) gui_rows = GUI_MAX_ROWS;
+    }
 
     if (using_vesa) {
         /* Clear framebuffer to black */

@@ -13,6 +13,10 @@
 #include "string.h"
 #include "framebuffer.h"
 #include "font.h"
+#include "macui.h"
+#include "kguard.h"
+#include "notify.h"
+#include "syslog.h"
 
 #ifndef FB_RGB
 #define FB_RGB(r, g, b) (((0xFF & r) << 16) | ((0xFF & g) << 8) | (0xFF & b))
@@ -21,6 +25,95 @@
 /* Window table */
 static window_t windows[MAX_WINDOWS];
 static int next_z = 1;
+
+/* ============================================================================
+ * Phase 55: crash containment for app callbacks
+ * ============================================================================
+ * Every app callback (draw / key / click) runs inside a kguard. A fault in the
+ * app (NULL deref, bad pointer, divide by zero, write into kernel text...) is
+ * recovered by the fault handlers: the callback's frames are abandoned, the
+ * offending window is closed, two toasts explain what happened and the
+ * desktop carries on composing the remaining windows.
+ * (Locals that must survive the second return of kguard_try are volatile:
+ * this file is compiled at -O2.)
+ * ============================================================================ */
+static void win_append(char* b, int n, const char* s) {
+    int len = (int)strlen(b);
+    while (*s && len < n - 1) b[len++] = *s++;
+    b[len] = '\0';
+}
+
+static void win_crashed(int id, int rc, const char* phase) {
+    char title[16], msg[48], det[48];
+    const char* t = (id >= 0 && id < MAX_WINDOWS && windows[id].title[0]) ? windows[id].title : "App";
+    strncpy(title, t, 15); title[15] = '\0';
+
+    window_destroy(id);                       /* never composed or clicked again */
+
+    msg[0] = '\0';
+    win_append(msg, sizeof(msg), title);
+    win_append(msg, sizeof(msg), " crashed - window closed");
+    notify_push(msg);
+    /* Second toast: "<exception> @0xEIP addr ADDR" — compact so it fits the
+     * 39 visible characters of a toast card. */
+    {
+        char h[12];
+        det[0] = '\0';
+        win_append(det, sizeof(det), kguard_exc_name(rc));
+        win_append(det, sizeof(det), " @");
+        hex_to_str(kguard_last_eip(), h); win_append(det, sizeof(det), h);
+        if (rc == 1 + 14 || rc == 1 + 8) {
+            win_append(det, sizeof(det), " addr ");
+            hex_to_str(kguard_last_addr(), h); win_append(det, sizeof(det), h + 2);
+        }
+    }
+    notify_push(det);
+
+    msg[0] = '\0';
+    win_append(msg, sizeof(msg), "Crash ");
+    win_append(msg, sizeof(msg), kguard_exc_short(rc));
+    win_append(msg, sizeof(msg), " in ");
+    win_append(msg, sizeof(msg), title);
+    win_append(msg, sizeof(msg), " ");
+    win_append(msg, sizeof(msg), phase);
+    syslog_add(msg);
+}
+
+static void win_call_draw(int id, int cx, int cy, int cw, int ch) {
+    volatile int vid = id;
+    kguard_ctx_t g;
+    int rc = kguard_try(&g, "app draw");
+    if (rc == 0) {
+        windows[vid].draw(vid, cx, cy, cw, ch);
+        kguard_end();
+    } else {
+        win_crashed(vid, rc, "draw");
+    }
+}
+
+static void win_call_key(int id, char key) {
+    volatile int vid = id;
+    kguard_ctx_t g;
+    int rc = kguard_try(&g, "app key");
+    if (rc == 0) {
+        windows[vid].on_key(vid, key);
+        kguard_end();
+    } else {
+        win_crashed(vid, rc, "key");
+    }
+}
+
+static void win_call_click(int id, int px, int py) {
+    volatile int vid = id;
+    kguard_ctx_t g;
+    int rc = kguard_try(&g, "app click");
+    if (rc == 0) {
+        windows[vid].on_click(vid, px, py);
+        kguard_end();
+    } else {
+        win_crashed(vid, rc, "click");
+    }
+}
 
 /* Sync pixel coords from cell coords */
 static void sync_px(window_t* win) {
@@ -56,11 +149,19 @@ int window_create(const char* title, int x, int y, int w, int h,
     win->active = true;
     strncpy(win->title, title, WIN_TITLE_MAX - 1);
     win->title[WIN_TITLE_MAX - 1] = '\0';
+    /* Keep new windows below the menu bar and on screen. */
+    if (fb_is_vesa()) {
+        int top = UI_TOP_RESERVE / 16;
+        if (y < top) y = top;
+        if (x + w > GUI_WIDTH) x = GUI_WIDTH - w;
+        if (x < 0) x = 0;
+    }
     win->x = x; win->y = y; win->w = w; win->h = h;
     win->flags = WIN_VISIBLE | WIN_MOVABLE | WIN_CLOSABLE | WIN_RESIZABLE;
     win->z_order = next_z++;
     win->draw = draw_fn;
     win->on_key = key_fn;
+    win->on_click = NULL;
     win->resize_edge = RESIZE_NONE;
     win->resizing = false;
     win->anim_frame = 0;
@@ -99,13 +200,15 @@ void window_move_px(int id, int npx, int npy) {
     if (id < 0 || id >= MAX_WINDOWS || !windows[id].active) return;
     int sw = (int)fb_get_width();
     int sh = (int)fb_get_height();
-    if (npx < 0) npx = 0;
-    if (npy < 0) npy = 0;
     /* Snap to character cell grid to align with gui_putchar */
     npx = (npx / 8) * 8;
     npy = (npy / 16) * 16;
-    if (npx + windows[id].pw > sw) npx = sw - windows[id].pw;
-    if (npy + windows[id].ph > sh) npy = sh - windows[id].ph;
+    /* Like macOS: the window may slide partly off the sides and under the
+     * dock, but the titlebar never goes under the menu bar or off screen. */
+    if (npx > sw - 96) npx = ((sw - 96) / 8) * 8;
+    if (npx + windows[id].pw < 96) npx = ((96 - windows[id].pw) / 8) * 8;
+    if (npy > sh - 48) npy = ((sh - 48) / 16) * 16;
+    if (npy < UI_TOP_RESERVE) npy = UI_TOP_RESERVE;
     windows[id].px = npx;
     windows[id].py = npy;
     sync_cells(&windows[id]);
@@ -127,8 +230,11 @@ void window_resize_px(int id, int nw, int nh) {
  * and the hit-testers call it, so the clickable areas can never drift from what
  * is drawn.
  * -------------------------------------------------------------------------- */
-#define WIN_BTN_GAP   6     /* gap between adjacent buttons */
-#define WIN_BTN_INSET 10    /* left inset of the first button */
+#define WIN_BTN_GAP   8     /* gap between adjacent buttons */
+#define WIN_BTN_INSET 13    /* left inset of the first button */
+
+static int hover_x = -1, hover_y = -1;
+void window_set_hover(int px, int py) { hover_x = px; hover_y = py; }
 
 static int win_btn_left(const window_t* win, int n) {
     return win->px + WIN_BTN_INSET + n * (WIN_BTN_SIZE + WIN_BTN_GAP);
@@ -149,92 +255,61 @@ void window_draw(int id) {
 
     if (vesa) {
         int px = win->px, py = win->py, pw = win->pw, ph = win->ph;
+        int R = (win->flags & WIN_MAXIMIZED) ? 0 : WIN_CORNER_R;
 
-        /* Drop shadow for focused windows */
-        if (focused) {
-            gfx_draw_shadow(px, py, pw, ph, WIN_SHADOW_R, 0x000000);
-        }
+        /* Soft macOS-style shadow: big and dark for the key window. */
+        if (focused) ui_shadow(px, py, pw, ph, R, WIN_SHADOW_R, 120, 10);
+        else         ui_shadow(px, py, pw, ph, R, 14, 70, 4);
 
-        /* Window body — slightly warm dark slate to sit with the wallpaper */
-        gfx_fill_rounded_rect(px, py, pw, ph, WIN_CORNER_R, FB_RGB(32, 34, 42));
+        /* Body (same tone as the cell palette's background) */
+        ui_rrect(px, py, pw, ph, R, vga_to_rgb(VGA_BLACK), 255);
 
-        /* Titlebar with a subtle top-down gradient for depth. Focused windows
-         * get a cooler, brighter bar; unfocused ones recede. The bottom tone
-         * matches the body so the bar reads as raised, not stuck on. */
-        uint32_t tb_top = focused ? FB_RGB(58, 64, 86) : FB_RGB(40, 42, 52);
-        uint32_t tb_bot = focused ? FB_RGB(42, 46, 62) : FB_RGB(34, 36, 44);
-        gfx_fill_rounded_rect(px, py, pw, WIN_TITLEBAR_H, WIN_CORNER_R, tb_top);
-        /* Gradient body of the titlebar below the rounded corners */
-        gfx_draw_gradient_v(px + 1, py + WIN_CORNER_R, pw - 2,
-            WIN_TITLEBAR_H - WIN_CORNER_R, tb_top, tb_bot);
+        /* Unified titlebar */
+        uint32_t tb_top = focused ? UI_RGB(60, 60, 64) : UI_RGB(44, 44, 47);
+        uint32_t tb_bot = focused ? UI_RGB(52, 52, 56) : UI_RGB(40, 40, 43);
+        ui_rrect_vgrad(px, py, pw, WIN_TITLEBAR_H + R, R, tb_top, tb_bot, 255);
+        ui_blend_rect(px, py + WIN_TITLEBAR_H, pw, R + 4, vga_to_rgb(VGA_BLACK), 255);
+        ui_blend_rect(px, py + WIN_TITLEBAR_H, pw, 1, 0x000000, 150);
 
-        /* Accent divider under the titlebar (bright blue when focused) */
-        gfx_draw_hline(px + 1, py + WIN_TITLEBAR_H, pw - 2,
-            focused ? FB_RGB(80, 140, 235) : FB_RGB(54, 58, 70));
+        /* Hairline frame + faint top highlight */
+        ui_rrect_stroke(px, py, pw, ph, R, 0x000000, 170);
+        ui_blend_rect(px + R, py + 1, pw - 2 * R, 1, 0xFFFFFF, 34);
 
-        /* Subtle border outline */
-        gfx_draw_rounded_rect(px, py, pw, ph, WIN_CORNER_R,
-            focused ? FB_RGB(80, 140, 230) : FB_RGB(56, 60, 74));
-
-        /* macOS-style traffic lights on the LEFT: close, minimize, maximize.
-         * Glyphs only show on the focused window; unfocused lights go grey. */
-        int btn_y = py + (WIN_TITLEBAR_H - WIN_BTN_SIZE) / 2;
+        /* Traffic lights: close, minimize, zoom. Glyphs appear on hover. */
         int r = WIN_BTN_SIZE / 2;
-        uint32_t dim_fill = FB_RGB(78, 78, 84);
-        uint32_t dim_ring = FB_RGB(58, 58, 64);
-
-        /* Close (red) */
-        if (win->flags & WIN_CLOSABLE) {
-            int bx = win_btn_left(win, 0);
-            int cx = bx + r, cy = btn_y + r;
-            gfx_fill_circle(cx, cy, r, focused ? FB_RGB(255, 95, 87) : dim_fill);
-            gfx_draw_circle(cx, cy, r, focused ? FB_RGB(210, 70, 60) : dim_ring);
-            if (focused) {
-                gfx_draw_line(bx + 4, btn_y + 4, bx + WIN_BTN_SIZE - 4, btn_y + WIN_BTN_SIZE - 4, FB_RGB(120, 25, 18));
-                gfx_draw_line(bx + WIN_BTN_SIZE - 4, btn_y + 4, bx + 4, btn_y + WIN_BTN_SIZE - 4, FB_RGB(120, 25, 18));
+        int cy = py + WIN_TITLEBAR_H / 2;
+        int gx0 = win_btn_left(win, 0) - 2, gx1 = win_btn_left(win, 2) + WIN_BTN_SIZE + 2;
+        bool hover = hover_y >= cy - r - 2 && hover_y <= cy + r + 2 && hover_x >= gx0 && hover_x <= gx1;
+        static const uint32_t lit[3] = { UI_RGB(255, 95, 87), UI_RGB(254, 188, 46), UI_RGB(40, 200, 64) };
+        static const uint32_t ink[3] = { UI_RGB(110, 20, 16), UI_RGB(130, 80, 6), UI_RGB(8, 90, 20) };
+        for (int n = 0; n < 3; n++) {
+            if (n == 0 && !(win->flags & WIN_CLOSABLE)) continue;
+            int cx = win_btn_left(win, n) + r;
+            bool on = focused || hover;
+            ui_circle(cx, cy, r, on ? lit[n] : UI_RGB(78, 78, 82), 255);
+            ui_ring(cx, cy, r, 1, 0x000000, on ? 50 : 70);
+            if (hover) {
+                if (n == 0) {
+                    ui_line(cx - 3, cy - 3, cx + 3, cy + 3, 1, ink[0], 230);
+                    ui_line(cx + 3, cy - 3, cx - 3, cy + 3, 1, ink[0], 230);
+                } else if (n == 1) {
+                    ui_line(cx - 3, cy, cx + 3, cy, 1, ink[1], 230);
+                } else {
+                    ui_tri(cx - 3, cy - 3, cx + 2, cy - 3, cx - 3, cy + 2, ink[2], 230);
+                    ui_tri(cx + 3, cy + 3, cx - 2, cy + 3, cx + 3, cy - 2, ink[2], 230);
+                }
             }
         }
 
-        /* Minimize (yellow) */
+        /* Centered title, kept clear of the lights */
         {
-            int bx = win_btn_left(win, 1);
-            int cx = bx + r, cy = btn_y + r;
-            gfx_fill_circle(cx, cy, r, focused ? FB_RGB(254, 188, 46) : dim_fill);
-            gfx_draw_circle(cx, cy, r, focused ? FB_RGB(220, 150, 20) : dim_ring);
-            if (focused) gfx_draw_hline(bx + 3, cy, WIN_BTN_SIZE - 6, FB_RGB(150, 100, 10));
-        }
-
-        /* Maximize (green) — drawn with a small plus */
-        {
-            int bx = win_btn_left(win, 2);
-            int cx = bx + r, cy = btn_y + r;
-            gfx_fill_circle(cx, cy, r, focused ? FB_RGB(40, 200, 64) : dim_fill);
-            gfx_draw_circle(cx, cy, r, focused ? FB_RGB(20, 160, 40) : dim_ring);
-            if (focused) {
-                gfx_draw_hline(bx + 3, cy, WIN_BTN_SIZE - 6, FB_RGB(15, 110, 25));
-                gfx_draw_vline(cx, btn_y + 3, WIN_BTN_SIZE - 6, FB_RGB(15, 110, 25));
-            }
-        }
-
-        /* Centered title (macOS-style), clamped so it never sits under the lights */
-        {
-            char tbuf[WIN_TITLE_MAX];
-            strncpy(tbuf, win->title, WIN_TITLE_MAX - 1);
-            tbuf[WIN_TITLE_MAX - 1] = 0;
-            int cw = font_get_active_width();
-            int tw = (int)strlen(tbuf) * cw;
+            int tw = ui_text_width(win->title, UF_UIB);
             int tx = px + (pw - tw) / 2;
-            int lights_right = win_btn_left(win, 2) + WIN_BTN_SIZE + 8;
+            int lights_right = gx1 + 10;
             if (tx < lights_right) tx = lights_right;
-            int ty = py + (WIN_TITLEBAR_H - font_get_active_height()) / 2;
-            uint32_t txt_color = focused ? FB_RGB(235, 235, 240) : FB_RGB(150, 152, 165);
-            /* Transparent so it sits cleanly on the titlebar gradient */
-            for (int c = 0; tbuf[c]; c++)
-                font_draw_char_transparent(tx + c * cw, ty, (uint8_t)tbuf[c], txt_color);
+            int ty = py + (WIN_TITLEBAR_H - ui_font_height(UF_UIB)) / 2 + 1;
+            ui_text(tx, ty, win->title, UF_UIB, focused ? UI_RGB(228, 228, 232) : UI_RGB(140, 140, 146));
         }
-
-        /* Content area background — flat dark */
-        gfx_fill_rect(px + 1, py + WIN_TITLEBAR_H + 1, pw - 2, ph - WIN_TITLEBAR_H - 2, FB_RGB(24, 24, 28));
 
     } else {
         /* Legacy text-mode rendering */
@@ -294,7 +369,7 @@ void window_draw(int id) {
             content_h = win->h - 3;
         }
         if (content_h > 0)
-            win->draw(id, win->x + 1, content_y, win->w - 2, content_h);
+            win_call_draw(id, win->x + 1, content_y, win->w - 2, content_h);   /* Phase 55: guarded */
     }
 }
 
@@ -311,6 +386,20 @@ static int get_z_sorted(int sorted[MAX_WINDOWS]) {
         sorted[j + 1] = key;
     }
     return count;
+}
+
+/* Content area of a window in PIXELS (below the 28px titlebar), for apps that
+ * draw pixel-perfect Mac UI instead of the 8x16 cell grid. Returns false for
+ * an invalid window or text mode. */
+bool window_content_px(int id, int* x, int* y, int* w, int* h) {
+    if (id < 0 || id >= MAX_WINDOWS || !windows[id].active || !fb_is_vesa()) return false;
+    window_t* win = &windows[id];
+    int top = win->py + WIN_TITLEBAR_H + 1;
+    if (x) *x = win->px + 1;
+    if (y) *y = top;
+    if (w) *w = win->pw - 2;
+    if (h) *h = win->py + win->ph - top - 1;
+    return true;
 }
 
 void window_draw_all(void) {
@@ -446,7 +535,17 @@ int window_count(void) {
 void window_send_key(char key) {
     int focused = window_get_focused();
     if (focused >= 0 && windows[focused].on_key)
-        windows[focused].on_key(focused, key);
+        win_call_key(focused, key);                 /* Phase 55: guarded */
+}
+
+void window_set_on_click(int id, win_click_fn fn) {
+    if (id >= 0 && id < MAX_WINDOWS && windows[id].active) windows[id].on_click = fn;
+}
+
+void window_send_click(int id, int px, int py) {
+    if (id < 0 || id >= MAX_WINDOWS || !windows[id].active || !windows[id].on_click) return;
+    /* Pass coords relative to the content area (below the titlebar). */
+    win_call_click(id, px - windows[id].px, py - (windows[id].py + WIN_TITLEBAR_H));   /* Phase 55: guarded */
 }
 
 void window_minimize(int id) {
@@ -469,9 +568,9 @@ void window_maximize(int id) {
         win->saved_x = win->x; win->saved_y = win->y;
         win->saved_w = win->w; win->saved_h = win->h;
         if (fb_is_vesa()) {
-            win->px = 0; win->py = 0;
+            win->px = 0; win->py = UI_TOP_RESERVE;
             win->pw = (int)fb_get_width();
-            win->ph = (int)fb_get_height() - 32;
+            win->ph = (int)fb_get_height() - UI_TOP_RESERVE - WIN_DOCK_RESERVE;
             sync_cells(win);
         } else {
             win->x = 0; win->y = 0;
@@ -515,9 +614,9 @@ void window_snap_left(int id) {
         win->saved_w = win->w; win->saved_h = win->h;
     }
     if (fb_is_vesa()) {
-        win->px = 0; win->py = 0;
+        win->px = 0; win->py = UI_TOP_RESERVE;
         win->pw = (int)fb_get_width() / 2;
-        win->ph = (int)fb_get_height() - 32;
+        win->ph = (int)fb_get_height() - UI_TOP_RESERVE - WIN_DOCK_RESERVE;
         sync_cells(win);
     } else {
         win->x = 0; win->y = 0;
@@ -536,9 +635,9 @@ void window_snap_right(int id) {
     }
     if (fb_is_vesa()) {
         int half = (int)fb_get_width() / 2;
-        win->px = half; win->py = 0;
+        win->px = half; win->py = UI_TOP_RESERVE;
         win->pw = half;
-        win->ph = (int)fb_get_height() - 32;
+        win->ph = (int)fb_get_height() - UI_TOP_RESERVE - WIN_DOCK_RESERVE;
         sync_cells(win);
     } else {
         win->x = GUI_WIDTH / 2; win->y = 0;

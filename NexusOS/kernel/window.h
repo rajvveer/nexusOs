@@ -32,13 +32,13 @@ typedef enum {
 } resize_edge_t;
 
 /* Window dimensions in pixels */
-#define WIN_TITLEBAR_H  16      /* Titlebar height (= 1 cell for alignment) */
+#define WIN_TITLEBAR_H  28      /* Titlebar height; content starts 2 cells down */
 #define WIN_BORDER_W    1       /* Border width */
-#define WIN_CORNER_R    6       /* Corner radius */
+#define WIN_CORNER_R    10      /* Corner radius */
 #define WIN_RESIZE_GRAB 5       /* Resize grab zone pixels */
 #define WIN_MIN_W       120     /* Minimum width */
 #define WIN_MIN_H       80      /* Minimum height */
-#define WIN_SHADOW_R    4       /* Shadow radius */
+#define WIN_SHADOW_R    28      /* Shadow spread (focused window) */
 #define WIN_BTN_SIZE    12      /* Title button size */
 
 /* Window content draw callback — pixel coordinates */
@@ -46,6 +46,10 @@ typedef void (*win_draw_fn)(int win_id, int cx, int cy, int cw, int ch);
 
 /* Window key handler callback */
 typedef void (*win_key_fn)(int win_id, char key);
+
+/* Window content click callback — (px,py) are pixel coords inside the window;
+ * apps that want mouse input set it with window_set_on_click after creating. */
+typedef void (*win_click_fn)(int win_id, int px, int py);
 
 /* Window structure */
 typedef struct {
@@ -75,8 +79,9 @@ typedef struct {
     int         anim_type;      /* 0=none, 1=minimize, 2=maximize, 3=close */
 
     /* Callbacks */
-    win_draw_fn draw;
-    win_key_fn  on_key;
+    win_draw_fn  draw;
+    win_key_fn   on_key;
+    win_click_fn on_click;
 } window_t;
 
 /* Window management */
@@ -105,6 +110,9 @@ bool window_close_hit_px(int id, int mx, int my);
 bool window_minimize_hit_px(int id, int mx, int my);
 bool window_maximize_hit_px(int id, int mx, int my);
 
+/* Content area in pixels (below the titlebar); false in text mode. */
+bool window_content_px(int id, int* x, int* y, int* w, int* h);
+
 /* Accessors */
 window_t* window_get(int id);
 int  window_get_focused(void);
@@ -112,6 +120,10 @@ int  window_count(void);
 
 /* Send key to focused window */
 void window_send_key(char key);
+
+/* Content click: set a handler, and deliver a click (pixel coords) to a window. */
+void window_set_on_click(int id, win_click_fn fn);
+void window_send_click(int id, int px, int py);
 
 /* Minimize/maximize/restore */
 void window_minimize(int id);
@@ -125,5 +137,11 @@ bool window_maximize_hit(int id, int mx, int my);
 /* Window snapping */
 void window_snap_left(int id);
 void window_snap_right(int id);
+
+/* Pointer position, so the traffic lights can show their glyphs on hover. */
+void window_set_hover(int px, int py);
+
+/* Pixels kept free at the bottom for the dock when zooming/snapping. */
+#define WIN_DOCK_RESERVE 88
 
 #endif /* WINDOW_H */

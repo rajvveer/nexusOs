@@ -11,17 +11,19 @@
 
 #include "types.h"
 
-/* Screen dimensions in character cells (fills full 1024x768 in VESA) */
-#define GUI_WIDTH  128
-#define GUI_HEIGHT 48
+/* Screen dimensions in character cells. In VESA mode the grid covers the
+ * whole framebuffer (240x67 at 1920x1080); gui_init() sizes it at runtime.
+ * GUI_MAX_* bound the static cell buffer. */
+#define GUI_MAX_COLS 256
+#define GUI_MAX_ROWS 68
+extern int gui_cols, gui_rows;
+#define GUI_WIDTH  gui_cols
+#define GUI_HEIGHT gui_rows
 
 /* Character cell size in pixels (for VESA mode) */
 #define GUI_CELL_W  8
 #define GUI_CELL_H  16
 
-/* VESA screen dimensions in pixels */
-#define GUI_PIXEL_WIDTH   1024
-#define GUI_PIXEL_HEIGHT  768
 
 /* No offset — text starts at top-left of screen */
 #define GUI_OFFSET_X  0
