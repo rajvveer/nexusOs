@@ -1,5 +1,5 @@
 /* ============================================================================
- * NexusOS — USB HID Driver (Header) — Phase 25
+ * NexusOS — USB HID Driver (Header) — Phase 25 / Phase 55
  * ============================================================================
  * USB Human Interface Device driver for keyboards and mice.
  * ============================================================================ */
@@ -32,8 +32,19 @@ typedef struct {
     int8_t  wheel;         /* Scroll wheel */
 } usb_mouse_report_t;
 
-/* Initialize USB HID driver */
+/* Initialize USB HID driver (binds every enumerated HID device) */
 void usb_hid_init(void);
+
+/* Poll HID interrupt endpoints once (call from the idle pumps, not IRQ).
+ * Also pumps the USB core's hot-plug poll (usb_poll). */
+void usb_hid_poll(void);
+
+/* Phase 55: re-bind after a hot-plug change (called by the USB core). */
+void usb_hid_rescan(void);
+
+/* Phase 55: total HID reports received since boot (proof the USB input path
+ * is live — shown by `usbinfo`). */
+uint32_t usb_hid_report_count(void);
 
 /* Check if USB keyboard/mouse is available */
 bool usb_hid_keyboard_present(void);

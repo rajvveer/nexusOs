@@ -54,6 +54,9 @@ typedef struct {
 /* Initialize USB mass storage driver */
 void usb_storage_init(void);
 
+/* Phase 55: re-bind after a hot-plug change (called by the USB core). */
+void usb_storage_rescan(void);
+
 /* Check if USB storage is present */
 bool usb_storage_present(void);
 
