@@ -57,9 +57,14 @@ ISR_NOERRCODE 25               ; Reserved
 ISR_NOERRCODE 26               ; Reserved
 ISR_NOERRCODE 27               ; Reserved
 ISR_NOERRCODE 28               ; Reserved
-ISR_NOERRCODE 29               ; Reserved
-ISR_NOERRCODE 30               ; Reserved
+ISR_ERRCODE   29               ; VMM Communication (pushes an error code)
+ISR_ERRCODE   30               ; Security Exception (pushes an error code)
 ISR_NOERRCODE 31               ; Reserved
+
+; --- System call (INT 0x80, DPL=3 gate set by syscall_init) ---
+; Same frame as the exceptions; isr_handler dispatches it to syscall_handler,
+; whose return value in regs->eax is restored into EAX by popa.
+ISR_NOERRCODE 128
 
 ; ============================================================================
 ; Common ISR stub — saves registers, calls C handler, restores, returns

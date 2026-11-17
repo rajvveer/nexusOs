@@ -9,5 +9,6 @@ global idt_load
 idt_load:
     mov eax, [esp + 4]
     lidt [eax]
-    sti                         ; Re-enable interrupts
+    ; No sti here: the 8259s are still at the BIOS vectors until pic_init
+    ; remaps them, so kernel_main enables interrupts only after that.
     ret

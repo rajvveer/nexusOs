@@ -34,6 +34,14 @@ static inline void port_word_out(uint16_t port, uint16_t data) {
     __asm__ volatile("outw %0, %1" : : "a"(data), "Nd"(port));
 }
 
+/* Transfer a device FIFO without a separate guest instruction loop per word. */
+static inline void port_read_words(uint16_t port, void* buffer, size_t words) {
+    __asm__ volatile("cld; rep insw" : "+D"(buffer), "+c"(words) : "d"(port) : "memory", "cc");
+}
+static inline void port_write_words(uint16_t port, const void* buffer, size_t words) {
+    __asm__ volatile("cld; rep outsw" : "+S"(buffer), "+c"(words) : "d"(port) : "memory", "cc");
+}
+
 /* Small I/O delay (used when hardware needs time to react) */
 static inline void io_wait(void) {
     __asm__ volatile("outb %%al, $0x80" : : "a"(0));

@@ -8,8 +8,9 @@
 #include "vga.h"
 #include "string.h"
 
-/* 6 GDT entries: null, kernel code, kernel data, user code, user data, TSS */
-#define GDT_ENTRIES 6
+/* 7 GDT entries: null, kernel code, kernel data, user code, user data, TSS,
+ * and (Phase 55) the double-fault task's TSS (filled in by kguard_init). */
+#define GDT_ENTRIES 7
 
 static struct gdt_entry gdt[GDT_ENTRIES];
 static struct gdt_ptr   gp;
@@ -111,4 +112,17 @@ void gdt_init(void) {
  * -------------------------------------------------------------------------- */
 void tss_set_kernel_stack(uint32_t stack) {
     tss.esp0 = stack;
+}
+
+/* ---- Phase 55: kguard double-fault task ---------------------------------- */
+/* GDT entry 6 (selector GDT_DF_TSS_SEL): the #DF task's TSS. Type 0x89 =
+ * available 32-bit TSS; the CPU marks it busy while the task runs. */
+void gdt_set_df_tss(uint32_t base, uint32_t limit) {
+    gdt_set_gate(6, base, limit, 0x89, 0x00);
+}
+
+/* The main TSS (the one TR points at). After a task-gate switch it holds the
+ * interrupted task's full register state, which kguard rewrites to recover. */
+void* tss_main(void) {
+    return &tss;
 }

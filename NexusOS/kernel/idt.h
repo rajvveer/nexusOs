@@ -36,6 +36,10 @@ void idt_init(void);
 void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags);
 void register_interrupt_handler(uint8_t n, isr_handler_t handler);
 
+/* Unrecoverable exception: "!EX:" serial line + red crash bar + halt.
+ * (Phase 55: shared by isr_handler and kguard's double-fault task.) */
+void exception_fatal(uint32_t int_no, uint32_t err_code, uint32_t eip) __attribute__((noreturn));
+
 extern void idt_load(uint32_t idt_ptr);
 
 #endif /* IDT_H */

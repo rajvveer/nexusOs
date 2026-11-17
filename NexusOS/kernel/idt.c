@@ -6,6 +6,8 @@
 #include "vga.h"
 #include "string.h"
 #include "port.h"
+#include "framebuffer.h"
+#include "kguard.h"     /* Phase 55: ring-0 fault recovery */
 
 #define IDT_ENTRIES 256
 
@@ -133,32 +135,72 @@ static const char* exception_messages[] = {
     "Hypervisor Injection", "VMM Communication", "Security Exception", "Reserved"
 };
 
+/* Crash-screen pixel: one 24/32bpp write into the LFB (geometry set below) */
+static volatile uint8_t* crash_fb;
+static uint32_t crash_pitch, crash_bpp;
+static void crash_px(uint32_t x, uint32_t y, uint32_t c) {
+    volatile uint8_t* p = crash_fb + y * crash_pitch + x * crash_bpp;
+    p[0] = (uint8_t)c; p[1] = (uint8_t)(c >> 8); p[2] = (uint8_t)(c >> 16);
+}
+
 void isr_handler(struct registers* regs) {
     if (interrupt_handlers[regs->int_no] != NULL) {
         interrupt_handlers[regs->int_no](regs);
     } else if (regs->int_no < 32) {
+        /* Phase 54: a CPU exception blamed on a user process (fault taken in
+         * ring 3, or in the kernel while servicing that process's syscall)
+         * kills only that process; the OS keeps running. Page faults (14) are
+         * handled by the dedicated page_fault_handler above, so this covers
+         * #GP/#UD/#DE/etc. uproc_fault() does not return when it handles it. */
+        extern bool uproc_fault(struct registers* regs, uint32_t fault_addr);
+        if (uproc_fault(regs, regs->eip)) return;
+
+        /* Phase 55: a ring-0 fault in the kernel thread with a kguard armed
+         * (shell command, desktop frame, app callback) is contained: log one
+         * "!KR:" line and long-jump back into the guard. Never returns. */
+        if (kguard_should_recover(regs)) kguard_recover(regs, (int)regs->int_no, 0);
+
+        exception_fatal(regs->int_no, regs->err_code, regs->eip);
+    }
+}
+
+/* --------------------------------------------------------------------------
+ * exception_fatal: unrecoverable CPU exception — "!EX:" serial line, red bar
+ * with INT/EIP/ERR in hex on the LFB, halt. (Phase 55: split out of
+ * isr_handler so the double-fault task can use the same path.)
+ * -------------------------------------------------------------------------- */
+void exception_fatal(uint32_t int_no, uint32_t err_code, uint32_t eip) {
+    {
         /* ---- Serial debug output to COM1 ---- */
         char hex[16] = "0123456789ABCDEF";
         #define SERIAL_CHAR(c) do { while ((port_byte_in(0x3FD) & 0x20) == 0); port_byte_out(0x3F8, (c)); } while(0)
         #define SERIAL_HEX(v) do { for (int _i=28;_i>=0;_i-=4) SERIAL_CHAR(hex[((v)>>_i)&0xF]); } while(0)
         SERIAL_CHAR('!'); SERIAL_CHAR('E'); SERIAL_CHAR('X'); SERIAL_CHAR(':');
-        SERIAL_HEX(regs->int_no); SERIAL_CHAR(' ');
-        SERIAL_HEX(regs->err_code); SERIAL_CHAR(' ');
-        SERIAL_HEX(regs->eip); SERIAL_CHAR('\n');
+        SERIAL_HEX(int_no); SERIAL_CHAR(' ');
+        SERIAL_HEX(err_code); SERIAL_CHAR(' ');
+        SERIAL_HEX(eip); SERIAL_CHAR('\n');
+        for (const char* m = exception_messages[int_no < 32 ? int_no : 15]; *m; m++) SERIAL_CHAR(*m);
+        SERIAL_CHAR('\n');
 
         /* ---- VESA Framebuffer BSOD ---- */
-        /* Write directly to the hardware framebuffer at the stored address */
-        uint32_t fb_addr = *(volatile uint32_t*)0x9000;   /* FB address from boot2 */
-        uint8_t  vesa_on = *(volatile uint8_t*)0x900A;    /* VESA active flag */
+        /* Write directly to the hardware LFB using the mode geometry boot2
+         * recorded (the same block fb_init reads, so this also works for a
+         * fault before fb_init): real width/pitch, 24 or 32 bpp. */
+        volatile uint8_t* vinfo = (volatile uint8_t*)VESA_INFO_ADDR;
+        uint32_t fb_addr = *(volatile uint32_t*)(vinfo + VESA_FB_ADDR_OFF);
+        uint32_t width   = *(volatile uint16_t*)(vinfo + VESA_WIDTH_OFF);
+        uint32_t pitch   = *(volatile uint16_t*)(vinfo + VESA_PITCH_OFF);
+        uint32_t bpp     = vinfo[VESA_BPP_OFF] ? vinfo[VESA_BPP_OFF] / 8u : 4u;
 
-        if (vesa_on && fb_addr) {
-            volatile uint32_t* fb = (volatile uint32_t*)fb_addr;
-            int pitch_px = 1024;  /* 1024 pixels wide */
+        if (vinfo[VESA_FLAG_OFF] && fb_addr && width && pitch && bpp >= 3) {
+            crash_fb = (volatile uint8_t*)fb_addr;
+            crash_pitch = pitch;
+            crash_bpp = bpp;
 
-            /* Fill a red bar at top of screen: 1024 x 40 pixels */
-            for (int y = 0; y < 40; y++)
-                for (int x = 0; x < 1024; x++)
-                    fb[y * pitch_px + x] = 0x00CC0000; /* Dark red */
+            /* Fill a red bar across the top of the screen: width x 40 pixels */
+            for (uint32_t y = 0; y < 40; y++)
+                for (uint32_t x = 0; x < width; x++)
+                    crash_px(x, y, 0x00CC0000); /* Dark red */
 
             /* Draw exception number as 2-digit hex in white at (10, 8) */
             /* Simple 5x7 pixel digit patterns */
@@ -189,35 +231,35 @@ void isr_handler(struct registers* regs) {
                         if (font_hex[_d][_r] & (0x10 >> _c)) \
                             for (int _sy = 0; _sy < 3; _sy++) \
                                 for (int _sx = 0; _sx < 3; _sx++) \
-                                    fb[((py)+_r*3+_sy) * pitch_px + (px)+_c*3+_sx] = 0x00FFFFFF; \
+                                    crash_px((px)+_c*3+_sx, (py)+_r*3+_sy, 0x00FFFFFF); \
             } while(0)
 
             /* "CRASH INT:" at x=10 */
             /* Draw "INT xx ERR xxxxxxxx EIP xxxxxxxx" as hex digits */
             int xp = 10;
             /* INT: label - just draw the int number */
-            DRAW_HEX_DIGIT(regs->int_no >> 4, xp, 6);
+            DRAW_HEX_DIGIT(int_no >> 4, xp, 6);
             xp += 18;
-            DRAW_HEX_DIGIT(regs->int_no, xp, 6);
+            DRAW_HEX_DIGIT(int_no, xp, 6);
             xp += 30;
 
             /* EIP: 8 hex digits */
             for (int i = 7; i >= 0; i--) {
-                DRAW_HEX_DIGIT((regs->eip >> (i*4)), xp, 6);
+                DRAW_HEX_DIGIT((eip >> (i*4)), xp, 6);
                 xp += 18;
             }
             xp += 12;
 
             /* ERR: 8 hex digits */
             for (int i = 7; i >= 0; i--) {
-                DRAW_HEX_DIGIT((regs->err_code >> (i*4)), xp, 6);
+                DRAW_HEX_DIGIT((err_code >> (i*4)), xp, 6);
                 xp += 18;
             }
             #undef DRAW_HEX_DIGIT
         }
 
         /* Halt on unhandled exception */
-        __asm__ volatile("cli; hlt");
+        for (;;) __asm__ volatile("cli; hlt");
     }
 }
 
@@ -225,6 +267,18 @@ void isr_handler(struct registers* regs) {
  * irq_handler: Called from assembly for hardware IRQs (32-47)
  * -------------------------------------------------------------------------- */
 void irq_handler(struct registers* regs) {
+    /* Spurious IRQ7/IRQ15: the raising PIC's in-service bit is clear. It must
+     * not get an EOI (that could ack a real lower-priority IRQ); a spurious
+     * IRQ15 still came through the master's cascade line, so ack the master. */
+    if (regs->int_no == 39 || regs->int_no == 47) {
+        uint16_t cmd = (regs->int_no == 39) ? 0x20 : 0xA0;
+        port_byte_out(cmd, 0x0B);               /* OCW3: next read = ISR */
+        if (!(port_byte_in(cmd) & 0x80)) {
+            if (regs->int_no == 47) port_byte_out(0x20, 0x20);
+            return;
+        }
+    }
+
     /* Send EOI (End Of Interrupt) to PIC */
     if (regs->int_no >= 40) {
         /* Send EOI to slave PIC (PIC2) */
@@ -233,8 +287,12 @@ void irq_handler(struct registers* regs) {
     /* Always send EOI to master PIC (PIC1) */
     port_byte_out(0x20, 0x20);
 
-    /* Call registered handler if any */
+    /* Call registered handler if any. Phase 55: kguard counts the kernel
+     * thread's IRQ nesting so a fault inside an IRQ handler is never
+     * "recovered" by long-jumping out of the interrupt. */
     if (interrupt_handlers[regs->int_no] != NULL) {
+        kguard_irq_enter();
         interrupt_handlers[regs->int_no](regs);
+        kguard_irq_leave();
     }
 }

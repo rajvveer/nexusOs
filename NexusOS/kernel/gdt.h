@@ -35,4 +35,10 @@ extern void gdt_flush(uint32_t gdt_ptr);
 /* Set kernel stack in TSS (for ring 3 → ring 0 transitions) */
 void tss_set_kernel_stack(uint32_t stack);
 
+/* Phase 55: second TSS slot (GDT entry 6) for kguard's double-fault task gate,
+ * and access to the main TSS so the #DF task can patch the interrupted state. */
+#define GDT_DF_TSS_SEL 0x30
+void  gdt_set_df_tss(uint32_t base, uint32_t limit);
+void* tss_main(void);
+
 #endif /* GDT_H */

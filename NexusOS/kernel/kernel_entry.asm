@@ -14,8 +14,12 @@ section .text
 global _start
 
 _start:
-    ; Set up kernel stack at 4MB (above kernel binary, below fb_back at 5MB).
-    ; BSS now lives at 8MB+ via the linker script, so no overlap.
+    ; Set up kernel stack at 4MB, growing down over the 3-4MB region (a 16KB
+    ; guard band at 3MB is unmapped by paging_protect_kernel). Must match
+    ; BOOT_STACK_TOP in memory.h (pmm_init keeps the PMM off 0-8MB: kernel,
+    ; headroom, stack, and since Phase 57 the 4MB heap at 4-8MB). BSS lives at
+    ; 8MB+ via the linker script, so no overlap.
+    ; IF stays clear (boot2's cli) until kernel_main's sti after pic_init.
     mov esp, 0x400000
     mov ebp, esp
 
