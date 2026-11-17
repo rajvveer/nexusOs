@@ -53,3 +53,5 @@ Thumbs.db
 # =========================
 __pycache__/
 .agents/
+# Test runner output (smoke.py, test_phases.py, run_all_tests.py)
+/test_out/
