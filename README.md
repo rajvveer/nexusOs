@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/badge/Kernel-~760KB-red?style=for-the-badge" alt="Kernel"/>
   <img src="https://img.shields.io/badge/Release-5.1_Aurora-purple?style=for-the-badge" alt="Release"/>
   <img src="https://img.shields.io/badge/Files-130+_source-yellow?style=for-the-badge" alt="Files"/>
-  <a href="../LICENSE"><img src="https://img.shields.io/badge/License-All_Rights_Reserved-critical?style=for-the-badge" alt="License: All Rights Reserved"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-All_Rights_Reserved-critical?style=for-the-badge" alt="License: All Rights Reserved"/></a>
 </p>
 
 <h1 align="center">NexusOS</h1>
@@ -16,7 +16,7 @@
 
 > **© 2026 rajvveer. All rights reserved.** The source is published for viewing only and is **not open source**.
 > Copying, modifying, redistributing, rebranding or launching NexusOS (or any part of it) as your own
-> product is not allowed without written permission. See [LICENSE](../LICENSE).
+> product is not allowed without written permission. See [LICENSE](LICENSE).
 
 ---
 
@@ -1465,7 +1465,7 @@ Without written permission from the copyright holder you may **not**:
 
 For permissions or commercial licensing, contact [rajvveer on GitHub](https://github.com/rajvveer).
 Third-party components (uACPI, Lua, kilo, Picolibc, the Aileron font, Realtek firmware, Wayland protocol files and
-the certifi root certificates) keep their own licenses; the full terms and the list are in [LICENSE](../LICENSE).
+the certifi root certificates) keep their own licenses; the full terms and the list are in [LICENSE](LICENSE).
 
 ---
 

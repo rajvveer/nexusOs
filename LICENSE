@@ -72,24 +72,24 @@ Third-party components
 The components below were written by others. They are NOT covered by the terms
 above. They stay under their own licenses, which are kept next to them, and you
 may use them under those licenses. Copies of these components elsewhere in the
-repository, for example under NexusOS/handoff/, are covered in the same way.
+repository, for example under handoff/, are covered in the same way.
 
-- uACPI: NexusOS/arch/x86_64/uacpi/
+- uACPI: arch/x86_64/uacpi/
   MIT License, Copyright (c) 2022-2026 Daniil Tatianin (see uacpi/LICENSE).
-- Lua 5.4.7: NexusOS/userland/vendor/lua-5.4.7/
+- Lua 5.4.7: userland/vendor/lua-5.4.7/
   MIT License, Copyright (C) 1994-2024 Lua.org, PUC-Rio.
-- kilo: NexusOS/userland/vendor/kilo.c
+- kilo: userland/vendor/kilo.c
   BSD 2-Clause License, Copyright (C) 2016 Salvatore Sanfilippo.
-- Picolibc: downloaded at build time by NexusOS/userland/build.py
-  BSD-style licenses, see NexusOS/userland/licenses/Picolibc.txt.
-- Aileron Regular font: NexusOS/arch/x86_64/fonts/Aileron-Regular.ttf, and the
-  bitmap font generated from it in NexusOS/kernel/uifont.h
+- Picolibc: downloaded at build time by userland/build.py
+  BSD-style licenses, see userland/licenses/Picolibc.txt.
+- Aileron Regular font: arch/x86_64/fonts/Aileron-Regular.ttf, and the
+  bitmap font generated from it in kernel/uifont.h
   CC0 1.0 (public domain), by Sora Sagano.
-- Realtek network firmware: NexusOS/arch/x86_64/firmware/rtl_nic/
-  Realtek redistribution license, see NexusOS/arch/x86_64/firmware/LICENSE.r8169.
-- Wayland protocol definitions: NexusOS/arch/x86_64/protocols/*.xml
+- Realtek network firmware: arch/x86_64/firmware/rtl_nic/
+  Realtek redistribution license, see arch/x86_64/firmware/LICENSE.r8169.
+- Wayland protocol definitions: arch/x86_64/protocols/*.xml
   MIT-style licenses stated in each file.
-- TLS root certificates in NexusOS/kernel/roots.h
+- TLS root certificates in kernel/roots.h
   Generated from certifi (Mozilla CA certificate data, MPL-2.0).
 - Software that NexusOS downloads during installation (for example Debian
   packages, Google Chrome, Firefox, LibreOffice, VS Code and Wine, pinned in
