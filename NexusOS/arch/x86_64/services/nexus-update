@@ -1,0 +1,178 @@
+#!/bin/sh
+# nexus-update: NexusOS core updates (kernel, Aurora, UEFI loader) from signed bundles into A/B boot slots.
+#
+#   nexus-update apply BUNDLE [--allow-downgrade]   verify and install into the other slot; it boots once on trial
+#   nexus-update status                             slots, versions, the booted slot, the last result
+#   nexus-update boot-check                         (nexus-update-check.service) make a trial that booted the default,
+#                                                   or record a rollback
+#   nexus-update cancel                             drop a pending trial
+#
+# Layout (/boot/nexus, read by the UEFI loader, arch/x86_64/uefi/abslot.c): bootctl (default, trial, tries, nonce),
+# bootcount (the loader's attempt counter, 64 bytes, rewritten in place by the loader), slot-a/ and slot-b/ with
+# kernel.bin, init, BOOTX64.EFI, VERSION, MANIFEST, MANIFEST.sig. A slot without a kernel uses the ESP's kernel and
+# /sbin/init (the factory slot). Bundle format and signature: arch/x86_64/update_bundle.py. The signature check is
+# VERIFY_COMMAND SIGNATURE MANIFEST (exit 0 = good), set in /etc/nexus/update.conf.
+# Secure Boot: a bundle's kernel.bin comes with kernel.sig (RSA-2048/SHA-256 of the NexusOS kernel key, the UEFI loader
+# checks it before the slot boots); it is checked here too against /usr/share/nexus/secureboot/kernel.crt. While the
+# firmware's Secure Boot is active (the loader puts nexus.secureboot=1 on the command line) a kernel without a valid
+# kernel.sig is refused, otherwise it is installed with a warning. Slots need an ext4 root: on a FAT32 root (no file
+# permissions, no Debian tools) updates are refused; the loader ignores /boot/nexus there too.
+set -u
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+BOOT=/boot/nexus
+STATE=/var/lib/nexus/update
+VERIFY_COMMAND="sqv --keyring /usr/share/keyrings/nexusos-update.pgp"
+KERNEL_CERT=/usr/share/nexus/secureboot/kernel.crt
+TRIES=3
+[ -r /etc/nexus/update.conf ] && . /etc/nexus/update.conf
+
+say() { echo "nexus-update: $*"; }
+die() { echo "nexus-update: $*" >&2; [ -n "${WORK:-}" ] && rm -rf "$WORK"; exit 1; }
+log() { logger -t nexus-update -- "$*" 2>/dev/null || true; }
+ctl() { sed -n "s/^$1=//p" "$BOOT/bootctl" 2>/dev/null | tail -1; }
+arg() { tr ' ' '\n' < /proc/cmdline 2>/dev/null | sed -n "s/^$1=//p" | tail -1; }
+version_of() { if [ -s "$BOOT/slot-$1/VERSION" ]; then cat "$BOOT/slot-$1/VERSION"; else echo factory; fi; }
+other() { if [ "$1" = a ]; then echo b; else echo a; fi; }
+# bootctl and bootcount are replaced atomically (written beside, synced, renamed)
+write_ctl() {   # default trial nonce
+    printf '# NexusOS boot slots (nexus-update; read by the UEFI loader)\ndefault=%s\ntrial=%s\ntries=%s\nnonce=%s\n' "$1" "$2" "$TRIES" "$3" > "$BOOT/bootctl.new" &&
+    sync "$BOOT/bootctl.new" 2>/dev/null; mv -f "$BOOT/bootctl.new" "$BOOT/bootctl" && sync
+}
+write_count() {   # nonce: the 64-byte counter the loader rewrites in place
+    text="NXBC1 nonce=$1 count=0"
+    { printf '%s' "$text"; i=${#text}; while [ "$i" -lt 64 ]; do printf '\n'; i=$((i + 1)); done; } > "$BOOT/bootcount.new" &&
+    [ "$(wc -c < "$BOOT/bootcount.new")" -eq 64 ] && mv -f "$BOOT/bootcount.new" "$BOOT/bootcount" && sync
+}
+need_root() { [ "$(id -u)" = 0 ] || die "$1 needs root (sudo nexus-update $1)"; }
+# the root must be ext4 (statfs magic ef53): a FAT32 root cannot hold slots safely
+need_ext4_root() {
+    magic=$(stat -f -c %t / 2>/dev/null)
+    [ "$magic" = ef53 ] || die "core updates need the full NexusOS system on an ext4 root; this root is $(stat -f -c %T / 2>/dev/null || echo unknown). Upgrade the disk first (Settings > System > Upgrade to the full system, or on the host: python -I arch/x86_64/migrate_disk.py)"
+}
+# kernel.sig against the kernel certificate: 0 good, 1 bad, 2 cannot check (no openssl or certificate)
+kernel_signature() {
+    command -v openssl >/dev/null 2>&1 && [ -r "$KERNEL_CERT" ] || return 2
+    openssl x509 -in "$KERNEL_CERT" -pubkey -noout > "$WORK/kernel-pub.pem" 2>/dev/null || return 2
+    openssl dgst -sha256 -verify "$WORK/kernel-pub.pem" -signature "$WORK/kernel.sig" "$WORK/kernel.bin" >/dev/null 2>&1 && return 0
+    return 1
+}
+
+apply() {
+    need_root apply
+    need_ext4_root
+    bundle=$1; allow=${2:-}
+    [ -f "$bundle" ] || die "no such bundle: $bundle"
+    mkdir -p "$STATE" "$BOOT" || die "cannot create $BOOT"
+    WORK=$(mktemp -d "$STATE/apply.XXXXXX") || die "no work directory"
+    tar -tf "$bundle" > "$WORK/members" 2>/dev/null || die "not a NexusOS update bundle (tar)"
+    # regular files only: no links, devices or folders that extraction would create
+    tar -tvf "$bundle" 2>/dev/null | cut -c1 | grep -qv '^-' && die "the bundle holds something other than regular files"
+    seen=""
+    while read -r member; do
+        case "$member" in MANIFEST|MANIFEST.sig|kernel.bin|kernel.sig|init|BOOTX64.EFI) ;; *) die "unexpected member in the bundle: $member" ;; esac
+        case " $seen " in *" $member "*) die "duplicate member in the bundle: $member" ;; esac
+        seen="$seen $member"
+    done < "$WORK/members"
+    tar -xf "$bundle" -C "$WORK" --no-same-owner --no-same-permissions MANIFEST MANIFEST.sig 2>/dev/null || die "the bundle has no MANIFEST/MANIFEST.sig"
+    # shellcheck disable=SC2086
+    $VERIFY_COMMAND "$WORK/MANIFEST.sig" "$WORK/MANIFEST" >"$WORK/verify.log" 2>&1 || { cat "$WORK/verify.log" >&2; log "rejected $bundle: bad signature"; die "the bundle's signature is not valid: not installed"; }
+    [ "$(head -1 "$WORK/MANIFEST")" = "NexusOS-Update: 1" ] || die "unknown bundle format"
+    version=$(sed -n 's/^Version: //p' "$WORK/MANIFEST" | head -1)
+    printf '%s' "$version" | grep -Eq '^[0-9][0-9A-Za-z.+~-]{0,63}$' || die "bad version in the manifest"
+    default=$(ctl default); [ "$default" = a ] || [ "$default" = b ] || default=a
+    target=$(other "$default"); current=$(version_of "$default")
+    if [ "$current" != factory ] && ! dpkg --compare-versions "$version" gt "$current" && [ "$allow" != --allow-downgrade ]; then
+        die "version $version is not newer than the running $current (--allow-downgrade to install it anyway)"
+    fi
+    files=$(sed -n 's/^File: //p' "$WORK/MANIFEST")
+    [ -n "$files" ] || die "the manifest lists no files"
+    echo "$files" | while read -r name size sum; do
+        case "$name" in kernel.bin|kernel.sig|init|BOOTX64.EFI) ;; *) exit 3 ;; esac
+        tar -xf "$bundle" -C "$WORK" --no-same-owner --no-same-permissions "$name" 2>/dev/null || exit 4
+        [ "$(wc -c < "$WORK/$name")" = "$size" ] || exit 5
+        [ "$(sha256sum "$WORK/$name" | cut -d' ' -f1)" = "$sum" ] || exit 6
+    done || die "a bundle file does not match its signed manifest (name, size or SHA-256): not installed"
+    # every member must be listed (the manifest is what is signed)
+    while read -r member; do
+        case "$member" in MANIFEST|MANIFEST.sig) continue ;; esac
+        echo "$files" | grep -q "^$member " || die "$member is in the bundle but not in its signed manifest"
+    done < "$WORK/members"
+    # Secure Boot: the slot's kernel must carry a valid signature, or the loader would refuse it at the trial boot
+    secure=$(arg nexus.secureboot)
+    if [ -f "$WORK/kernel.bin" ]; then
+        if [ -f "$WORK/kernel.sig" ]; then
+            kernel_signature; sig=$?
+            if [ $sig = 1 ]; then log "rejected $bundle: kernel.sig does not verify"; die "the kernel's Secure Boot signature (kernel.sig) does not verify: not installed"; fi
+            if [ $sig = 2 ]; then [ "$secure" = 1 ] && die "Secure Boot is active but the kernel signature cannot be checked (openssl, $KERNEL_CERT): not installed"; say "warning: cannot check kernel.sig here; the loader checks it at boot"; fi
+        elif [ "$secure" = 1 ]; then
+            log "rejected $bundle: unsigned kernel while Secure Boot is active"; die "Secure Boot is active: the bundle's kernel has no Secure Boot signature (kernel.sig): not installed"
+        else
+            say "warning: the bundle's kernel is not signed for Secure Boot; it will not boot once Secure Boot is turned on"
+        fi
+    fi
+    rm -rf "$BOOT/slot-$target.new"; mkdir -p "$BOOT/slot-$target.new" || die "cannot write $BOOT"
+    for name in kernel.bin kernel.sig init BOOTX64.EFI; do
+        [ -f "$WORK/$name" ] && { cp "$WORK/$name" "$BOOT/slot-$target.new/$name" || die "cannot copy $name"; }
+    done
+    [ -f "$BOOT/slot-$target.new/init" ] && chmod 0755 "$BOOT/slot-$target.new/init"
+    cp "$WORK/MANIFEST" "$BOOT/slot-$target.new/MANIFEST" && cp "$WORK/MANIFEST.sig" "$BOOT/slot-$target.new/MANIFEST.sig" &&
+        printf '%s\n' "$version" > "$BOOT/slot-$target.new/VERSION" || die "cannot write the slot"
+    sync
+    rm -rf "$BOOT/slot-$target" && mv "$BOOT/slot-$target.new" "$BOOT/slot-$target" || die "cannot install slot $target"
+    nonce=$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')
+    write_count "$nonce" || die "cannot write $BOOT/bootcount"
+    write_ctl "$default" "$target" "$nonce" || die "cannot write $BOOT/bootctl"
+    printf 'pending %s slot=%s nonce=%s\n' "$version" "$target" "$nonce" > "$STATE/last"
+    rm -rf "$WORK"; WORK=""
+    log "installed $version into slot $target (trial boot pending, nonce $nonce)"
+    say "version $version is installed in slot $target; it starts at the next boot and becomes the default once it booted"
+    say "(if it does not start $TRIES times, the loader returns to slot $default by itself)"
+}
+
+boot_check() {
+    need_root boot-check
+    [ -f "$BOOT/bootctl" ] || exit 0
+    slot=$(arg nexus.slot); trial=$(arg nexus.trial); rollback=$(arg nexus.rollback)
+    default=$(ctl default); pending=$(ctl trial); nonce=$(ctl nonce)
+    if [ -n "$rollback" ] && [ "$rollback" = "$pending" ]; then
+        write_ctl "$default" none ""
+        printf 'rolled-back %s slot=%s\n' "$(version_of "$rollback")" "$rollback" > "$STATE/last"
+        log "slot $rollback (version $(version_of "$rollback")) did not start; running slot $default again"
+        say "the update in slot $rollback did not start: rolled back to slot $default ($(version_of "$default"))"
+        return 0
+    fi
+    if [ -n "$trial" ] && [ "$trial" = "$nonce" ] && [ "$slot" = "$pending" ]; then
+        write_ctl "$slot" none ""
+        printf 'updated %s slot=%s\n' "$(version_of "$slot")" "$slot" > "$STATE/last"
+        log "slot $slot (version $(version_of "$slot")) booted: it is the default now"
+        say "slot $slot booted: version $(version_of "$slot") is the default now"
+    fi
+    return 0
+}
+
+status() {
+    default=$(ctl default); pending=$(ctl trial)
+    echo "Booted slot:   $(arg nexus.slot | grep . || echo "none (no A/B boot)")"
+    echo "Secure Boot:   $([ "$(arg nexus.secureboot)" = 1 ] && echo active || echo "not active (or not a UEFI boot)")"
+    echo "Default slot:  ${default:-a} ($(version_of "${default:-a}"))"
+    if [ -n "$pending" ] && [ "$pending" != none ]; then echo "Pending trial: $pending ($(version_of "$pending"))"; else echo "Pending trial: none"; fi
+    for s in a b; do echo "Slot $s:        $(version_of $s)$([ -f "$BOOT/slot-$s/kernel.bin" ] && echo ' kernel')$([ -f "$BOOT/slot-$s/init" ] && echo ' init')$([ -f "$BOOT/slot-$s/BOOTX64.EFI" ] && echo ' loader')"; done
+    [ -s "$STATE/last" ] && echo "Last result:   $(cat "$STATE/last")"
+    [ -s "$BOOT/bootcount" ] && echo "Boot counter:  $(head -c 64 "$BOOT/bootcount" | tr -d '\n')"
+    return 0
+}
+
+cancel() {
+    need_root cancel
+    [ -f "$BOOT/bootctl" ] || { say "nothing pending"; return 0; }
+    write_ctl "$(ctl default)" none ""; say "pending trial dropped"
+}
+
+WORK=""
+case "${1:-}" in
+    apply) [ $# -ge 2 ] || die "usage: nexus-update apply BUNDLE [--allow-downgrade]"; apply "$2" "${3:-}" ;;
+    boot-check) boot_check ;;
+    status) status ;;
+    cancel) cancel ;;
+    *) sed -n '2,8s/^# \{0,1\}//p' "$0"; exit 2 ;;
+esac

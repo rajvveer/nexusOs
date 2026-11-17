@@ -1,0 +1,27 @@
+#!/bin/sh
+# NexusOS test disks only (sysinstall.py services --tests): after every other boot unit, run the script the host test
+# serves at http://10.0.2.2:PORT/hook.sh (QEMU user networking), then mark the session done (/run/test-hook.done:
+# the test session's main program, svctest-wait, ends the session and the machine powers off; the mark holds this
+# boot's kernel boot_id because /run persists on disk).
+# PORT is this run's: the host test puts nexus.testhook=PORT on the kernel command line (QEMU fw_cfg opt/nexus/cmdline,
+# tests/pkg_vm.py Vm(hook_port=...)), so several test VMs on one host never fetch each other's hooks;
+# nexus.testhook=none: no hook this boot. Without the option (an older harness) the historic fixed port 8979 is used.
+# The hook gets NEXUS_TEST_HOST=http://10.0.2.2:PORT (its server: files, gates, uploads, apt proxy).
+port=8979
+for word in $(cat /proc/cmdline 2>/dev/null); do
+    case "$word" in nexus.testhook=*) port=${word#nexus.testhook=} ;; esac
+done
+case "$port" in
+    ''|*[!0-9]*) port= ;;
+    *) [ "$port" -ge 1 ] 2>/dev/null && [ "$port" -le 65535 ] 2>/dev/null || port= ;;
+esac
+rm -f /run/test-hook.sh
+if [ -n "$port" ]; then
+    NEXUS_TEST_HOST=http://10.0.2.2:$port; export NEXUS_TEST_HOST
+    if wget -q -T 5 -t 1 -O /run/test-hook.sh "$NEXUS_TEST_HOST/hook.sh" 2>/dev/null && [ -s /run/test-hook.sh ]; then
+        echo "TEST-HOOK running (port $port)"
+        sh /run/test-hook.sh
+        echo "TEST-HOOK finished status=$?"
+    fi
+fi
+cat /proc/sys/kernel/random/boot_id > /run/test-hook.done

@@ -1,0 +1,18 @@
+[Unit]
+Description=Avahi mDNS/DNS-SD Stack (network printer and service discovery)
+ConditionFileIsExecutable=/usr/sbin/avahi-daemon
+Requires=dbus.service
+After=dbus.service
+
+[Service]
+ExecStart=/usr/sbin/avahi-daemon -s
+ExecReload=/usr/sbin/avahi-daemon -r
+ReadyPath=/run/avahi-daemon/socket
+RuntimeDirectory=avahi-daemon
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user
+# mDNS/DNS-SD (.local names through nss-mdns, network printers and services: CUPS dnssd, avahi-browse) on by
+# default since the kernel has IPv4/IPv6 multicast with IGMP/MLD (mcast.c). nexusctl disable --now avahi-daemon stops it.
+DefaultEnabled=yes

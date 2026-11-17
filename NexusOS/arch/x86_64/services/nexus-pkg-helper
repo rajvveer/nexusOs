@@ -1,0 +1,26 @@
+#!/bin/sh
+# /usr/lib/nexus/nexus-pkg-helper - privileged half of the Software app (nexus-software), run through sudo so the
+# user's password and the sudoers policy (group sudo) decide who may change the system. stdout carries apt's machine
+# readable progress (APT::Status-Fd: dlstatus/pmstatus/pmerror lines), stderr the readable log.
+#   nexus-pkg-helper update | install PACKAGE... | remove PACKAGE... | upgrade
+set -u
+export DEBIAN_FRONTEND=noninteractive LC_ALL=C.UTF-8 PATH=/usr/sbin:/usr/bin:/sbin:/bin
+[ "$(id -u)" = 0 ] || { echo "nexus-pkg-helper: must run as root (through sudo)" >&2; exit 4; }
+valid() {
+    case "$1" in
+        ""|-*|*[!a-z0-9+.:-]*) echo "nexus-pkg-helper: invalid package name: $1" >&2; exit 2 ;;
+    esac
+}
+OPTS="-y -o APT::Status-Fd=3 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold -o Dpkg::Use-Pty=0"
+exec 3>&1 1>&2
+action=${1:-}; [ $# -gt 0 ] && shift
+case "$action" in
+    update)  apt-get -o APT::Status-Fd=3 update ;;
+    install) [ $# -gt 0 ] || exit 2; for p in "$@"; do valid "$p"; done; apt-get $OPTS install -- "$@" ;;
+    remove)  [ $# -gt 0 ] || exit 2; for p in "$@"; do valid "$p"; done; apt-get $OPTS remove -- "$@" && apt-get $OPTS autoremove ;;
+    upgrade) apt-get -o APT::Status-Fd=3 update && apt-get $OPTS full-upgrade ;;
+    *) echo "usage: nexus-pkg-helper update | install PACKAGE... | remove PACKAGE... | upgrade" >&2; exit 2 ;;
+esac
+status=$?
+echo "nexus-pkg-helper: $action finished with status $status" >&2
+exit $status

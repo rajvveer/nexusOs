@@ -1,0 +1,12 @@
+[Unit]
+Description=Core update boot check (make a trial slot that booted the default, or record a rollback)
+ConditionPathExists=/boot/nexus/bootctl
+After=nexus-firstboot.service dbus.service cups.service chrony.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/nexus-update boot-check
+
+[Install]
+WantedBy=multi-user
+DefaultEnabled=yes

@@ -1,0 +1,7 @@
+/home/nexus/Applications/chrome/opt/google/chrome/chrome
+--ozone-platform=wayland
+--no-first-run
+--ipc-connection-timeout=120
+--user-data-dir=/tmp/nx-perf-profile
+--disable-gpu-watchdog
+https://example.com/

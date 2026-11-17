@@ -1,0 +1,12 @@
+[Unit]
+Description=NexusOS authorization broker (nexus-polkitd: PolicyKit CheckAuthorization subset, /run/nexus-polkit.sock)
+ConditionFileIsExecutable=/usr/libexec/nexus-polkitd
+
+[Service]
+ExecStart=/usr/libexec/nexus-polkitd
+Restart=on-failure
+RestartSec=1
+
+[Install]
+WantedBy=multi-user
+DefaultEnabled=yes

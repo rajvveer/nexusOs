@@ -1,0 +1,22 @@
+[Unit]
+Description=User manager for UID %i
+ConditionPathExists=/usr/lib/nexus/nexusd
+
+[Service]
+# nexusd --user: the user's own units (~/.config/nexus/user, /etc/nexus/user, /usr/lib/nexus/user and the systemd
+# user directories), journal ~/.local/state/nexus/journal and control socket /run/user/%i/nexus/control
+# (nexusctl --user). Started with the user's session ("session UID" to /run/nexus/control), stopped at logout
+# ("session-end UID").
+Type=notify
+User=%i
+Environment=XDG_RUNTIME_DIR=/run/user/%i
+ExecStart=/usr/lib/nexus/nexusd --user
+Restart=on-failure
+RestartSec=1s
+TimeoutStartSec=60s
+TimeoutStopSec=60s
+AllowUserInstance=yes
+
+[Install]
+WantedBy=session
+DefaultEnabled=yes

@@ -1,0 +1,16 @@
+[Unit]
+Description=chrony, an NTP client/server (keeps the system clock synchronized)
+ConditionFileIsExecutable=/usr/sbin/chronyd
+Conflicts=systemd-timesyncd.service
+
+[Service]
+# -n: stay in the foreground (nexusd supervises it); -F 0: no seccomp filter (NexusOS has no seccomp yet).
+# chronyd starts as root and keeps only CAP_SYS_TIME/CAP_NET_BIND_SERVICE as user _chrony.
+ExecStart=/usr/sbin/chronyd -n -F 0
+PIDFile=/run/chrony/chronyd.pid
+RuntimeDirectory=chrony
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user
+DefaultEnabled=yes

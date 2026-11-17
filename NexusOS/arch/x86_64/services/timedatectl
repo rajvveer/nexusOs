@@ -1,0 +1,81 @@
+#!/bin/sh
+# timedatectl - NexusOS: query and change the system clock and its settings (systemd's timedatectl interface, the
+# commands desktop users and scripts use). The clock is kept by chrony (chrony.service, supervised by nexusd);
+# the time zone is /etc/localtime (a link into tzdata's /usr/share/zoneinfo) plus /etc/timezone.
+#   timedatectl [status]            local/universal time, RTC, time zone, NTP service and synchronization state
+#   timedatectl show                the same as KEY=VALUE lines
+#   timedatectl set-time TIME       "YYYY-MM-DD HH:MM:SS", "YYYY-MM-DD" or "HH:MM:SS" (refused while NTP is active)
+#   timedatectl set-timezone ZONE   e.g. Asia/Kolkata (see list-timezones)
+#   timedatectl list-timezones
+#   timedatectl set-ntp true|false  enable/disable and start/stop chrony
+#   timedatectl timesync-status     chrony's view (chronyc tracking + sources)
+# Changing settings needs root (sudo).
+set -u
+ZONEINFO=/usr/share/zoneinfo
+die() { echo "timedatectl: $*" >&2; exit 1; }
+need_root() { [ "$(id -u)" = 0 ] || die "$1 needs root (use sudo)"; }
+zone() {
+    if [ -L /etc/localtime ]; then
+        z=$(readlink /etc/localtime); z=${z#*zoneinfo/}; echo "$z"
+    elif [ -r /etc/timezone ]; then cat /etc/timezone
+    else echo "Etc/UTC"; fi
+}
+ntp_active() { nexusctl is-active --quiet chrony.service 2>/dev/null; }
+ntp_enabled() { nexusctl is-enabled --quiet chrony.service 2>/dev/null; }
+synced() {
+    command -v chronyc >/dev/null 2>&1 || { echo no; return; }
+    leap=$(chronyc -n tracking 2>/dev/null | sed -n 's/^Leap status *: *//p')
+    [ "$leap" = "Normal" ] && echo yes || echo no
+}
+yesno() { if "$@"; then echo yes; else echo no; fi; }
+status() {
+    z=$(zone)
+    printf '               Local time: %s\n' "$(date '+%a %Y-%m-%d %H:%M:%S %Z')"
+    printf '           Universal time: %s\n' "$(date -u '+%a %Y-%m-%d %H:%M:%S UTC')"
+    if command -v hwclock >/dev/null 2>&1 && rtc=$(hwclock --get --utc 2>/dev/null); then
+        printf '                 RTC time: %s\n' "$rtc"
+    else
+        printf '                 RTC time: n/a (the kernel keeps the CMOS clock in UTC)\n'
+    fi
+    printf '                Time zone: %s (%s)\n' "$z" "$(date '+%Z, %z')"
+    printf 'System clock synchronized: %s\n' "$(synced)"
+    printf '              NTP service: %s\n' "$(if ntp_active; then echo active; elif ntp_enabled; then echo enabled; else echo inactive; fi)"
+    printf '          RTC in local TZ: no\n'
+}
+case "${1:-status}" in
+    status) status ;;
+    show)
+        echo "Timezone=$(zone)"; echo "LocalRTC=no"; echo "CanNTP=$(command -v chronyd >/dev/null && echo yes || echo no)"
+        echo "NTP=$(yesno ntp_enabled)"; echo "NTPSynchronized=$(synced)"
+        echo "TimeUSec=$(date '+%a %Y-%m-%d %H:%M:%S %Z')" ;;
+    list-timezones)
+        (cd "$ZONEINFO" && find . -type f -o -type l | sed 's|^\./||' | grep -E '^[A-Z][A-Za-z_]+(/[A-Za-z0-9_+-]+)+$|^UTC$' | grep -v -E '^(posix|right|SystemV)/' | sort) ;;
+    set-timezone)
+        need_root set-timezone
+        [ $# -eq 2 ] || die "set-timezone needs one zone name"
+        z=$2
+        case "$z" in *..*|/*|"") die "invalid time zone $z" ;; esac
+        [ -f "$ZONEINFO/$z" ] || die "unknown time zone $z (see timedatectl list-timezones)"
+        ln -sfn "$ZONEINFO/$z" /etc/localtime.nexus-new && mv -f /etc/localtime.nexus-new /etc/localtime || die "cannot update /etc/localtime"
+        echo "$z" > /etc/timezone
+        logger -t timedatectl "time zone changed to $z" 2>/dev/null || true ;;
+    set-time)
+        need_root set-time
+        [ $# -eq 2 ] || die "set-time needs one argument"
+        ntp_active && die "automatic time synchronization is enabled (timedatectl set-ntp false first)"
+        date -s "$2" >/dev/null || die "invalid time $2"
+        logger -t timedatectl "system clock set to $(date -u '+%Y-%m-%d %H:%M:%S UTC')" 2>/dev/null || true
+        date ;;
+    set-ntp)
+        need_root set-ntp
+        case "${2:-}" in
+            true|yes|1|on) nexusctl enable --now chrony.service >/dev/null || die "cannot enable chrony" ;;
+            false|no|0|off) nexusctl disable --now chrony.service >/dev/null || die "cannot disable chrony" ;;
+            *) die "set-ntp takes true or false" ;;
+        esac ;;
+    timesync-status)
+        command -v chronyc >/dev/null 2>&1 || die "chrony is not installed"
+        chronyc -n tracking; echo; chronyc -n sources ;;
+    -h|--help|help) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//' ;;
+    *) die "unknown command $1 (see timedatectl --help)" ;;
+esac

@@ -1,0 +1,14 @@
+[Unit]
+Description=CUPS Scheduler (printing)
+ConditionFileIsExecutable=/usr/sbin/cupsd
+Wants=avahi-daemon.service
+After=avahi-daemon.service dbus.service
+
+[Service]
+ExecStart=/usr/sbin/cupsd -f
+ReadyPath=/run/cups/cups.sock
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user
+DefaultEnabled=yes

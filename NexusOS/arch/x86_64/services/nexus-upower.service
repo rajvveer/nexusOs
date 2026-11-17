@@ -1,0 +1,13 @@
+[Unit]
+Description=UPower and power profiles (nexus-upowerd)
+ConditionFileIsExecutable=/usr/libexec/nexus-upowerd
+Wants=dbus.service
+After=dbus.service
+
+[Service]
+ExecStart=/usr/libexec/nexus-upowerd
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user
+DefaultEnabled=yes

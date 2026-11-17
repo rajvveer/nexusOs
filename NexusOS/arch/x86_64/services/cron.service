@@ -1,0 +1,12 @@
+[Unit]
+Description=Regular background program processing daemon (cron)
+ConditionFileIsExecutable=/usr/sbin/cron
+
+[Service]
+ExecStart=/usr/sbin/cron -f
+Restart=on-failure
+KillMode=process
+
+[Install]
+WantedBy=multi-user
+DefaultEnabled=yes

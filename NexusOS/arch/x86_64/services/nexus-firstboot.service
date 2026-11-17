@@ -1,0 +1,15 @@
+[Unit]
+Description=First boot: install the Debian base system with dpkg
+Documentation=file:/usr/lib/nexus/bootstrap/stage2
+ConditionPathExists=/usr/lib/nexus/bootstrap/stage2
+ConditionPathExists=!/var/lib/nexus/bootstrap/done
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/nexus/bootstrap/stage2
+TimeoutStartSec=infinity
+
+[Install]
+WantedBy=multi-user
+DefaultEnabled=yes

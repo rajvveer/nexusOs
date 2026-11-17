@@ -1,0 +1,14 @@
+[Unit]
+Description=NexusOS login manager (org.freedesktop.login1: sessions, inhibitors, power)
+ConditionFileIsExecutable=/usr/lib/nexus/nexus-logind
+Requires=dbus.service
+After=dbus.service
+
+[Service]
+ExecStart=/usr/lib/nexus/nexus-logind
+Restart=on-failure
+RestartSec=1
+
+[Install]
+WantedBy=multi-user
+DefaultEnabled=yes

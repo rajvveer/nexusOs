@@ -1,0 +1,15 @@
+[Unit]
+Description=Default printers: the "Print to PDF" queue (cups-pdf)
+Requires=cups.service
+After=cups.service
+ConditionFileIsExecutable=/usr/lib/nexus/setup-printers
+ConditionPathExists=/usr/lib/cups/backend/cups-pdf
+ConditionPathExists=!/var/lib/nexus/printers.done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/nexus/setup-printers
+
+[Install]
+WantedBy=multi-user
+DefaultEnabled=yes

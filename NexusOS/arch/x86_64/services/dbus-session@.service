@@ -1,0 +1,15 @@
+[Unit]
+Description=D-Bus Session Message Bus of user %i
+ConditionFileIsExecutable=/usr/bin/dbus-daemon
+
+[Service]
+User=%i
+Environment=XDG_RUNTIME_DIR=/run/user/%i XDG_CURRENT_DESKTOP=NexusOS XDG_SESSION_TYPE=wayland WAYLAND_DISPLAY=wayland-0
+ExecStart=/usr/bin/dbus-daemon --session --address=unix:path=/run/user/%i/bus --nofork --nopidfile --nosyslog
+ReadyPath=/run/user/%i/bus
+Restart=on-failure
+AllowUserInstance=yes
+
+[Install]
+WantedBy=session
+DefaultEnabled=yes
