@@ -1,0 +1,54 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>getUserMedia camera</title>
+<style>body{font:20px sans-serif;background:#101826;color:#e5e7eb;margin:20px}#state{font-size:28px}</style>
+<h1>Camera capture test</h1>
+<div id="state">starting</div>
+<video id="video" autoplay muted playsinline width="640" height="480"></video>
+<canvas id="canvas" width="640" height="480" style="display:none"></canvas>
+<pre id="log"></pre>
+<script>
+/* Opens the camera with getUserMedia (640x480 at 30 fps), shows it in a <video>, and for 4 s copies every presented
+   frame (requestVideoFrameCallback) into a canvas to read it back: the colour of the eight bars on row 10 and the
+   16-bit frame counter in the strip at the bottom of NexusOS's virtual camera (vcam.c). Posts the samples, the track
+   settings and the camera list to /result. */
+const log = (text) => { document.getElementById('log').textContent += text + '\n'; };
+const state = (text) => { document.getElementById('state').textContent = text; };
+const post = (kind, data) => fetch('/result', {method: 'POST', body: JSON.stringify({kind, data})}).catch(() => {});
+async function run() {
+  const result = {secure: window.isSecureContext, userAgent: navigator.userAgent};
+  try {
+    post('phase', 'start');
+    if (!navigator.mediaDevices) throw new Error('navigator.mediaDevices missing (insecure context?)');
+    const stream = await navigator.mediaDevices.getUserMedia({video: {width: {ideal: 640}, height: {ideal: 480}, frameRate: {ideal: 30}}});
+    const track = stream.getVideoTracks()[0];
+    result.track = {label: track.label, settings: track.getSettings(), readyState: track.readyState};
+    result.devices = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput').map((d) => d.label || d.deviceId);
+    log('track ' + track.label + ' ' + JSON.stringify(result.track.settings)); post('phase', 'stream');
+    const video = document.getElementById('video'); video.srcObject = stream; await video.play();
+    const canvas = document.getElementById('canvas'); const g = canvas.getContext('2d', {willReadFrequently: true});
+    const frames = []; const start = performance.now();
+    await new Promise((resolve) => {
+      const step = (now, meta) => {
+        const w = video.videoWidth || 640, h = video.videoHeight || 480;
+        canvas.width = w; canvas.height = h; g.drawImage(video, 0, 0, w, h);
+        const data = g.getImageData(0, 0, w, h).data;
+        const px = (x, y) => { const i = (y * w + x) * 4; return [data[i], data[i + 1], data[i + 2]]; };
+        const bars = []; for (let b = 0; b < 8; b++) bars.push(px(Math.floor(b * w / 8 + w / 16), 10));
+        let counter = 0; for (let i = 0; i < 16; i++) counter = counter * 2 + (px(Math.floor(i * w / 16 + w / 32), h - 4)[1] > 128 ? 1 : 0);
+        frames.push({t: Math.round(now), counter, bars, width: w, height: h, presented: meta ? meta.presentedFrames : null});
+        if (performance.now() - start < 4000) next(step); else resolve();
+      };
+      /* requestVideoFrameCallback where the browser has it (Chrome, Firefox 132+), else every animation frame */
+      const next = video.requestVideoFrameCallback ? (f) => video.requestVideoFrameCallback(f) : (f) => requestAnimationFrame((t) => f(t, null));
+      result.callback = video.requestVideoFrameCallback ? 'requestVideoFrameCallback' : 'requestAnimationFrame';
+      next(step);
+    });
+    track.stop();
+    result.frames = frames; result.ok = true;
+    state('done: ' + frames.length + ' frames');
+  } catch (error) { result.error = String(error && error.stack || error); state('error ' + error); }
+  post('done', result);
+}
+run();
+</script>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>NexusOS gamepad test</title>
+<style>body{font:16px sans-serif;background:#111;color:#eee;margin:20px} pre{font-size:14px}</style></head>
+<body><h1>Gamepad API</h1><pre id="log">waiting for a gamepad...</pre>
+<script>
+// Gamepad API check for tests/test_x64_gamepad_chrome.py: the "vpad" boot option's virtual Xbox 360 pad cycles every 4 s
+// through A + left stick right, left stick left, B + left stick down, left trigger + D-pad up. The page records what the
+// standard mapping shows, then plays a dual-rumble effect, and posts everything to the host.
+const post = (kind, data) => fetch('/result', {method: 'POST', body: JSON.stringify({kind, data})}).catch(() => {});
+const log = document.getElementById('log');
+const state = {secure: window.isSecureContext, connected: null, id: '', mapping: '', axes: 0, buttons: 0, seen: {}, samples: 0,
+               rumble: null, actuator: null, events: []};
+const start = performance.now();
+let finished = false;
+window.addEventListener('gamepadconnected', e => { state.events.push('connected ' + e.gamepad.index); state.connected = e.gamepad.id; });
+window.addEventListener('gamepaddisconnected', e => state.events.push('disconnected ' + e.gamepad.index));
+function mark(name, value) { if (value) state.seen[name] = (state.seen[name] || 0) + 1; }
+async function finish(pad) {
+  finished = true;
+  try {
+    const actuator = pad.vibrationActuator;
+    state.actuator = actuator ? (actuator.effects || actuator.type || 'present') : null;
+    if (actuator && actuator.playEffect) {
+      state.rumble = await actuator.playEffect('dual-rumble', {startDelay: 0, duration: 400, weakMagnitude: 0.25, strongMagnitude: 0.75});
+    }
+  } catch (error) { state.rumble = 'error: ' + error; }
+  post('done', state);
+  log.textContent = JSON.stringify(state, null, 1);
+}
+function poll() {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (const pad of pads) {
+    if (!pad) continue;
+    state.id = pad.id; state.mapping = pad.mapping; state.axes = pad.axes.length; state.buttons = pad.buttons.length; state.samples++;
+    const b = i => pad.buttons[i] && pad.buttons[i].pressed;
+    mark('a', b(0)); mark('b', b(1)); mark('lt', b(6) && pad.buttons[6].value > 0.9); mark('up', b(12));
+    mark('right', pad.axes[0] > 0.9); mark('left', pad.axes[0] < -0.9); mark('down', pad.axes[1] > 0.9);
+    log.textContent = JSON.stringify(state, null, 1);
+    const all = ['a', 'b', 'lt', 'up', 'right', 'left', 'down'].every(k => state.seen[k]);
+    if (all && !finished) { finish(pad); return; }
+  }
+  if (!finished && performance.now() - start > 90000) { finished = true; post('done', state); return; }
+  if (!finished) setTimeout(poll, 16);
+}
+post('loaded', {secure: state.secure, api: !!navigator.getGamepads});
+poll();
+</script></body></html>

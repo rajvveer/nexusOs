@@ -1,0 +1,66 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>getUserMedia capture</title>
+<style>body{font:20px sans-serif;background:#101826;color:#e5e7eb;margin:40px}#state{font-size:32px}</style>
+<h1>Microphone capture test</h1>
+<div id="state">starting</div>
+<pre id="log"></pre>
+<script>
+/* Records 2 s from the default microphone with getUserMedia + MediaRecorder (Opus/WebM), analyses the live input
+   (AnalyserNode) and the decoded recording (dominant frequency by zero crossings, RMS, duration), uploads the
+   recording to /upload and posts the results to /result. The NexusOS test boots with snd.test-capture=tone, so the
+   "microphone" carries a 1 kHz sine of amplitude 8192/32768 (-12 dBFS). */
+const log = (text) => { document.getElementById('log').textContent += text + '\n'; };
+const state = (text) => { document.getElementById('state').textContent = text; };
+const post = (kind, data) => fetch('/result', {method: 'POST', body: JSON.stringify({kind, data})}).catch(() => {});
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+function analyse(samples, rate) {
+  let crossings = 0, sum = 0, peak = 0;
+  for (let i = 1; i < samples.length; i++) if ((samples[i - 1] < 0) !== (samples[i] < 0)) crossings++;
+  for (const v of samples) { sum += v * v; peak = Math.max(peak, Math.abs(v)); }
+  return {frequency: crossings / 2 / (samples.length / rate), rms: Math.sqrt(sum / samples.length), peak};
+}
+async function run() {
+  const result = {secure: window.isSecureContext, userAgent: navigator.userAgent};
+  try {
+    post('phase', 'start');
+    if (!navigator.mediaDevices) throw new Error('navigator.mediaDevices missing (insecure context?)');
+    const stream = await navigator.mediaDevices.getUserMedia({audio: {echoCancellation: false, noiseSuppression: false, autoGainControl: false}});
+    const track = stream.getAudioTracks()[0];
+    result.track = {label: track.label, settings: track.getSettings(), readyState: track.readyState};
+    result.devices = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput').map((d) => d.label || d.deviceId);
+    log('track ' + track.label + ' ' + JSON.stringify(result.track.settings)); post('phase', 'stream');
+    const context = new AudioContext();
+    await context.resume();
+    const analyser = context.createAnalyser(); analyser.fftSize = 8192;
+    context.createMediaStreamSource(stream).connect(analyser);
+    const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'].find((m) => MediaRecorder.isTypeSupported(m));
+    const recorder = new MediaRecorder(stream, {mimeType});
+    const chunks = []; recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+    const stopped = new Promise((resolve) => { recorder.onstop = resolve; });
+    state('recording'); post('phase', 'recording');
+    const started = performance.now(); recorder.start(250);
+    await sleep(1500);
+    const spectrum = new Float32Array(analyser.frequencyBinCount); analyser.getFloatFrequencyData(spectrum);
+    let best = 0; for (let i = 1; i < spectrum.length; i++) if (spectrum[i] > spectrum[best]) best = i;
+    result.live = {peak_hz: best * context.sampleRate / analyser.fftSize, peak_db: spectrum[best], context_rate: context.sampleRate};
+    await sleep(2000 - (performance.now() - started));
+    recorder.stop(); await stopped;
+    result.recorded_ms = performance.now() - started;
+    stream.getTracks().forEach((t) => t.stop());
+    const blob = new Blob(chunks, {type: recorder.mimeType});
+    result.recording = {mimeType: recorder.mimeType, bytes: blob.size, chunks: chunks.length};
+    await fetch('/upload', {method: 'POST', body: blob});
+    const decoded = await context.decodeAudioData(await blob.arrayBuffer());
+    const samples = decoded.getChannelData(0);
+    const skip = Math.floor(decoded.sampleRate * 0.1);                    /* encoder start-up */
+    result.decoded = {duration_s: decoded.duration, rate: decoded.sampleRate, channels: decoded.numberOfChannels,
+                      ...analyse(samples.subarray(skip, samples.length - skip), decoded.sampleRate)};
+    log(JSON.stringify(result.decoded)); state('done'); result.ok = true;
+  } catch (error) {
+    result.ok = false; result.error = String(error && (error.name + ': ' + error.message)); state('error ' + result.error); log(result.error);
+  }
+  post('done', result);
+}
+run();
+</script>

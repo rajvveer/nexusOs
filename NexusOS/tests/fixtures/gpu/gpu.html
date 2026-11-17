@@ -1,0 +1,27 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>GPU probe</title>
+<style>body{font:14px monospace;background:#102030;color:#e0f0ff}canvas{border:1px solid #888}</style></head>
+<body><h2>WebGL probe</h2><canvas id="c" width="256" height="256"></canvas><pre id="o"></pre>
+<script>
+const out = {};
+function post(kind, data) { return fetch('/result', {method: 'POST', body: JSON.stringify({kind, data})}); }
+function probe(type) {
+  const canvas = document.createElement('canvas');
+  const gl = canvas.getContext(type);
+  if (!gl) return null;
+  const ext = gl.getExtension('WEBGL_debug_renderer_info');
+  return {vendor: gl.getParameter(ext ? ext.UNMASKED_VENDOR_WEBGL : gl.VENDOR),
+          renderer: gl.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER),
+          version: gl.getParameter(gl.VERSION), glsl: gl.getParameter(gl.SHADING_LANGUAGE_VERSION),
+          maxTexture: gl.getParameter(gl.MAX_TEXTURE_SIZE)};
+}
+try { out.webgl = probe('webgl'); out.webgl2 = probe('webgl2'); } catch (e) { out.error = String(e); }
+try {
+  const gl = document.getElementById('c').getContext('webgl');
+  gl.clearColor(0.1, 0.6, 0.3, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  const px = new Uint8Array(4); gl.readPixels(10, 10, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); out.clearPixel = Array.from(px);
+} catch (e) { out.drawError = String(e); }
+out.ua = navigator.userAgent;
+document.getElementById('o').textContent = JSON.stringify(out, null, 1);
+post('test', {probe: out}).then(() => setTimeout(() => post('done', out), 3000));
+</script></body></html>
