@@ -1,0 +1,75 @@
+# True case of 8.3-compatible names in a user's home folder (userland/fat2ext4.py --case-list).
+# NexusOS's FAT32 driver stores a name that fits 8.3 ("Default", "History", "CURRENT") as a bare short entry, so the
+# case is lost; ext4 is case-sensitive and the applications open these names with their own spelling. Each line is a
+# path; it is matched as a path suffix of at least parent/name (never by the bare name), so "Default/History" only
+# names History inside a Default folder. A folder holding "Local State" (Chromium/Electron user data) gets Default,
+# Crashpad, User, Cache, GPUCache, Backups, Network, Cookies; LevelDB folders (a MANIFEST-*) get LOCK, CURRENT, LOG,
+# LOG.old (fat2ext4.py).
+
+# XDG user folders
+nexus/Desktop
+nexus/Music
+nexus/Pictures
+nexus/Videos
+nexus/Public
+
+# Chrome / Chromium profile (user data directory, Default profile, the matching ~/.cache tree). The 8.3 names below were
+# taken from a profile Chrome 155 made on an ext4 NexusOS (tests/test_x64_printing.py uploads its file list).
+.config/google-chrome/Default
+.config/chromium/Default
+.cache/google-chrome/Default
+.cache/chromium/Default
+Default/History
+Default/Favicons
+Default/Network
+Default/Network/Cookies
+Default/Cookies
+Default/Sessions
+Default/Storage
+Default/Accounts
+Default/GPUCache
+Default/DIPS
+Default/LOCK
+Default/LOG
+Default/README
+Default/DIPS-wal
+Download Service/EntryDB
+Download Service/Files
+Feature Engagement Tracker/EventDB
+GPUPersistentCache/GPUCache
+Segmentation Platform/SignalDB
+Trusted Icons/Icons
+Web Applications/Temp
+def/Cache
+def/GPUCache
+_locales/en_CA
+_locales/en_GB
+_locales/en_US
+_locales/fr_CA
+_locales/pt_BR
+_locales/pt_PT
+_locales/zh_CN
+_locales/zh_HK
+_locales/zh_TW
+Default/Cache
+Sync Data/LevelDB
+File System/Origins
+Service Worker/Database
+Crashpad/settings.dat
+
+# Visual Studio Code (~/.config/Code or the --user-data-dir NexusOS uses, ~/vscode-data)
+.config/Code
+Code/User
+Code/Cache
+Code/GPUCache
+Code/Backups
+Code/Crashpad
+Code/Network
+Code/Cookies
+vscode-data/User
+vscode-data/Cache
+vscode-data/GPUCache
+vscode-data/Backups
+vscode-data/Crashpad
+vscode-data/Network
+User/History
