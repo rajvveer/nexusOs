@@ -2,7 +2,8 @@
  * NexusOS — Lock Screen (Implementation)
  * ============================================================================
  * Displays clock and locked message. Requires password to unlock.
- * Accepts any password for now.
+ * Unlocks with the logged-in user's password (Phase 44). In VESA mode the
+ * Aurora lock screen from login.c is used instead.
  * ============================================================================ */
 
 #include "lockscreen.h"
@@ -12,6 +13,8 @@
 #include "keyboard.h"
 #include "rtc.h"
 #include "string.h"
+#include "login.h"
+#include "framebuffer.h"
 
 /* System tick counter */
 extern volatile uint32_t system_ticks;
@@ -20,9 +23,11 @@ extern volatile uint32_t system_ticks;
  * lockscreen_run: Show lock screen, block until password entered
  * -------------------------------------------------------------------------- */
 void lockscreen_run(void) {
+    if (fb_is_vesa()) { login_lock_screen(); return; }
     char password[32];
     int pw_len = 0;
     bool unlocked = false;
+    password[0] = '\0';
 
     while (!unlocked) {
         /* Draw lock screen */
@@ -89,7 +94,7 @@ void lockscreen_run(void) {
                 }
                 break;
             } else if (key == '\b') {
-                if (pw_len > 0) pw_len--;
+                if (pw_len > 0) password[--pw_len] = '\0';
             } else if (key >= 32 && key < 127 && pw_len < 31) {
                 password[pw_len++] = key;
                 password[pw_len] = '\0';

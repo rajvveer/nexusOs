@@ -67,6 +67,10 @@ uint32_t users_add(const char* name, const char* password);
 bool users_del(const char* name);
 /* Change a user's password. Returns true on success. */
 bool users_set_password(const char* name, const char* password);
+/* Phase 55: replace the whole table with `n` entries (uid/gid/name/pw are
+ * taken as-is; `used` is forced true). Refuses a set without a root account.
+ * next_uid is moved above every imported uid. Returns n or -1. */
+int  users_import(const user_t* entries, int n);
 
 /* --- Current user (the logged-in identity) --- */
 void        users_set_current(uint32_t uid);

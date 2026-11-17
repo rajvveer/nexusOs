@@ -13,4 +13,7 @@
  * sets the current user, and returns the authenticated uid. */
 uint32_t login_run(void);
 
+/* VESA lock screen: blocks until the current user's password is entered. */
+void login_lock_screen(void);
+
 #endif /* LOGIN_H */

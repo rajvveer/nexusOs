@@ -7,12 +7,13 @@
 #include "users.h"
 #include "string.h"
 #include "vga.h"
+#include "persist.h"   /* Phase 55: account changes are persisted with the ramfs */
 
 extern volatile uint32_t system_ticks;
 
 static user_t users[USER_MAX];
 static uint32_t current_uid = UID_ROOT;
-static uint32_t next_uid    = 1000;     /* auto-assigned uids start here */
+static uint32_t next_uid    = 1000;     /* auto-assigned uid floor (high-water) */
 static uint32_t salt_seed   = 0x9E3779B9u; /* advanced on each new salt */
 
 /* ----------------------------------------------------------------------------
@@ -149,8 +150,15 @@ uint32_t users_add(const char* name, const char* password) {
     if (users_find(name)) return UID_INVALID;       /* no duplicates */
     user_t* u = alloc_slot();
     if (!u) return UID_INVALID;
-    uint32_t uid = next_uid++;
+    /* Never hand out a uid that is already taken (guest is a hard-coded 1000):
+     * go above every live uid, and never below the high-water mark so a
+     * deleted user's uid (and the files it still owns) is not recycled. */
+    uint32_t uid = next_uid;
+    for (int i = 0; i < USER_MAX; i++)
+        if (users[i].used && users[i].uid >= uid) uid = users[i].uid + 1;
+    next_uid = uid + 1;
     make_user(u, uid, uid, name, password);
+    persist_note_users();                           /* Phase 55 */
     return uid;
 }
 
@@ -160,6 +168,7 @@ bool users_del(const char* name) {
     if (u->uid == UID_ROOT) return false;           /* never delete root */
     if (u->uid == current_uid) return false;        /* not the logged-in user */
     u->used = false;
+    persist_note_users();                           /* Phase 55 */
     return true;
 }
 
@@ -167,7 +176,26 @@ bool users_set_password(const char* name, const char* password) {
     user_t* u = users_find(name);
     if (!u) return false;
     u->pw = users_hash(password, fresh_salt());
+    persist_note_users();                           /* Phase 55 */
     return true;
+}
+
+/* ---- Phase 55: bulk import from the persisted /etc/passwd.db ---- */
+int users_import(const user_t* entries, int n) {
+    if (!entries || n <= 0 || n > USER_MAX) return -1;
+    bool has_root = false;
+    for (int i = 0; i < n; i++) if (entries[i].uid == UID_ROOT) has_root = true;
+    if (!has_root) return -1;                       /* never lock everyone out */
+    for (int i = 0; i < USER_MAX; i++) users[i].used = false;
+    uint32_t hi = 1000;
+    for (int i = 0; i < n; i++) {
+        users[i] = entries[i];
+        users[i].name[USER_NAME_MAX - 1] = '\0';
+        users[i].used = true;
+        if (users[i].uid >= hi) hi = users[i].uid + 1;
+    }
+    next_uid = hi;
+    return n;
 }
 
 /* ----------------------------------------------------------------------------
