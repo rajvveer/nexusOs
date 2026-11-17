@@ -1,0 +1,22 @@
+{
+  "comment": "Debian alsa-utils for tests/test_x64_capture.py only: usr/bin/aplay is installed as /bin/arecord (aplay records when invoked as arecord) with its copyright file on the private test disk. GPL-2+ userland test tool; nothing from it goes into the kernel or the tree. Verification chain: https://deb.debian.org/debian/dists/trixie/InRelease lists the SHA-256 of main/binary-amd64/Packages.xz (the index below, also tools/chrome-packages/debian-Packages.xz), which lists the package size and SHA-256. aplay needs only libasound.so.2 (1.2.14, from out/chrome-root) and libc.so.6.",
+  "index": {
+    "url": "https://deb.debian.org/debian/dists/trixie/main/binary-amd64/Packages.xz",
+    "bytes": 9678380,
+    "sha256": "7778d3e3f303b7ddb8ce0fe7c8d57473a076c6bf2e8f241f75421d2396352498"
+  },
+  "packages": [
+    {
+      "name": "alsa-utils",
+      "version": "1.2.14-1",
+      "url": "https://deb.debian.org/debian/pool/main/a/alsa-utils/alsa-utils_1.2.14-1_amd64.deb",
+      "bytes": 1140648,
+      "sha256": "1e2b5f31fc826e1af25e2a12e37cd8d361ff25feaf224c6bbef3cc5d6cd2596b",
+      "license": "GPL-2+ (usr/share/doc/alsa-utils/copyright)",
+      "files": {
+        "usr/bin/aplay": "bin/arecord",
+        "usr/share/doc/alsa-utils/copyright": "usr/share/doc/alsa-utils/copyright"
+      }
+    }
+  ]
+}
