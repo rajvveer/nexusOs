@@ -1,245 +1,108 @@
 /* ============================================================================
- * NexusOS — System Monitor App (Implementation)
+ * NexusOS — Activity Monitor (Aurora, macOS style)
  * ============================================================================
- * Live-updating system info window: memory, heap, uptime, processes.
- * Auto-refreshes each render frame.
+ * Memory + heap gauges and a live process table. Read-only, refreshes every
+ * frame. Uses only the existing process API so it survives a scheduler rewrite.
  * ============================================================================ */
 
 #include "sysmon.h"
 #include "window.h"
-#include "gui.h"
-#include "theme.h"
-#include "vga.h"
+#include "appui.h"
+#include "macui.h"
+#include "framebuffer.h"
 #include "memory.h"
 #include "heap.h"
 #include "process.h"
 #include "rtc.h"
 #include "string.h"
-#include "framebuffer.h"
-#include "appui.h"
 
-#ifndef FB_RGB
-#define FB_RGB(r, g, b) (((0xFF & r) << 16) | ((0xFF & g) << 8) | (0xFF & b))
-#endif
-
-/* System tick counter */
 extern volatile uint32_t system_ticks;
 
-/* --------------------------------------------------------------------------
- * Helper: draw a labeled value line
- * -------------------------------------------------------------------------- */
-static void draw_label_value(int cx, int row, const char* label,
-                             uint32_t value, const char* unit,
-                             uint8_t label_col, uint8_t val_col) {
-    gui_draw_text(cx + 1, row, label, label_col);
-    int llen = strlen(label);
-
-    char num[16];
-    int_to_str(value, num);
-    gui_draw_text(cx + 1 + llen, row, num, val_col);
-    int nlen = strlen(num);
-    gui_draw_text(cx + 1 + llen + nlen, row, unit, label_col);
-}
-
-/* --------------------------------------------------------------------------
- * Helper: draw a memory bar [████░░░░░░]
- * -------------------------------------------------------------------------- */
-static void draw_bar(int cx, int row, int bar_w, uint32_t used, uint32_t total,
-                     uint8_t fill_col, uint8_t empty_col, uint32_t fill_rgb, uint32_t empty_rgb) {
-    if (total == 0) total = 1;
-    
-    if (fb_is_vesa()) {
-        int px = cx * 8;
-        int py = row * 16;
-        int pw = (bar_w + 2) * 8; /* +2 for the brackets area */
-        int ph = 12;
-        int filled_pw = (used * pw) / total;
-        if (filled_pw > pw) filled_pw = pw;
-        
-        fb_fill_rect(px, py + 2, pw, ph, empty_rgb);
-        fb_draw_rect(px, py + 2, pw, ph, FB_RGB(100, 100, 100));
-        if (filled_pw > 2) {
-            fb_fill_rect(px + 1, py + 3, filled_pw - 2, ph - 2, fill_rgb);
-            /* Gloss highlight */
-            fb_fill_rect(px + 1, py + 3, filled_pw - 2, 3, FB_RGB(255, 255, 255));
-        }
-    } else {
-        int filled = (used * bar_w) / total;
-        if (filled > bar_w) filled = bar_w;
-
-        gui_putchar(cx, row, '[', fill_col);
-        for (int i = 0; i < bar_w; i++) {
-            if (i < filled) {
-                gui_putchar(cx + 1 + i, row, (char)0xDB, fill_col);  /* █ */
-            } else {
-                gui_putchar(cx + 1 + i, row, (char)0xB0, empty_col); /* ░ */
-            }
-        }
-        gui_putchar(cx + 1 + bar_w, row, ']', fill_col);
+static void gauge(int x, int y, int w, const char* label, uint32_t used, uint32_t total,
+                  const char* detail, uint32_t col) {
+    appui_px_text(x, y, label, APPUI_F_BODY, APPUI_TEXT);
+    appui_px_text_r(x + w, y, detail, APPUI_F_SMALL, APPUI_SUBTLE);
+    int by = y + 24;
+    ui_rrect(x, by, w, 10, 5, 0x3A3A40, 255);
+    if (total) {
+        uint32_t u = used, t = total;
+        while (u > 4000000u) { u >>= 4; t >>= 4; }
+        int fw = t ? (int)(u * (uint32_t)w / t) : 0;
+        if (fw < 3 && used) fw = 3;
+        if (fw > w) fw = w;
+        ui_rrect(x, by, fw, 10, 5, col, 255);
     }
 }
 
-/* --------------------------------------------------------------------------
- * Sysmon window callbacks
- * -------------------------------------------------------------------------- */
-static void sysmon_draw(int id, int cx, int cy, int cw, int ch) {
-    (void)id;
-    const theme_t* t = theme_get();
-    (void)t;
-    appui_theme_t ui = appui_theme();
-    uint8_t text_color = ui.text;
-    uint8_t bg = ui.bg;
-    uint8_t accent = ui.accent;
-    uint8_t val_col = ui.text;
-    uint8_t dim = ui.muted;
-    uint8_t bar_fill = VGA_COLOR(VGA_LIGHT_GREEN, bg);
-    uint8_t bar_empty = VGA_COLOR(VGA_DARK_GREY, bg);
-    uint8_t warn_col = VGA_COLOR(VGA_YELLOW, bg);
+static void sysmon_draw(int id, int a, int b, int c, int d) {
+    (void)a; (void)b; (void)c; (void)d;
+    int x, y, w, h;
+    if (!appui_content(id, &x, &y, &w, &h)) return;
+    appui_px_fill(x, y, w, h, APPUI_BG);
 
-    appui_fill(cx, cy, cw, ch, ui.panel);
-    appui_header(cx, cy, cw, "System Monitor", "Live CPU, memory, and processes");
-    int row = cy + 3;
+    int pad = 20, cx = x + pad, cw = w - 2 * pad;
+    appui_px_text(cx, y + 16, "Activity Monitor", APPUI_F_TITLE, APPUI_TEXT);
 
-    /* Uptime */
-    uint32_t seconds = system_ticks / 18;
-    uint32_t minutes = seconds / 60;
-    uint32_t hours = minutes / 60;
-    seconds %= 60;
-    minutes %= 60;
+    /* uptime + time, right-aligned */
+    char line[40], n[12];
+    uint32_t s = system_ticks / 18, m = s / 60, hh = m / 60; s %= 60; m %= 60;
+    line[0] = 0; int_to_str(hh, n); strcat(line, n); strcat(line, "h ");
+    int_to_str(m, n); strcat(line, n); strcat(line, "m ");
+    int_to_str(s, n); strcat(line, n); strcat(line, "s uptime");
+    appui_px_text_r(cx + cw, y + 26, line, APPUI_F_SMALL, APPUI_SUBTLE);
 
-    gui_draw_text(cx + 1, row, "Uptime: ", dim);
-    char tbuf[20];
-    char num[12];
-    tbuf[0] = '\0';
-    int_to_str(hours, num); strcat(tbuf, num); strcat(tbuf, "h ");
-    int_to_str(minutes, num); strcat(tbuf, num); strcat(tbuf, "m ");
-    int_to_str(seconds, num); strcat(tbuf, num); strcat(tbuf, "s");
-    gui_draw_text(cx + 9, row, tbuf, val_col);
-    row++;
+    /* gauges card */
+    int gy = y + 58;
+    ui_rrect(cx, gy, cw, 118, 12, APPUI_PANEL, 255);
+    int gx = cx + 18, gw = cw - 36;
+    char det[40];
+    uint32_t used = pmm_get_used_pages() * 4, mapped = 32 * 1024;
+    int_to_str(used / 1024, n); strcpy(det, n); strcat(det, " / 32 MB kernel map");
+    gauge(gx, gy + 16, gw, "Memory", used, mapped, det, APPUI_ACCENT);
+    uint32_t hu = heap_get_used(), ht = hu + heap_get_free();
+    int_to_str(hu / 1024, n); strcpy(det, n); strcat(det, " / "); int_to_str(ht / 1024, n); strcat(det, n); strcat(det, " KB heap");
+    gauge(gx, gy + 70, gw, "Heap", hu, ht, det, APPUI_GREEN);
 
-    /* Date/Time */
-    rtc_time_t rtc;
-    rtc_read(&rtc);
-    char time_str[10];
-    rtc_format_time(&rtc, time_str);
-    gui_draw_text(cx + 1, row, "Time:   ", dim);
-    gui_draw_text(cx + 9, row, time_str, val_col);
-    row++;
+    /* process table */
+    int ty = gy + 134;
+    appui_px_text(cx, ty, "Processes", APPUI_F_BOLD, APPUI_TEXT);
+    int_to_str(process_count(), n);
+    appui_px_text_r(cx + cw, ty, n, APPUI_F_BODY, APPUI_SUBTLE);
+    ty += 26;
+    appui_px_text(cx + 8, ty, "PID", APPUI_F_SMALL, APPUI_FAINT);
+    appui_px_text(cx + 70, ty, "Process Name", APPUI_F_SMALL, APPUI_FAINT);
+    appui_px_text_r(cx + cw - 8, ty, "State", APPUI_F_SMALL, APPUI_FAINT);
+    ty += 18;
+    appui_px_sep(cx, ty, cw); ty += 6;
 
-    /* Separator */
-    for (int i = 0; i < cw - 1 && cx + i < GUI_WIDTH; i++)
-        gui_putchar(cx + i, row, (char)0xC4, dim);
-    row++;
-
-    /* Physical Memory */
-    uint32_t total_pages = pmm_get_total_pages();
-    uint32_t used_pages = pmm_get_used_pages();
-    uint32_t free_pages = pmm_get_free_pages();
-
-    gui_draw_text(cx + 1, row, "Physical Memory", accent);
-    row++;
-
-    draw_label_value(cx, row, " Total: ", total_pages * 4, " KB", dim, val_col);
-    row++;
-    draw_label_value(cx, row, " Used:  ", used_pages * 4, " KB", dim, warn_col);
-    row++;
-    draw_label_value(cx, row, " Free:  ", free_pages * 4, " KB", dim, bar_fill);
-    row++;
-
-    /* Memory bar */
-    int bar_w = cw - 4;
-    if (bar_w > 30) bar_w = 30;
-    draw_bar(cx + 1, row, bar_w, used_pages, total_pages, bar_fill, bar_empty, FB_RGB(100, 255, 100), FB_RGB(40, 40, 40));
-    row++;
-
-    /* Separator */
-    for (int i = 0; i < cw - 1 && cx + i < GUI_WIDTH; i++)
-        gui_putchar(cx + i, row, (char)0xC4, dim);
-    row++;
-
-    /* Heap */
-    uint32_t heap_used = heap_get_used();
-    uint32_t heap_free = heap_get_free();
-    uint32_t heap_total = heap_used + heap_free;
-
-    gui_draw_text(cx + 1, row, "Heap Memory", accent);
-    row++;
-
-    draw_label_value(cx, row, " Used: ", heap_used, " B", dim, warn_col);
-    row++;
-    draw_label_value(cx, row, " Free: ", heap_free, " B", dim, bar_fill);
-    row++;
-
-    /* Heap bar */
-    if (row < cy + ch) {
-        draw_bar(cx + 1, row, bar_w, heap_used, heap_total, bar_fill, bar_empty, FB_RGB(100, 255, 100), FB_RGB(40, 40, 40));
-        row++;
-    }
-
-    /* Separator */
-    if (row < cy + ch) {
-        for (int i = 0; i < cw - 1 && cx + i < GUI_WIDTH; i++)
-            gui_putchar(cx + i, row, (char)0xC4, dim);
-        row++;
-    }
-
-    /* Process list */
-    if (row < cy + ch) {
-        gui_draw_text(cx + 1, row, "Processes", accent);
-
-        char pcount[8];
-        int_to_str(process_count(), pcount);
-        int pcl = strlen(pcount);
-        gui_draw_text(cx + cw - 2 - pcl, row, pcount, val_col);
-        row++;
-    }
-
-    if (row < cy + ch) {
-        gui_draw_text(cx + 1, row, "PID  NAME          STATE", dim);
-        row++;
-    }
-
-    for (int i = 0; i < MAX_PROCESSES && row < cy + ch; i++) {
+    int rh = 26, idx = 0;
+    for (int i = 0; i < MAX_PROCESSES && ty + rh < y + h; i++) {
         process_t* p = process_get_by_pid(i);
         if (!p || p->state == PROC_UNUSED || p->state == PROC_TERMINATED) continue;
-
-        char pid_str[8];
-        int_to_str(p->pid, pid_str);
-
-        gui_draw_text(cx + 1, row, pid_str, val_col);
-
-        /* Name (padded to 14 chars) */
-        int j = 0;
-        while (p->name[j] && j < 14) {
-            gui_putchar(cx + 6 + j, row, p->name[j], text_color);
-            j++;
-        }
-
-        /* State */
-        const char* state_str;
-        uint8_t state_col = dim;
+        if (idx & 1) ui_rrect(cx, ty, cw, rh, 6, APPUI_PANEL, 160);
+        int tyc = ty + (rh - appui_px_font_h(APPUI_F_BODY)) / 2 + 2;
+        int_to_str(p->pid, n);
+        appui_px_text(cx + 8, tyc, n, APPUI_F_BODY, APPUI_SUBTLE);
+        ui_rrect(cx + 42, ty + 4, 18, 18, 5, p->state == PROC_RUNNING ? 0x3A6EA5 : 0x55555C, 255);
+        appui_px_text_c(cx + 51, ty + 4, "N", APPUI_F_SMALL, 0xFFFFFF);
+        char nm[24]; int j = 0; for (; p->name[j] && j < 22; j++) nm[j] = p->name[j]; nm[j] = 0;
+        appui_px_text(cx + 70, tyc, nm, APPUI_F_BODY, APPUI_TEXT);
+        const char* st; uint32_t sc;
         switch (p->state) {
-            case PROC_READY:   state_str = "READY";   state_col = val_col; break;
-            case PROC_RUNNING: state_str = "RUNNING"; state_col = bar_fill; break;
-            case PROC_BLOCKED: state_str = "BLOCKED"; state_col = warn_col; break;
-            default:           state_str = "???";     break;
+            case PROC_RUNNING: st = "Running"; sc = APPUI_GREEN; break;
+            case PROC_READY:   st = "Ready";   sc = APPUI_ACCENT; break;
+            case PROC_BLOCKED: st = "Blocked"; sc = APPUI_ORANGE; break;
+            default:           st = "-";       sc = APPUI_FAINT; break;
         }
-        gui_draw_text(cx + 20, row, state_str, state_col);
-        row++;
+        int sw2 = appui_px_text_w(st, APPUI_F_SMALL);
+        ui_rrect(cx + cw - sw2 - 16, ty + (rh - 18) / 2, sw2 + 16, 18, 9, sc, 46);
+        appui_px_text_r(cx + cw - 8, tyc, st, APPUI_F_SMALL, sc);
+        ty += rh; idx++;
     }
-
-    (void)ch;
 }
 
-static void sysmon_key(int id, char key) {
-    (void)id;
-    (void)key;
-    /* System monitor is read-only — no key handling needed */
-}
+static void sysmon_key(int id, char key) { (void)id; (void)key; }
 
-/* --------------------------------------------------------------------------
- * sysmon_open: Create a system monitor window
- * -------------------------------------------------------------------------- */
 int sysmon_open(void) {
-    return window_create("System Monitor", 14, 4, 50, 26, sysmon_draw, sysmon_key);
+    return window_create("Activity Monitor", 18, 3, 52, 27, sysmon_draw, sysmon_key);
 }

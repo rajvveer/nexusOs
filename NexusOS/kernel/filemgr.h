@@ -9,5 +9,6 @@
 
 /* Open a file manager window on the desktop. Returns window ID or -1 */
 int filemgr_open(void);
+int filemgr_open_path(const char* path);
 
 #endif /* FILEMGR_H */

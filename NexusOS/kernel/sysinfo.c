@@ -5,6 +5,7 @@
  * ============================================================================ */
 
 #include "sysinfo.h"
+#include "version.h"
 #include "window.h"
 #include "gui.h"
 #include "theme.h"
@@ -29,7 +30,7 @@ static void si_draw(int id, int cx, int cy, int cw, int ch) {
 
     /* System */
     appui_kv(cx + 1, row, "OS", "NexusOS", cx + 14, cw - 15); row++;
-    appui_kv(cx + 1, row, "Kernel", "Phase 34 desktop", cx + 14, cw - 15); row++;
+    appui_kv(cx + 1, row, "Kernel", "Nexus " NEXUS_VERSION " (Aurora)", cx + 14, cw - 15); row++;
     appui_kv(cx + 1, row, "Arch", "x86 (i386)", cx + 14, cw - 15); row++;
     appui_kv(cx + 1, row, "Mode", "32-bit protected", cx + 14, cw - 15); row++;
 
