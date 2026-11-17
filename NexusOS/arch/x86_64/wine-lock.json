@@ -1,0 +1,943 @@
+{
+ "format": 1,
+ "generated": "2026-10-13T21:48:03Z",
+ "suites": {
+  "trixie": {
+   "inrelease_sha256": "0584fba32e13e0ab8285fb16c27adea1ec03a73669c18702821094fd6ca86675",
+   "packages_xz_sha256": "7778d3e3f303b7ddb8ce0fe7c8d57473a076c6bf2e8f241f75421d2396352498",
+   "date": "Sat, 12 Sep 2026 07:55:41 UTC",
+   "signed_by": [
+    "Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>",
+    "Debian Stable Release Key (13/trixie) <debian-release@lists.debian.org>"
+   ]
+  },
+  "trixie-updates": {
+   "inrelease_sha256": "a638709e1ff5e5ff7958205e3152d42c2db2dad39e98388484558bcab84159a4",
+   "packages_xz_sha256": "10012cb384dc2613586d7b3d391d92a5637c9faa36017239739f2a6109a0d45f",
+   "date": "Tue, 13 Oct 2026 20:18:36 UTC",
+   "signed_by": [
+    "Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>"
+   ]
+  },
+  "trixie-security": {
+   "inrelease_sha256": "bb902750387fe79f2b00ddac62b8b704b44ffa898c46bbc5d8cc37e9318af850",
+   "packages_xz_sha256": "cf9ed1763e683ee0d51b976b6632e3b4c7f6c7abc965a1965ea85df07fd25b86",
+   "date": "Tue, 13 Oct 2026 07:32:57 UTC",
+   "signed_by": [
+    "Debian Security Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Security Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>"
+   ]
+  },
+  "sid": {
+   "inrelease_sha256": "82ec061e24b5a603e79f82cb7625ffef21005b5f85d1f0793e7d0b934c4e1816",
+   "packages_xz_sha256": "085605d885728b1ebe05e28fc0a502875d3a66dd82c570d1d2c6aecaf5fa3c64",
+   "date": "Tue, 13 Oct 2026 20:18:36 UTC",
+   "signed_by": [
+    "Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>"
+   ]
+  }
+ },
+ "keyring": {
+  "name": "debian-archive-keyring",
+  "version": "2025.1",
+  "sha256": "9ea7778e443144ca490668737a8ab22dd3e748bb99e805e22ec055abeb3c7fac",
+  "url": "https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2025.1_all.deb",
+  "bytes": 179244
+ },
+ "present_from_chrome_lock": {
+  "libasound2t64": "1.2.14-1+deb13u1",
+  "libbz2-1.0": "1.0.8-6",
+  "libc6": "2.41-12+deb13u4",
+  "libcap2": "1:2.75-10+deb13u1+b3",
+  "libdrm2": "2.4.124-2",
+  "libepoxy0": "1.5.10-2",
+  "libfontconfig1": "2.15.0-2.3",
+  "libfreetype6": "2.13.3+dfsg-1+deb13u1",
+  "libgbm1": "25.0.7-2+deb13u1",
+  "libglib2.0-0t64": "2.84.4-3~deb13u5",
+  "libgmp10": "2:6.3.0+dfsg-3",
+  "libgssapi-krb5-2": "1.21.3-5+deb13u1",
+  "liblzma5": "5.8.1-1+deb13u1",
+  "libpixman-1-0": "0.44.0-3",
+  "libpng16-16t64": "1.6.48-1+deb13u5",
+  "libselinux1": "3.8.1-1",
+  "libssl3t64": "3.5.7-1~deb13u2",
+  "libsystemd0": "257.13-1~deb13u1",
+  "libtinfo6": "6.5+20250216-2",
+  "libudev1": "257.13-1~deb13u1",
+  "libwayland-client0": "1.23.1-3",
+  "libwayland-egl1": "1.23.1-3",
+  "libx11-6": "2:1.8.12-1",
+  "libx11-xcb1": "2:1.8.12-1",
+  "libxau6": "1:1.0.11-1",
+  "libxcb-present0": "1.17.0-2+b1",
+  "libxcb-xfixes0": "1.17.0-2+b1",
+  "libxcb1": "1.17.0-2+b1",
+  "libxcursor1": "1:1.2.3-1",
+  "libxdmcp6": "1:1.1.5-1",
+  "libxext6": "2:1.3.4-1+b3",
+  "libxi6": "2:1.8.2-1",
+  "libxinerama1": "2:1.1.4-3+b4",
+  "libxkbcommon0": "1.7.0-2",
+  "libxml2": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+  "libxrandr2": "2:1.5.4-1+b3",
+  "libxrender1": "1:0.9.12-1",
+  "libxshmfence1": "1.3.3-1",
+  "xkb-data": "2.42-1",
+  "zlib1g": "1:1.3.dfsg+really1.3.1-1+b1"
+ },
+ "skipped": {
+  "debianutils": {
+   "reason": "run-parts/which/tempfile helpers for maintainer scripts; /bin/sh itself does not need them",
+   "required_by": [
+    "dash"
+   ]
+  },
+  "libavcodec62": {
+   "reason": "winedmo.so (Media Foundation demuxing): only in sid with FFmpeg 8, not ABI-compatible with the trixie userland",
+   "required_by": [
+    "libwine"
+   ]
+  },
+  "libavformat62": {
+   "reason": "winedmo.so (Media Foundation demuxing), sid FFmpeg 8 only",
+   "required_by": [
+    "libwine"
+   ]
+  },
+  "libavutil60": {
+   "reason": "winedmo.so (Media Foundation demuxing), sid FFmpeg 8 only",
+   "required_by": [
+    "libwine"
+   ]
+  },
+  "libcapi20-3t64": {
+   "reason": "capi2032.so (ISDN CAPI)",
+   "required_by": [
+    "libwine"
+   ]
+  },
+  "libglx-mesa0": {
+   "reason": "Mesa GLX vendor library: OpenGL rendering comes from gpu_userland.py (virgl); libGL.so.1 loads without it",
+   "required_by": [
+    "libglx0"
+   ]
+  },
+  "libgphoto2-6t64": {
+   "reason": "gphoto2.so (digital cameras via TWAIN)",
+   "required_by": [
+    "libwine"
+   ]
+  },
+  "libgphoto2-port12t64": {
+   "reason": "gphoto2.so (digital cameras via TWAIN)",
+   "required_by": [
+    "libwine"
+   ]
+  },
+  "libgstreamer-plugins-base1.0-0": {
+   "reason": "winegstreamer.so (DirectShow/Media Foundation playback)",
+   "required_by": [
+    "libwine"
+   ]
+  },
+  "libgstreamer1.0-0": {
+   "reason": "winegstreamer.so (DirectShow/Media Foundation playback)",
+   "required_by": [
+    "libwine"
+   ]
+  },
+  "libpcap0.8t64": {
+   "reason": "wpcap.so (packet capture)",
+   "required_by": [
+    "libwine"
+   ]
+  },
+  "libpcsclite1": {
+   "reason": "winscard.so (smart cards)",
+   "required_by": [
+    "libwine"
+   ]
+  },
+  "libpulse0": {
+   "reason": "winepulse.so (PulseAudio; NexusOS has no sound server, winealsa.drv is used)",
+   "required_by": [
+    "libwine"
+   ]
+  },
+  "libusb-1.0-0": {
+   "reason": "wineusb.so (raw USB devices)",
+   "required_by": [
+    "libwine"
+   ]
+  },
+  "lsb-base": {
+   "reason": "init-script helpers",
+   "required_by": [
+    "x11-common"
+   ]
+  },
+  "man-db": {
+   "reason": "manual pages",
+   "required_by": [
+    "x11-apps"
+   ]
+  },
+  "ocl-icd-libopencl1": {
+   "reason": "opencl.so (OpenCL)",
+   "required_by": [
+    "libwine"
+   ]
+  }
+ },
+ "packages": [
+  {
+   "name": "coreutils",
+   "version": "9.7-3",
+   "url": "https://deb.debian.org/debian/pool/main/c/coreutils/coreutils_9.7-3_amd64.deb",
+   "sha256": "1299ab6f9389a288eb2f5f3dd222c26cc777b9a2d5ecb6ee4cbd340cebcdada2",
+   "bytes": 3023556,
+   "kind": "deb",
+   "app": "wine",
+   "suite": "trixie",
+   "needed_by": [
+    "wine"
+   ],
+   "filename": "debs/coreutils_9.7-3_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250604T202759Z/pool/main/c/coreutils/coreutils_9.7-3_amd64.deb"
+  },
+  {
+   "name": "dash",
+   "version": "0.5.12-12",
+   "url": "https://deb.debian.org/debian/pool/main/d/dash/dash_0.5.12-12_amd64.deb",
+   "sha256": "a8902cb6d8650134764a25fb80aec8589d858ef71ece1680a62e84816c37bb04",
+   "bytes": 98504,
+   "kind": "deb",
+   "app": "wine",
+   "suite": "trixie",
+   "needed_by": [
+    "wine",
+    "xwayland"
+   ],
+   "filename": "debs/dash_0.5.12-12_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250204T211159Z/pool/main/d/dash/dash_0.5.12-12_amd64.deb"
+  },
+  {
+   "name": "fonts-wine",
+   "version": "10.0~repack-12",
+   "url": "https://deb.debian.org/debian/pool/main/w/wine/fonts-wine_10.0~repack-12_all.deb",
+   "sha256": "b26642e0ab274ded9602b8af042f72110b9b60d528be0dd17aa126299f519d4b",
+   "bytes": 30248,
+   "kind": "deb",
+   "app": "wine",
+   "suite": "sid",
+   "needed_by": [
+    "wine"
+   ],
+   "filename": "debs/fonts-wine_10.0~repack-12_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20251129T082602Z/pool/main/w/wine/fonts-wine_10.0~repack-12_all.deb"
+  },
+  {
+   "name": "libacl1",
+   "version": "2.3.2-2+b1",
+   "url": "https://deb.debian.org/debian/pool/main/a/acl/libacl1_2.3.2-2+b1_amd64.deb",
+   "sha256": "08074f01e384bc07c0c2d79a58cf4a6523f71cf75d1808101c79617656c9a39d",
+   "bytes": 32860,
+   "kind": "deb",
+   "app": "wine",
+   "suite": "trixie",
+   "needed_by": [
+    "wine"
+   ],
+   "filename": "debs/libacl1_2.3.2-2+b1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241028T215736Z/pool/main/a/acl/libacl1_2.3.2-2+b1_amd64.deb"
+  },
+  {
+   "name": "libattr1",
+   "version": "1:2.5.2-3",
+   "url": "https://deb.debian.org/debian/pool/main/a/attr/libattr1_2.5.2-3_amd64.deb",
+   "sha256": "606b5ee12ea2786be607a17f40c1fb5e65c76ceaff66665bdf8f8c6c1b71d1fb",
+   "bytes": 22876,
+   "kind": "deb",
+   "app": "wine",
+   "suite": "trixie",
+   "needed_by": [
+    "wine"
+   ],
+   "filename": "debs/libattr1_2.5.2-3_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250221T150818Z/pool/main/a/attr/libattr1_2.5.2-3_amd64.deb"
+  },
+  {
+   "name": "libc-bin",
+   "version": "2.41-12+deb13u4",
+   "url": "https://deb.debian.org/debian/pool/main/g/glibc/libc-bin_2.41-12+deb13u4_amd64.deb",
+   "sha256": "dc8c79647fe3a5f37f72a400414f70263d0212f010ff2c09f990e30d91e38d1c",
+   "bytes": 638452,
+   "kind": "deb",
+   "app": "wine",
+   "suite": "trixie",
+   "needed_by": [
+    "wine"
+   ],
+   "filename": "debs/libc-bin_2.41-12+deb13u4_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20260711T202405Z/pool/main/g/glibc/libc-bin_2.41-12+deb13u4_amd64.deb"
+  },
+  {
+   "name": "libdecor-0-0",
+   "version": "0.2.2-2",
+   "url": "https://deb.debian.org/debian/pool/main/libd/libdecor-0/libdecor-0-0_0.2.2-2_amd64.deb",
+   "sha256": "e4f228a9d4a38af23fab00f8e20219790b567e2e1f7804b3a215a26294350f82",
+   "bytes": 15540,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "xwayland"
+   ],
+   "filename": "debs/libdecor-0-0_0.2.2-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241119T203257Z/pool/main/libd/libdecor-0/libdecor-0-0_0.2.2-2_amd64.deb"
+  },
+  {
+   "name": "libfontenc1",
+   "version": "1:1.1.8-1+b2",
+   "url": "https://deb.debian.org/debian/pool/main/libf/libfontenc/libfontenc1_1.1.8-1+b2_amd64.deb",
+   "sha256": "49f7330e1bbe3f48946fee5c07870df660374f9f77b378840d6edf1a3b3444cd",
+   "bytes": 23328,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "xwayland"
+   ],
+   "filename": "debs/libfontenc1_1.1.8-1+b2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250105T040337Z/pool/main/libf/libfontenc/libfontenc1_1.1.8-1+b2_amd64.deb"
+  },
+  {
+   "name": "libgcrypt20",
+   "version": "1.11.0-7+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/libg/libgcrypt20/libgcrypt20_1.11.0-7+deb13u1_amd64.deb",
+   "sha256": "f0eb41f8cb40896e0822e9ab65611e8383c12b721c76c54764f744abb4a8c247",
+   "bytes": 843104,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "xwayland"
+   ],
+   "filename": "debs/libgcrypt20_1.11.0-7+deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20260522T214930Z/pool/updates/main/libg/libgcrypt20/libgcrypt20_1.11.0-7+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libgl1",
+   "version": "1.7.0-1+b2",
+   "url": "https://deb.debian.org/debian/pool/main/libg/libglvnd/libgl1_1.7.0-1+b2_amd64.deb",
+   "sha256": "87fa2f6e5abaed4ed385fac879c8dd735af719ee2300222d901793c66e041678",
+   "bytes": 89504,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "xwayland"
+   ],
+   "filename": "debs/libgl1_1.7.0-1+b2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241029T234230Z/pool/main/libg/libglvnd/libgl1_1.7.0-1+b2_amd64.deb"
+  },
+  {
+   "name": "libglvnd0",
+   "version": "1.7.0-1+b2",
+   "url": "https://deb.debian.org/debian/pool/main/libg/libglvnd/libglvnd0_1.7.0-1+b2_amd64.deb",
+   "sha256": "887f74008166549ce9e100c906aa937e95d6e5ce1c8d86efe8c95fd953359b9c",
+   "bytes": 51960,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "xwayland"
+   ],
+   "filename": "debs/libglvnd0_1.7.0-1+b2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241029T234230Z/pool/main/libg/libglvnd/libglvnd0_1.7.0-1+b2_amd64.deb"
+  },
+  {
+   "name": "libglx0",
+   "version": "1.7.0-1+b2",
+   "url": "https://deb.debian.org/debian/pool/main/libg/libglvnd/libglx0_1.7.0-1+b2_amd64.deb",
+   "sha256": "2721fdca0fe3bd963cb39482eabc253af52b88f4a7f6dbb69e475549daf5af3b",
+   "bytes": 34892,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "xwayland"
+   ],
+   "filename": "debs/libglx0_1.7.0-1+b2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241029T234230Z/pool/main/libg/libglvnd/libglx0_1.7.0-1+b2_amd64.deb"
+  },
+  {
+   "name": "libgpg-error0",
+   "version": "1.51-4",
+   "url": "https://deb.debian.org/debian/pool/main/libg/libgpg-error/libgpg-error0_1.51-4_amd64.deb",
+   "sha256": "22b95570fd41c113ef6f5651563b4d748292844baab1278a46eb940c1dec2322",
+   "bytes": 82108,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "xwayland"
+   ],
+   "filename": "debs/libgpg-error0_1.51-4_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250323T211040Z/pool/main/libg/libgpg-error/libgpg-error0_1.51-4_amd64.deb"
+  },
+  {
+   "name": "libice6",
+   "version": "2:1.1.1-1",
+   "url": "https://deb.debian.org/debian/pool/main/libi/libice/libice6_1.1.1-1_amd64.deb",
+   "sha256": "38185997162793b5dfb768644badc57852879784a2f9d83c6c4e47efa5e36698",
+   "bytes": 65376,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools",
+    "xwayland"
+   ],
+   "filename": "debs/libice6_1.1.1-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241031T212645Z/pool/main/libi/libice/libice6_1.1.1-1_amd64.deb"
+  },
+  {
+   "name": "libsm6",
+   "version": "2:1.2.6-1",
+   "url": "https://deb.debian.org/debian/pool/main/libs/libsm/libsm6_1.2.6-1_amd64.deb",
+   "sha256": "03038b3002e6f44322554e335d60d8ff87acfcf2e21c904b6866610a9913ee00",
+   "bytes": 37264,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools",
+    "xwayland"
+   ],
+   "filename": "debs/libsm6_1.2.6-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250325T204825Z/pool/main/libs/libsm/libsm6_1.2.6-1_amd64.deb"
+  },
+  {
+   "name": "libtirpc-common",
+   "version": "1.3.6+ds-1",
+   "url": "https://deb.debian.org/debian/pool/main/libt/libtirpc/libtirpc-common_1.3.6+ds-1_all.deb",
+   "sha256": "300f582e2c9151a8d329568c705cadc76252c417147312fe331c4560d2c7a6c3",
+   "bytes": 11004,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "xwayland"
+   ],
+   "filename": "debs/libtirpc-common_1.3.6+ds-1_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250318T024424Z/pool/main/libt/libtirpc/libtirpc-common_1.3.6+ds-1_all.deb"
+  },
+  {
+   "name": "libtirpc3t64",
+   "version": "1.3.6+ds-1",
+   "url": "https://deb.debian.org/debian/pool/main/libt/libtirpc/libtirpc3t64_1.3.6+ds-1_amd64.deb",
+   "sha256": "ef4536c09bf5063554310e22d586ae90990100ba66d2fe7c35660e9e658913b6",
+   "bytes": 83300,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "xwayland"
+   ],
+   "filename": "debs/libtirpc3t64_1.3.6+ds-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250318T024424Z/pool/main/libt/libtirpc/libtirpc3t64_1.3.6+ds-1_amd64.deb"
+  },
+  {
+   "name": "libunwind8",
+   "version": "1.8.1-0.1",
+   "url": "https://deb.debian.org/debian/pool/main/libu/libunwind/libunwind8_1.8.1-0.1_amd64.deb",
+   "sha256": "db21a86dd05c93413f0ef36282a9c64d32410d240f332273a53be1408bec1f62",
+   "bytes": 56252,
+   "kind": "deb",
+   "app": "wine",
+   "suite": "trixie",
+   "needed_by": [
+    "wine"
+   ],
+   "filename": "debs/libunwind8_1.8.1-0.1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250123T024204Z/pool/main/libu/libunwind/libunwind8_1.8.1-0.1_amd64.deb"
+  },
+  {
+   "name": "libutempter0",
+   "version": "1.2.1-4",
+   "url": "https://deb.debian.org/debian/pool/main/libu/libutempter/libutempter0_1.2.1-4_amd64.deb",
+   "sha256": "e0b2cac30eca88d6297c8fae18dcc5890ab61bf6e9a6321a975da31daf48e79e",
+   "bytes": 9112,
+   "kind": "deb",
+   "app": "x11-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools"
+   ],
+   "filename": "debs/libutempter0_1.2.1-4_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241113T023447Z/pool/main/libu/libutempter/libutempter0_1.2.1-4_amd64.deb"
+  },
+  {
+   "name": "libuuid1",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/libuuid1_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "c1bf4c4c3ff48c57fabf93307dfb56996b60cfa33927afc4158b5db36fb2721e",
+   "bytes": 37848,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools",
+    "xwayland"
+   ],
+   "filename": "debs/libuuid1_2.41.5-0+deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20260814T165831Z/pool/updates/main/u/util-linux/libuuid1_2.41.5-0+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libwine",
+   "version": "10.0~repack-12+b1",
+   "url": "https://deb.debian.org/debian/pool/main/w/wine/libwine_10.0~repack-12+b1_amd64.deb",
+   "sha256": "2e975aab99ae20bb4f5ffc08484ba363257d9d17acb8a5742c7304753a934fed",
+   "bytes": 195433808,
+   "kind": "deb",
+   "app": "wine",
+   "suite": "sid",
+   "needed_by": [
+    "wine"
+   ],
+   "filename": "debs/libwine_10.0~repack-12+b1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20251214T024003Z/pool/main/w/wine/libwine_10.0~repack-12+b1_amd64.deb"
+  },
+  {
+   "name": "libxaw7",
+   "version": "2:1.0.16-1",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxaw/libxaw7_1.0.16-1_amd64.deb",
+   "sha256": "e79f3ab51ecbbfd3414a0568a8947ac59a29c30d631e6c7b6e07ea46e688c047",
+   "bytes": 211848,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools",
+    "xwayland"
+   ],
+   "filename": "debs/libxaw7_1.0.16-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241101T210520Z/pool/main/libx/libxaw/libxaw7_1.0.16-1_amd64.deb"
+  },
+  {
+   "name": "libxcb-damage0",
+   "version": "1.17.0-2+b1",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxcb/libxcb-damage0_1.17.0-2+b1_amd64.deb",
+   "sha256": "24ca1425c163bc8e5314304b62296a669a2f66ebf7e4a68c2d6671d0d9146e4e",
+   "bytes": 104516,
+   "kind": "deb",
+   "app": "x11-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools"
+   ],
+   "filename": "debs/libxcb-damage0_1.17.0-2+b1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241029T234230Z/pool/main/libx/libxcb/libxcb-damage0_1.17.0-2+b1_amd64.deb"
+  },
+  {
+   "name": "libxcvt0",
+   "version": "0.1.3-1",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxcvt/libxcvt0_0.1.3-1_amd64.deb",
+   "sha256": "0faccb95f5d306fc30c8b128572b92ff97bf59c547f1f8a46b57e0b4c6dd045b",
+   "bytes": 5432,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "xwayland"
+   ],
+   "filename": "debs/libxcvt0_0.1.3-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250206T150814Z/pool/main/libx/libxcvt/libxcvt0_0.1.3-1_amd64.deb"
+  },
+  {
+   "name": "libxdo3",
+   "version": "1:3.20160805.1-5.1",
+   "url": "https://deb.debian.org/debian/pool/main/x/xdotool/libxdo3_3.20160805.1-5.1_amd64.deb",
+   "sha256": "d634e25d2b50af140ee9f44bab507fcfb665f3556fd483faefdb56e85598cc12",
+   "bytes": 30996,
+   "kind": "deb",
+   "app": "x11-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools"
+   ],
+   "filename": "debs/libxdo3_3.20160805.1-5.1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250411T205535Z/pool/main/x/xdotool/libxdo3_3.20160805.1-5.1_amd64.deb"
+  },
+  {
+   "name": "libxfont2",
+   "version": "1:2.0.6-1+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxfont/libxfont2_2.0.6-1+deb13u1_amd64.deb",
+   "sha256": "79a7f56e4a0c7b1defa706c7b1f3076f7d80aaeea9de253b2a87406253319681",
+   "bytes": 132904,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "xwayland"
+   ],
+   "filename": "debs/libxfont2_2.0.6-1+deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20260715T043050Z/pool/updates/main/libx/libxfont/libxfont2_2.0.6-1+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libxft2",
+   "version": "2.3.6-1+b4",
+   "url": "https://deb.debian.org/debian/pool/main/x/xft/libxft2_2.3.6-1+b4_amd64.deb",
+   "sha256": "0226da7b9186ab7a9f78efcbbefa7ce3b3b398745e1909e124a3d58471fa0edc",
+   "bytes": 54516,
+   "kind": "deb",
+   "app": "x11-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools"
+   ],
+   "filename": "debs/libxft2_2.3.6-1+b4_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250124T023832Z/pool/main/x/xft/libxft2_2.3.6-1+b4_amd64.deb"
+  },
+  {
+   "name": "libxkbfile1",
+   "version": "1:1.1.0-1+b4",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxkbfile/libxkbfile1_1.1.0-1+b4_amd64.deb",
+   "sha256": "989b61e0eb7f1f99d0e969a5957e9a857a95941d5c0e86d5e2b502008b4ac28e",
+   "bytes": 76516,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools",
+    "xwayland"
+   ],
+   "filename": "debs/libxkbfile1_1.1.0-1+b4_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250123T210549Z/pool/main/libx/libxkbfile/libxkbfile1_1.1.0-1+b4_amd64.deb"
+  },
+  {
+   "name": "libxkbregistry0",
+   "version": "1.7.0-2",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxkbcommon/libxkbregistry0_1.7.0-2_amd64.deb",
+   "sha256": "e9b5a7051efa2b299348b4f6b1ebc1416f2523c4224af495d9cca4adbb22183a",
+   "bytes": 15660,
+   "kind": "deb",
+   "app": "wine",
+   "suite": "trixie",
+   "needed_by": [
+    "wine"
+   ],
+   "filename": "debs/libxkbregistry0_1.7.0-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241216T144229Z/pool/main/libx/libxkbcommon/libxkbregistry0_1.7.0-2_amd64.deb"
+  },
+  {
+   "name": "libxmu6",
+   "version": "2:1.1.3-3+b4",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxmu/libxmu6_1.1.3-3+b4_amd64.deb",
+   "sha256": "cfdf1dee8f9abd87f503222fc8b04a30ce820fb1255247b7c3a28ff9c244431a",
+   "bytes": 58972,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools",
+    "xwayland"
+   ],
+   "filename": "debs/libxmu6_1.1.3-3+b4_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250105T040337Z/pool/main/libx/libxmu/libxmu6_1.1.3-3+b4_amd64.deb"
+  },
+  {
+   "name": "libxmuu1",
+   "version": "2:1.1.3-3+b4",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxmu/libxmuu1_1.1.3-3+b4_amd64.deb",
+   "sha256": "6b5f537905421599e962a8cec68c84f06d506e143fc70b0b570380b3c4901678",
+   "bytes": 21896,
+   "kind": "deb",
+   "app": "x11-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools"
+   ],
+   "filename": "debs/libxmuu1_1.1.3-3+b4_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250105T040337Z/pool/main/libx/libxmu/libxmuu1_1.1.3-3+b4_amd64.deb"
+  },
+  {
+   "name": "libxpm4",
+   "version": "1:3.5.17-1+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxpm/libxpm4_3.5.17-1+deb13u1_amd64.deb",
+   "sha256": "d2f8933b552e7a282bbc32bc7545628195c4a3692a20ad0e232cc5fee9130790",
+   "bytes": 55912,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools",
+    "xwayland"
+   ],
+   "filename": "debs/libxpm4_3.5.17-1+deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20260613T203105Z/pool/main/libx/libxpm/libxpm4_3.5.17-1+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libxt6t64",
+   "version": "1:1.2.1-1.2+b2",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxt/libxt6t64_1.2.1-1.2+b2_amd64.deb",
+   "sha256": "a1f4557c03113681ee24863495adc244cecec95fe3ab7256ce76e87320157300",
+   "bytes": 188232,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools",
+    "xwayland"
+   ],
+   "filename": "debs/libxt6t64_1.2.1-1.2+b2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250105T040337Z/pool/main/libx/libxt/libxt6t64_1.2.1-1.2+b2_amd64.deb"
+  },
+  {
+   "name": "libxtst6",
+   "version": "2:1.2.5-1",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxtst/libxtst6_1.2.5-1_amd64.deb",
+   "sha256": "4f254f80b8984203474745d6428e8c2de2148f19b37aa01a601dbe9ac03196eb",
+   "bytes": 25756,
+   "kind": "deb",
+   "app": "x11-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools"
+   ],
+   "filename": "debs/libxtst6_1.2.5-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250122T150002Z/pool/main/libx/libxtst/libxtst6_1.2.5-1_amd64.deb"
+  },
+  {
+   "name": "libxxf86vm1",
+   "version": "1:1.1.4-1+b4",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxxf86vm/libxxf86vm1_1.1.4-1+b4_amd64.deb",
+   "sha256": "f9f8487e536293e7ecf91fe7feb14e97e02a3aa652e207c661442dce775d3b14",
+   "bytes": 19320,
+   "kind": "deb",
+   "app": "wine",
+   "suite": "trixie",
+   "needed_by": [
+    "wine"
+   ],
+   "filename": "debs/libxxf86vm1_1.1.4-1+b4_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250105T040337Z/pool/main/libx/libxxf86vm/libxxf86vm1_1.1.4-1+b4_amd64.deb"
+  },
+  {
+   "name": "libz-mingw-w64",
+   "version": "1.3.1+dfsg-2",
+   "url": "https://deb.debian.org/debian/pool/main/libz/libz-mingw-w64/libz-mingw-w64_1.3.1+dfsg-2_all.deb",
+   "sha256": "c4e6d6bfabe8b6d12c797736a3d762d83513b49f488d1aaf61d4526387a2dd3e",
+   "bytes": 158548,
+   "kind": "deb",
+   "app": "wine",
+   "suite": "trixie",
+   "needed_by": [
+    "wine"
+   ],
+   "filename": "debs/libz-mingw-w64_1.3.1+dfsg-2_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250125T023610Z/pool/main/libz/libz-mingw-w64/libz-mingw-w64_1.3.1+dfsg-2_all.deb"
+  },
+  {
+   "name": "wayland-utils",
+   "version": "1.2.0-2",
+   "url": "https://deb.debian.org/debian/pool/main/w/wayland-utils/wayland-utils_1.2.0-2_amd64.deb",
+   "sha256": "cea7102753e9c070b17061f288e2ae00b80c951a8ccd6c281afef53fe9357fc8",
+   "bytes": 16776,
+   "kind": "deb",
+   "app": "wayland-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "wayland-tools"
+   ],
+   "filename": "debs/wayland-utils_1.2.0-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250128T025224Z/pool/main/w/wayland-utils/wayland-utils_1.2.0-2_amd64.deb"
+  },
+  {
+   "name": "wine",
+   "version": "10.0~repack-12",
+   "url": "https://deb.debian.org/debian/pool/main/w/wine/wine_10.0~repack-12_all.deb",
+   "sha256": "c7f1948f545972d00aa0b17f5ba14cf7f9e5eec4acd0e8bd8a5e498b9b6a38ea",
+   "bytes": 139612,
+   "kind": "deb",
+   "app": "wine",
+   "suite": "sid",
+   "needed_by": [
+    "wine"
+   ],
+   "filename": "debs/wine_10.0~repack-12_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20251129T082602Z/pool/main/w/wine/wine_10.0~repack-12_all.deb"
+  },
+  {
+   "name": "wine-common",
+   "version": "10.0~repack-12",
+   "url": "https://deb.debian.org/debian/pool/main/w/wine/wine-common_10.0~repack-12_all.deb",
+   "sha256": "eb2b034e6e852a66d2c65190cd8e3e4a61e8b6b1485a948975090abc0bae02af",
+   "bytes": 1368284,
+   "kind": "deb",
+   "app": "wine",
+   "suite": "sid",
+   "needed_by": [
+    "wine"
+   ],
+   "filename": "debs/wine-common_10.0~repack-12_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20251129T082602Z/pool/main/w/wine/wine-common_10.0~repack-12_all.deb"
+  },
+  {
+   "name": "wine64",
+   "version": "10.0~repack-12+b1",
+   "url": "https://deb.debian.org/debian/pool/main/w/wine/wine64_10.0~repack-12+b1_amd64.deb",
+   "sha256": "63305e8dc0524ecb98373ae0707de623239dc4f9333da2b75d11a9632b590c19",
+   "bytes": 287400,
+   "kind": "deb",
+   "app": "wine",
+   "suite": "sid",
+   "needed_by": [
+    "wine"
+   ],
+   "filename": "debs/wine64_10.0~repack-12+b1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20251214T024003Z/pool/main/w/wine/wine64_10.0~repack-12+b1_amd64.deb"
+  },
+  {
+   "name": "wine64-preloader",
+   "version": "10.0~repack-12+b1",
+   "url": "https://deb.debian.org/debian/pool/main/w/wine/wine64-preloader_10.0~repack-12+b1_amd64.deb",
+   "sha256": "5194b709a36058a835b8a8eeee7b2b82c3cef89ee733440da5e105c3e2f2f01c",
+   "bytes": 35764,
+   "kind": "deb",
+   "app": "wine",
+   "suite": "sid",
+   "needed_by": [
+    "wine"
+   ],
+   "filename": "debs/wine64-preloader_10.0~repack-12+b1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20251214T024003Z/pool/main/w/wine/wine64-preloader_10.0~repack-12+b1_amd64.deb"
+  },
+  {
+   "name": "x11-apps",
+   "version": "7.7+11+b1",
+   "url": "https://deb.debian.org/debian/pool/main/x/x11-apps/x11-apps_7.7+11+b1_amd64.deb",
+   "sha256": "bf52fdedc08811020506bacf4bef45b997cd9eba06e4e1e1a4c15c5d23a0cc1a",
+   "bytes": 661724,
+   "kind": "deb",
+   "app": "x11-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools"
+   ],
+   "filename": "debs/x11-apps_7.7+11+b1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20240309T162949Z/pool/main/x/x11-apps/x11-apps_7.7+11+b1_amd64.deb"
+  },
+  {
+   "name": "x11-common",
+   "version": "1:7.7+24+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/x/xorg/x11-common_7.7+24+deb13u1_all.deb",
+   "sha256": "57a981938506b26dc552f19cafeaa8c04e9b59dc7508509151f8507a9d4e5f24",
+   "bytes": 216864,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools",
+    "xwayland"
+   ],
+   "filename": "debs/x11-common_7.7+24+deb13u1_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20251108T143447Z/pool/main/x/xorg/x11-common_7.7+24+deb13u1_all.deb"
+  },
+  {
+   "name": "x11-xkb-utils",
+   "version": "7.7+9",
+   "url": "https://deb.debian.org/debian/pool/main/x/x11-xkb-utils/x11-xkb-utils_7.7+9_amd64.deb",
+   "sha256": "745e29c79bb435d057cdbf8bb59a35fa33e818e566cb754674f44d381ccd4317",
+   "bytes": 158552,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "xwayland"
+   ],
+   "filename": "debs/x11-xkb-utils_7.7+9_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20240821T203213Z/pool/main/x/x11-xkb-utils/x11-xkb-utils_7.7+9_amd64.deb"
+  },
+  {
+   "name": "xbitmaps",
+   "version": "1.1.1-2.2",
+   "url": "https://deb.debian.org/debian/pool/main/x/xbitmaps/xbitmaps_1.1.1-2.2_all.deb",
+   "sha256": "734fe116a1f5c3fef110f3a2926619ce13ae4c9f7804fedf1d1cf9452fd35310",
+   "bytes": 25096,
+   "kind": "deb",
+   "app": "x11-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools"
+   ],
+   "filename": "debs/xbitmaps_1.1.1-2.2_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20221018T151427Z/pool/main/x/xbitmaps/xbitmaps_1.1.1-2.2_all.deb"
+  },
+  {
+   "name": "xdotool",
+   "version": "1:3.20160805.1-5.1",
+   "url": "https://deb.debian.org/debian/pool/main/x/xdotool/xdotool_3.20160805.1-5.1_amd64.deb",
+   "sha256": "98ac8681533b01020c7288fb2e9de403d586747dab48cfd58e04cb00d0c44fb1",
+   "bytes": 51488,
+   "kind": "deb",
+   "app": "x11-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools"
+   ],
+   "filename": "debs/xdotool_3.20160805.1-5.1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250411T205535Z/pool/main/x/xdotool/xdotool_3.20160805.1-5.1_amd64.deb"
+  },
+  {
+   "name": "xserver-common",
+   "version": "2:21.1.16-1.3+deb13u4",
+   "url": "https://deb.debian.org/debian-security/pool/updates/main/x/xorg-server/xserver-common_21.1.16-1.3+deb13u4_all.deb",
+   "sha256": "94bc0dcceeefabd4f706af19b3424de7f827758d0ebad5c18c52e73365d7f3ab",
+   "bytes": 2410256,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie-security",
+   "needed_by": [
+    "xwayland"
+   ],
+   "filename": "debs/xserver-common_21.1.16-1.3+deb13u4_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20260912T113611Z/pool/updates/main/x/xorg-server/xserver-common_21.1.16-1.3+deb13u4_all.deb"
+  },
+  {
+   "name": "xterm",
+   "version": "398-1",
+   "url": "https://deb.debian.org/debian/pool/main/x/xterm/xterm_398-1_amd64.deb",
+   "sha256": "633a43579b5d5445472fb01f897c10b33976ea27f54384848415cb706e74d381",
+   "bytes": 876256,
+   "kind": "deb",
+   "app": "x11-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "x11-tools"
+   ],
+   "filename": "debs/xterm_398-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250415T211946Z/pool/main/x/xterm/xterm_398-1_amd64.deb"
+  },
+  {
+   "name": "xwayland",
+   "version": "2:24.1.6-1",
+   "url": "https://deb.debian.org/debian/pool/main/x/xwayland/xwayland_24.1.6-1_amd64.deb",
+   "sha256": "7e51a144e858d5be7e91d6644c2758a618e425c7222234d2e8f059e5aba6c1f5",
+   "bytes": 904212,
+   "kind": "deb",
+   "app": "xwayland",
+   "suite": "trixie",
+   "needed_by": [
+    "xwayland"
+   ],
+   "filename": "debs/xwayland_24.1.6-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250226T150201Z/pool/main/x/xwayland/xwayland_24.1.6-1_amd64.deb"
+  }
+ ]
+}
