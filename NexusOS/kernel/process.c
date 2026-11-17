@@ -9,6 +9,7 @@
 #include "string.h"
 #include "vga.h"
 #include "users.h"
+#include "uproc.h"
 
 /* Process table */
 static process_t proc_table[MAX_PROCESSES];
@@ -61,10 +62,12 @@ process_t* process_create(const char* name, void (*entry)(void)) {
     }
     proc->stack_top = proc->stack_base + PROC_STACK_SIZE;
 
-    /* Set up initial stack frame */
+    /* Set up initial stack frame, matching context_switch (switch.asm): it
+     * pops edi, esi, ebx, ebp and then `ret`s, so the entry point must sit
+     * directly above ebp. Above that is entry's own return address. */
     uint32_t* stack_ptr = (uint32_t*)proc->stack_top;
-    *(--stack_ptr) = (uint32_t)entry;     /* EIP */
-    *(--stack_ptr) = 0;                    /* Dummy return */
+    *(--stack_ptr) = (uint32_t)process_exit; /* if entry returns */
+    *(--stack_ptr) = (uint32_t)entry;     /* EIP (popped by ret) */
     *(--stack_ptr) = 0;                    /* EBP */
     *(--stack_ptr) = 0;                    /* EBX */
     *(--stack_ptr) = 0;                    /* ESI */
@@ -94,14 +97,21 @@ process_t* process_create(const char* name, void (*entry)(void)) {
  * process_exit: Terminate the currently running process
  * -------------------------------------------------------------------------- */
 void process_exit(void) {
+    /* Phase 54: a ring-3 user process exits through the scheduler (frees its
+     * address space + kernel stack via the reaper, switches away — no return).
+     * This is also reached from the Win32 ExitProcess shim. */
+    if (current_process != NULL && current_process->is_user) {
+        uproc_sys_exit(current_process->exit_code);   /* never returns */
+    }
+    /* Non-user fallback (legacy kernel-thread demo): just mark terminated. */
     if (current_process != NULL) {
         current_process->state = PROC_TERMINATED;
         if (current_process->stack_base != 0) {
             kfree((void*)current_process->stack_base);
             current_process->stack_base = 0;
         }
-        __asm__ volatile("int $0x20");
     }
+    for (;;) __asm__ volatile("hlt");
 }
 
 /* --------------------------------------------------------------------------

@@ -68,6 +68,16 @@ typedef struct process {
     bool          is_user;      /* True if ring 3 process */
     uint32_t      user_stack;   /* User-mode stack top */
 
+    /* Phase 54: per-process address space & lifecycle (see uproc.c).
+     * cr3 is the process's page directory physical address (process 0 / the
+     * kernel thread uses the shared kernel directory). */
+    uint32_t      cr3;          /* CR3 (page directory phys) for this process */
+    uint32_t      wake_tick;    /* if BLOCKED by sleep: system_ticks to wake at */
+    uint32_t      exit_code;    /* value passed to exit() */
+    uint32_t      brk_base;     /* sbrk heap: fixed start of the user heap      */
+    uint32_t      brk_cur;      /* sbrk heap: current break (grows up)          */
+    bool          needs_reap;   /* TERMINATED user proc whose AS/stack await free*/
+
     /* Phase 44: ownership (cooperative security — same address space, but the
      * uid gates who may kill/signal this process). */
     uint32_t      uid;          /* owning user id */

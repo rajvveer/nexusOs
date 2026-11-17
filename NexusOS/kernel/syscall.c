@@ -21,23 +21,48 @@
 #include "pipe.h"
 #include "env.h"
 #include "dynlink.h"
+#include "paging.h"
+#include "memory.h"
+#include "uproc.h"
+#include "usys.h"        /* Phase 57 apps: POSIX-ish calls 24+ (usys_abi.h) */
+#include "usys_abi.h"
+
+/* win32.c: dispatch a Win32 shim id (from an IAT stub) using args on the user
+ * stack pointed to by regs->useresp. */
+extern uint32_t win32_dispatch(uint32_t id, struct registers* regs);
+
+/* Validate that [addr, addr+len) is user-accessible in the caller's address
+ * space before the kernel reads/writes it. Kernel-originated calls are trusted
+ * (the kernel thread never issues int 0x80, but be defensive). */
+static bool uptr_ok(uint32_t addr, uint32_t len) {
+    process_t* p = process_get_current();
+    if (!p || !p->is_user) return true;
+    return as_check_user(p->cr3, addr, len);
+}
 
 /* --------------------------------------------------------------------------
  * Existing syscall implementations (0–14)
  * -------------------------------------------------------------------------- */
 
+/* SYS_WRITE: print at most len bytes (stops early at a NUL). Returns the
+ * number of bytes written. */
 static int32_t sys_write(struct registers* regs) {
-    char* str = (char*)regs->ebx;
+    const char* str = (const char*)regs->ebx;
     uint32_t len = regs->ecx;
-    (void)len;
-    vga_print(str);
-    return 0;
+    uint32_t i;
+    if (str == NULL) return -1;
+    if (len > 0x7FFFFFFF) return -1;
+    if (!uptr_ok(regs->ebx, len)) return -1;     /* whole range must be user-mapped */
+    for (i = 0; i < len && str[i]; i++) vga_putchar(str[i]);
+    return (int32_t)i;
 }
 
 static int32_t sys_read(struct registers* regs) {
     char* buffer = (char*)regs->ebx;
     uint32_t max_len = regs->ecx;
-    keyboard_readline(buffer, max_len);
+    if (buffer == NULL || max_len == 0 || max_len > 0x7FFFFFFF) return -1;
+    if (!uptr_ok(regs->ebx, max_len)) return -1; /* must be user-writable */
+    keyboard_readline(buffer, (int)max_len);
     return (int32_t)strlen(buffer);
 }
 
@@ -60,9 +85,16 @@ static int32_t sys_create(struct registers* regs) {
 }
 
 static int32_t sys_exit(struct registers* regs) {
-    (void)regs;
-    process_exit();
+    uproc_sys_exit(regs->ebx);   /* exit code in ebx; never returns for a user proc */
     return 0;
+}
+
+/* Phase 54: SYS_SLEEP (ebx = ms) / SYS_SBRK (ebx = signed increment) */
+static int32_t sys_sleep(struct registers* regs) {
+    return uproc_sys_sleep(regs->ebx);
+}
+static int32_t sys_sbrk(struct registers* regs) {
+    return uproc_sys_sbrk((int32_t)regs->ebx);
 }
 
 static int32_t sys_getpid(struct registers* regs) {
@@ -81,6 +113,9 @@ static int32_t sys_malloc(struct registers* regs) {
     return (int32_t)kmalloc(regs->ebx);
 }
 
+/* SYS_FREE: kfree() only releases a pointer inside a live heap block and
+ * ignores anything else (NULL, stray, double-free), so a bad pointer can't
+ * corrupt the heap. */
 static int32_t sys_free(struct registers* regs) {
     kfree((void*)regs->ebx);
     return 0;
@@ -129,6 +164,9 @@ static int32_t sys_mmap(struct registers* regs) {
 static int32_t sys_kill(struct registers* regs) {
     uint32_t pid = regs->ebx;
     int sig = (int)regs->ecx;
+    /* Phase 57 apps: a live user process is killed through the uproc path so
+     * its address space, fds and waiting parent are handled; -1000 = not one. */
+    { int32_t r = usys_kill(pid, sig); if (r != -1000) return r; }
     return process_send_signal(pid, sig);
 }
 
@@ -181,7 +219,7 @@ static int32_t sys_dlclose(struct registers* regs) {
  * -------------------------------------------------------------------------- */
 typedef int32_t (*syscall_fn)(struct registers*);
 
-#define NUM_SYSCALLS_TOTAL 22
+#define NUM_SYSCALLS_TOTAL 24
 
 static syscall_fn syscall_table[NUM_SYSCALLS_TOTAL] = {
     sys_write,      /* 0  */
@@ -206,6 +244,8 @@ static syscall_fn syscall_table[NUM_SYSCALLS_TOTAL] = {
     sys_dlopen,     /* 19 */
     sys_dlsym,      /* 20 */
     sys_dlclose,    /* 21 */
+    sys_sleep,      /* 22 */
+    sys_sbrk,       /* 23 */
 };
 
 /* --------------------------------------------------------------------------
@@ -214,21 +254,41 @@ static syscall_fn syscall_table[NUM_SYSCALLS_TOTAL] = {
 static void syscall_handler(struct registers* regs) {
     uint32_t syscall_num = regs->eax;
 
-    if (syscall_num < NUM_SYSCALLS_TOTAL && syscall_table[syscall_num] != NULL) {
-        int32_t ret = syscall_table[syscall_num](regs);
-        regs->eax = (uint32_t)ret;
+    /* Mark that the kernel is now running on behalf of a user syscall, so that
+     * a bad user pointer dereferenced below faults into a clean process kill
+     * (uproc_fault) instead of halting the machine. */
+    uproc_in_syscall++;
+
+    if (syscall_num & 0x8000) {
+        /* Win32 shim call issued by a per-process IAT stub. */
+        regs->eax = win32_dispatch(syscall_num & 0x7FFF, regs);
+    } else if (syscall_num < NUM_SYSCALLS_TOTAL && syscall_table[syscall_num] != NULL) {
+        regs->eax = (uint32_t)syscall_table[syscall_num](regs);
+    } else if (syscall_num < NX_SYS_COUNT) {
+        /* Phase 57 apps: POSIX-ish calls 24+ (fd I/O, spawn/waitpid, termios,
+         * dirs, time...) live in usys.c; they return -errno on failure. */
+        regs->eax = (uint32_t)usys_syscall(syscall_num, regs);
     } else {
         regs->eax = (uint32_t)-1;
     }
+
+    uproc_in_syscall--;
 }
+
+/* INT 0x80 entry stub (isr_asm.asm): standard ISR frame -> isr_handler ->
+ * syscall_handler below. */
+extern void isr128(void);
 
 /* --------------------------------------------------------------------------
  * syscall_init: Register INT 0x80 handler (ring 3 accessible)
+ * DPL=3 so ring 3 may `int 0x80`; a trap gate (0xEF, not 0xEE) so IF stays
+ * set — sys_read waits for keyboard IRQs with hlt and would hang forever
+ * behind an interrupt gate. Kernel code runs with IF=1 everywhere else too.
  * -------------------------------------------------------------------------- */
 void syscall_init(void) {
-    idt_set_gate(0x80, 0, 0x08, 0xEE);
+    idt_set_gate(0x80, (uint32_t)isr128, 0x08, 0xEF);
     register_interrupt_handler(0x80, syscall_handler);
 
     vga_print_color("[OK] ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
-    vga_print("Syscall interface: 22 calls (ring 3)\n");
+    vga_print("Syscall interface: 24 calls + Win32 dispatch (ring 3)\n");
 }
