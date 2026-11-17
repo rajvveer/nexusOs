@@ -49,7 +49,7 @@ if sys.argv[1:]==['--self-test-reuse']:
         comma=work/'comma,name.bin';comma.write_bytes(b'guard fixture')
         with patch('subprocess.check_output',return_value=''):
             for mode in ('client','subsurfaces','popups'):assert reuse_disk(candidate,mode)==candidate
-            for path,mode in ((candidate,'download'),(ROOT/'HANDOFF_CODEX.md','client'),(work,'client'),(Path('relative.img'),'client'),(work/'missing.img','client'),(comma,'client')):
+            for path,mode in ((candidate,'download'),(ROOT/'docs'/'DEVELOPMENT_NOTES.md','client'),(work,'client'),(Path('relative.img'),'client'),(work/'missing.img','client'),(comma,'client')):
                 try:reuse_disk(path,mode)
                 except (ValueError,FileNotFoundError):pass
                 else:raise AssertionError('Unsafe reuse accepted: '+str(path))

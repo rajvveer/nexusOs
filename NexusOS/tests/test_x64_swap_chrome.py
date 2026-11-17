@@ -14,7 +14,7 @@ PASS (swap): every tab filled and verified >= 2 times after the last tab finishe
 started with (no reload or discard), no verify error, no OOM kill, swap used >= 64 MiB, no kernel fault. The browser's
 NULL atomic increment in its histogram code under pressure (2026-10-29) was page reclaim dropping unlinked files' only
 copies (Chrome's /tmp shared memory and its deleted BrowserMetrics .pma): fixed, 208 MiB 5/5 consecutive passes.
-Kernel option mm.audit (--kernel-options mm.audit) checksums every swapped and dropped page (see HANDOFF_CODEX.md).
+Kernel option mm.audit (--kernel-options mm.audit) checksums every swapped and dropped page (see docs/DEVELOPMENT_NOTES.md).
 PASS (--no-swap): the kernel and the session survive (MEMSTAT keeps coming, no fault, the VM still runs) and memory ran
 out (an OOM kill or a lost tab) -- otherwise the run did not overcommit RAM and proves nothing (the OOM killer takes a
 renderer, oom_score_adj 300; the browser keeps running).

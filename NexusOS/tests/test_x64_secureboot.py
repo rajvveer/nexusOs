@@ -10,7 +10,7 @@ QEMU + OVMF (TCG). Cases:
 
 This verifies the loader->kernel link of the chain under ordinary (non-enrolled) OVMF. The firmware->loader link
 (Authenticode on BOOTX64.EFI verified against enrolled db/KEK/PK) needs an enrolled OVMF varstore + an Authenticode
-signature; see HANDOFF_CODEX.md for the enrollment procedure and the honest status of that step.
+signature; see docs/DEVELOPMENT_NOTES.md for the enrollment procedure and the honest status of that step.
 
 Usage: python -I tests/test_x64_secureboot.py [WORKDIR]
 """

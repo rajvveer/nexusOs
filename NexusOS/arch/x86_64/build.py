@@ -652,7 +652,7 @@ if __name__ == '__main__':
               '(+ loader hash), out/nexus64-uefi-signed.img (signed loader) ready')
     elif action in ('chrome', 'desktop', 'vmware'):
         if not (OUT / 'desktop64.img').is_file():
-            raise SystemExit('No installed desktop image. Complete the native download/install workflow in HANDOFF_CODEX.md first.')
+            raise SystemExit('No installed desktop image. Complete the native download/install workflow in docs/DEVELOPMENT_NOTES.md first.')
         metadata = json.loads((OUT / 'desktop64.json').read_text())
         if action in ('desktop', 'vmware') and not metadata.get('aurora', {}).get('verified'):
             raise SystemExit('Aurora desktop has not been verified and published yet.')

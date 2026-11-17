@@ -1891,7 +1891,7 @@ were tested; **no physical PC**.
 
 Backups and rollback:
 - Sources: `C:\nexustest\fix\publish_backup_wine` (`python -I C:\nexustest\fix\publish_wine.py rollback`; manifest lists
-  72 modified + 36 added files). This file's previous version: `publish_backup_wine\HANDOFF_CODEX.md.before`.
+  72 modified + 36 added files). This file's previous version is kept in the local `publish_backup_wine` backup.
 - Desktop disk (before Wine was installed, SHA-256 `d63ead6f...`): `publish_backup_wine\disk\desktop64.img`
   (`python -I C:\nexustest\fix\publish_disk_wine.py rollback`).
 - Final tree and history: `C:\nexustest\fix\ws_fix` (base `base_wine`, merge `merge_w1`, Wine bring-up `ws_wine`).

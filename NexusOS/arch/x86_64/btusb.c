@@ -8,7 +8,7 @@
  * MediaTek MT79xx (MT7921/MT7922/MT7925: 0e8d:xxxx and partner IDs) need the vendor firmware patch download first
  * (Linux btmtk: WMT commands 0xFC6F with the BT_RAM_CODE_MT79xx patch from linux-firmware, then WMT FUNC_CTRL); that
  * vendor step is NOT implemented (no hardware to verify it): such a controller is registered and the standard init is
- * tried, and the kernel log says why it may fail. See HANDOFF_CODEX.md (Bluetooth) for the exact sequence. */
+ * tried, and the kernel log says why it may fail. See docs/DEVELOPMENT_NOTES.md (Bluetooth) for the exact sequence. */
 #include "usb.h"
 #include "bt.h"
 #include "../../kernel/string.h"

@@ -16,7 +16,7 @@
  *                                      trailer (chip id 0x10, eco, n_region, format, version, build date).
  *
  * The download itself (patch semaphore, FW_SCATTER through the WFDMA TX ring 16, start patch/RAM commands) is
- * described in HANDOFF_CODEX.md; it cannot be simulated faithfully without the MCU, so it is not written yet. */
+ * described in docs/DEVELOPMENT_NOTES.md; it cannot be simulated faithfully without the MCU, so it is not written yet. */
 #include "mt7922fw.h"
 
 static uint32_t be32(const uint8_t* p) { return (uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 8 | p[3]; }
