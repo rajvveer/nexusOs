@@ -25,47 +25,54 @@
 ### Native x86-64 NexusOS (captured 17 Nov 2026)
 
 <p align="center">
-  <img src="screenshots/os-desktop.png" width="85%" alt="NexusOS native x86-64 Aurora desktop"/>
+  <img src="screenshots/os-hero.png" width="100%" alt="NexusOS running Google Chrome, Terminal and Files"/>
   <br>
-  <sub><b>Aurora on the native x86-64 kernel</b> (1920×1080) — menu bar, dock and wallpaper</sub>
+  <sub><b>NexusOS 5.1 "Aurora"</b> on its own native x86-64 kernel (1920×1080) — Google Chrome, Terminal and Files side by side</sub>
 </p>
 
 <table>
   <tr>
+    <td width="50%" align="center"><img src="screenshots/os-chrome.png" alt="Google Chrome"/><br><sub><b>Google Chrome</b> — the real Chrome, running natively over HTTPS</sub></td>
+    <td width="50%" align="center"><img src="screenshots/os-chrome-tabs.png" alt="Google Chrome with tabs"/><br><sub><b>Chrome with multiple tabs</b> — Wikipedia, NASA, Python and kernel.org</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/os-vscode.png" alt="VS Code"/><br><sub><b>Visual Studio Code</b> — a C project with Explorer and syntax highlighting</sub></td>
+    <td width="50%" align="center"><img src="screenshots/os-terminal.png" alt="Terminal"/><br><sub><b>Terminal</b> — system info, files and memory on the native kernel</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/os-libreoffice-writer.png" alt="LibreOffice Writer"/><br><sub><b>LibreOffice Writer</b> — styled document with a table</sub></td>
+    <td width="50%" align="center"><img src="screenshots/os-libreoffice-calc.png" alt="LibreOffice Calc"/><br><sub><b>LibreOffice Calc</b> — budget sheet with formulas and a chart</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/os-firefox.png" alt="Firefox"/><br><sub><b>Firefox</b></sub></td>
+    <td width="50%" align="center"><img src="screenshots/os-wine.png" alt="Wine"/><br><sub><b>Windows apps via Wine 10.0</b> — Notepad, Minesweeper and <code>winecfg</code></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/os-desktop.png" alt="Aurora desktop"/><br><sub><b>Aurora desktop</b> — menu bar, dock and wallpaper</sub></td>
     <td width="50%" align="center"><img src="screenshots/os-launchpad.png" alt="Launchpad"/><br><sub><b>Launchpad</b> (<code>F4</code>) — built-in apps plus Chrome, Firefox, VS Code, LibreOffice and Wine</sub></td>
-    <td width="50%" align="center"><img src="screenshots/os-spotlight.png" alt="Spotlight"/><br><sub><b>Spotlight</b> (<code>Ctrl+Space</code>) — instant app search</sub></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><img src="screenshots/os-terminal.png" alt="Terminal"/><br><sub><b>Terminal</b> — <code>uname</code>, <code>free</code>, <code>df</code> and <code>ps</code> on the native kernel, NVMe root</sub></td>
-    <td width="50%" align="center"><img src="screenshots/os-files.png" alt="Files"/><br><sub><b>Files</b> — browsing the home folder</sub></td>
+    <td width="50%" align="center"><img src="screenshots/os-files.png" alt="Files"/><br><sub><b>Files</b> — browsing Documents</sub></td>
+    <td width="50%" align="center"><img src="screenshots/os-desktop-apps.png" alt="Desktop apps"/><br><sub><b>Built-in apps</b> — Notes, Calculator, Calendar and Files</sub></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><img src="screenshots/os-desktop-apps.png" alt="Desktop apps"/><br><sub><b>Multitasking</b> — Files, Calendar, Calculator and Notes side by side</sub></td>
-    <td width="50%" align="center"><img src="screenshots/os-overview.png" alt="Workspace overview"/><br><sub><b>Workspace overview</b> (<code>Super+W</code>) — four virtual desktops and live window previews</sub></td>
-  </tr>
-  <tr>
+    <td width="50%" align="center"><img src="screenshots/os-overview.png" alt="Window overview"/><br><sub><b>Window overview</b> (<code>Super+W</code>) — virtual desktops and live window previews</sub></td>
     <td width="50%" align="center"><img src="screenshots/os-alt-tab.png" alt="Alt+Tab"/><br><sub><b>App switcher</b> (<code>Alt+Tab</code>)</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/os-spotlight.png" alt="Spotlight"/><br><sub><b>Spotlight</b> (<code>Ctrl+Space</code>) — instant app search</sub></td>
     <td width="50%" align="center"><img src="screenshots/os-nexus-menu.png" alt="NexusOS menu"/><br><sub><b>NexusOS menu</b> — About, Settings, Lock, Sleep, Hibernate, Restart, Shut Down, Log Out</sub></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><img src="screenshots/os-lock-screen.png" alt="Lock screen"/><br><sub><b>Lock screen</b> (<code>Super+L</code>)</sub></td>
     <td width="50%" align="center"><img src="screenshots/os-settings.png" alt="System Settings - Displays"/><br><sub><b>System Settings › Displays</b> — resolution and scaling</sub></td>
-  </tr>
-  <tr>
     <td width="50%" align="center"><img src="screenshots/os-settings-appearance.png" alt="System Settings - Appearance"/><br><sub><b>System Settings › Appearance</b> — light/dark style and accent colours</sub></td>
-    <td width="50%" align="center"><img src="screenshots/os-network.png" alt="Network"/><br><sub><b>Network</b> — DHCP IPv4 + IPv6, routes, DNS and firewall</sub></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><img src="screenshots/os-chrome.png" alt="Google Chrome"/><br><sub><b>Google Chrome</b> running natively over HTTPS</sub></td>
-    <td width="50%" align="center"><img src="screenshots/os-firefox.png" alt="Firefox"/><br><sub><b>Firefox</b></sub></td>
+    <td width="50%" align="center"><img src="screenshots/os-settings-accessibility.png" alt="System Settings - Accessibility"/><br><sub><b>System Settings › Accessibility</b> — contrast, magnifier and screen reader</sub></td>
+    <td width="50%" align="center"><img src="screenshots/os-network.png" alt="Network"/><br><sub><b>Network</b> — DHCP IPv4 + IPv6, DNS and firewall</sub></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><img src="screenshots/os-vscode.png" alt="VS Code"/><br><sub><b>Visual Studio Code</b> — editing C on NexusOS</sub></td>
-    <td width="50%" align="center"><img src="screenshots/os-wine.png" alt="Wine"/><br><sub><b>Windows apps via Wine 10.0</b> — Explorer and <code>winecfg</code></sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><img src="screenshots/os-libreoffice-writer.png" alt="LibreOffice Writer"/><br><sub><b>LibreOffice Writer</b></sub></td>
-    <td width="50%" align="center"><img src="screenshots/os-libreoffice-calc.png" alt="LibreOffice Calc"/><br><sub><b>LibreOffice Calc</b> — formulas and a chart</sub></td>
+    <td colspan="2" align="center"><img src="screenshots/os-lock-screen.png" width="50%" alt="Lock screen"/><br><sub><b>Lock screen</b> (<code>Super+L</code>)</sub></td>
   </tr>
 </table>
 
