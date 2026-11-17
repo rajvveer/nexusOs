@@ -13,6 +13,7 @@
 #include "framebuffer.h"
 #include "gfx.h"
 #include "font.h"
+#include "macui.h"
 
 #ifndef FB_RGB
 #define FB_RGB(r, g, b) (((0xFF & r) << 16) | ((0xFF & g) << 8) | (0xFF & b))
@@ -24,8 +25,8 @@ extern volatile uint32_t system_ticks;
 /* Notification slot */
 #define NOTIFY_MAX      3
 #define NOTIFY_WIDTH   26
-#define NOTIFY_MSG_MAX 24
-#define NOTIFY_DURATION 54   /* ~3 seconds at 18.2 Hz */
+#define NOTIFY_MSG_MAX 40
+#define NOTIFY_DURATION 90   /* ~5 seconds at 18.2 Hz */
 
 typedef struct {
     bool     active;
@@ -100,42 +101,27 @@ bool notify_any_active(void) {
  * -------------------------------------------------------------------------- */
 void notify_draw(void) {
     if (fb_is_vesa()) {
-        /* Modern pixel toast: a rounded dark card with a soft shadow, a slim
-         * accent stripe, a bell glyph and crisp white text — no flat black
-         * character box. */
+        /* macOS-style banner: frosted rounded card under the menu bar with
+         * the app badge, a bold title, "now" and the message. */
         int sw = (int)fb_get_width();
-        const int card_w = 248;   /* px */
-        const int card_h = 40;
-        const int gap    = 10;
-        int nx = sw - card_w - 16;
-
+        const int card_w = 344, card_h = 66, gap = 10;
+        int nx = sw - card_w - 14;
         int count = 0;
         for (int i = 0; i < NOTIFY_MAX; i++) {
             if (!notifications[i].active) continue;
-            int ny = 14 + count * (card_h + gap);
-
-            /* Soft drop shadow */
-            gfx_draw_shadow(nx, ny, card_w, card_h, 10, FB_RGB(0, 0, 0));
-            /* Card body: dark translucent slate over the wallpaper */
-            gfx_fill_rect_alpha(nx, ny, card_w, card_h, FB_RGB(28, 32, 46), 232);
-            gfx_fill_rounded_rect(nx, ny, card_w, card_h, 10, FB_RGB(30, 34, 50));
-            /* Hairline border + accent stripe down the left edge */
-            gfx_draw_rounded_rect(nx, ny, card_w, card_h, 10, FB_RGB(70, 80, 110));
-            gfx_fill_rounded_rect(nx + 3, ny + 6, 4, card_h - 12, 2, FB_RGB(90, 150, 255));
-
-            /* Bell glyph (accent) */
-            font_draw_char_transparent(nx + 16, ny + (card_h - 16) / 2,
-                '\x0D', FB_RGB(255, 205, 90));
-
-            /* Message text, truncated to the card width */
-            int tx = nx + 34;
-            int ty = ny + (card_h - 16) / 2;
-            int maxc = (card_w - 44) / 8;
-            const char* m = notifications[i].message;
-            for (int j = 0; m[j] && j < maxc; j++)
-                font_draw_char_transparent(tx + j * 8, ty, (uint8_t)m[j],
-                    FB_RGB(238, 240, 248));
-
+            int ny = MENUBAR_H + 10 + count * (card_h + gap);
+            ui_shadow(nx, ny, card_w, card_h, 16, 22, 110, 8);
+            ui_rrect(nx, ny, card_w, card_h, 16, UI_RGB(46, 46, 52), 236);
+            ui_rrect_stroke(nx, ny, card_w, card_h, 16, 0xFFFFFF, 40);
+            /* app badge */
+            int bx = nx + 14, by = ny + (card_h - 38) / 2;
+            ui_rrect_vgrad(bx, by, 38, 38, 9, UI_RGB(120, 92, 236), UI_RGB(52, 40, 150), 255);
+            ui_logo(bx + 11, by + 10, 18, 0xFFFFFF);
+            int tx = bx + 52;
+            ui_text(tx, ny + 13, "NexusOS", UF_UIB, UI_RGB(240, 240, 244));
+            int nw = ui_text_width("now", UF_SMALL);
+            ui_text(nx + card_w - 16 - nw, ny + 14, "now", UF_SMALL, UI_RGB(150, 150, 156));
+            ui_text(tx, ny + 35, notifications[i].message, UF_UI, UI_RGB(206, 206, 212));
             count++;
             if (ny + card_h * 2 > (int)fb_get_height()) break;
         }

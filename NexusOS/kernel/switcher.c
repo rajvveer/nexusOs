@@ -5,6 +5,8 @@
  * ============================================================================ */
 
 #include "switcher.h"
+#include "framebuffer.h"
+#include "macui.h"
 #include "gui.h"
 #include "theme.h"
 #include "window.h"
@@ -77,55 +79,24 @@ int switcher_get_selected(void) {
  * -------------------------------------------------------------------------- */
 void switcher_draw(void) {
     if (!sw_open || sw_count == 0) return;
-
-    const theme_t* t = theme_get();
-
-    /* Calculate bar dimensions */
-    int item_w = 14;
-    int total_w = sw_count * item_w + 2;
-    if (total_w > GUI_WIDTH - 2) total_w = GUI_WIDTH - 2;
-    int bar_x = (GUI_WIDTH - total_w) / 2;
-    int bar_y = (GUI_HEIGHT - 1) / 2 - 2;
-
-    /* Background */
-    uint8_t bg = t->menu_bg;
-    uint8_t hi = t->menu_highlight;
-    uint8_t dim = VGA_COLOR(VGA_DARK_GREY, (bg >> 4) & 0x0F);
-    uint8_t title_col = VGA_COLOR(VGA_WHITE, (bg >> 4) & 0x0F);
-
-    gui_rect_t rect = { bar_x, bar_y, total_w, 5 };
-    gui_fill_rect(rect, ' ', bg);
-    gui_draw_box_double(rect, bg);
-
-    /* Title */
-    gui_draw_text(bar_x + 2, bar_y, " Switch Window ", title_col);
-
-    /* Draw items */
-    int x = bar_x + 1;
-    for (int i = 0; i < sw_count && x + item_w < bar_x + total_w; i++) {
-        window_t* w = window_get(sw_items[i]);
-        if (!w) continue;
-
-        bool is_sel = (i == sw_selected);
-        uint8_t col = is_sel ? hi : bg;
-
-        /* Fill item bg */
-        for (int j = 0; j < item_w; j++)
-            gui_putchar(x + j, bar_y + 2, ' ', col);
-
-        /* Icon */
-        gui_putchar(x + 1, bar_y + 2, is_sel ? '\x10' : '\x07', col);
-
-        /* Title (truncated) */
-        int max_title = item_w - 3;
-        int tlen = strlen(w->title);
-        if (tlen > max_title) tlen = max_title;
-        for (int j = 0; j < tlen; j++)
-            gui_putchar(x + 3 + j, bar_y + 2, w->title[j], col);
-
-        x += item_w;
+    const int S = 84, G = 18, P = 22;
+    int sw = (int)fb_get_width(), sh = (int)fb_get_height();
+    int w = sw_count * S + (sw_count - 1) * G + 2 * P, h = S + 2 * P + 30;
+    int x = sw / 2 - w / 2, y = sh / 2 - h / 2;
+    ui_shadow(x, y, w, h, 24, 30, 120, 10);
+    ui_rrect(x, y, w, h, 24, UI_RGB(40, 40, 46), 230);
+    ui_rrect_stroke(x, y, w, h, 24, 0xFFFFFF, 40);
+    for (int i = 0; i < sw_count; i++) {
+        window_t* win = window_get(sw_items[i]);
+        if (!win) continue;
+        const ui_app_t* app = ui_app_by_title(win->title);
+        int ix = x + P + i * (S + G), iy = y + P;
+        if (i == sw_selected) ui_rrect(ix - 8, iy - 8, S + 16, S + 16, 18, 0xFFFFFF, 46);
+        ui_icon(app ? app->icon : (win->title[0] ? ICON_GENERIC : ICON_INFO), ix, iy, S);
+        if (i == sw_selected) {
+            const char* nm = app ? app->name : (win->title[0] ? win->title : "About This NexusOS");
+            ui_text_center(ix + S / 2, iy + S + 12, nm, UF_UI, UI_RGB(240, 240, 244));
+        }
     }
 
-    /* Hint */
-    gui_draw_text(bar_x + 2, bar_y + 3, "Tab:next  Enter:select", dim);
 }

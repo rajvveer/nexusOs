@@ -38,4 +38,7 @@ int  context_menu_handle_click(int mx, int my);
 /* Check if click is inside the menu */
 bool context_menu_hit(int mx, int my);
 
+/* Highlight the item under the pointer; true if it changed (pixels). */
+bool context_menu_hover(int px, int py);
+
 #endif /* CONTEXT_MENU_H */
