@@ -1,0 +1,20 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>NexusOS power heartbeat</title>
+<style>body{font:28px sans-serif;background:#123;color:#eef;margin:40px}#n{font-size:96px}</style></head>
+<body><div>Heartbeat (tests/test_x64_aurora_power.py)</div><div id="n">0</div><div id="t"></div>
+<script>
+// Every 500 ms: a timer tick; every second: POST /beat with the tick count, performance.now() (CLOCK_MONOTONIC:
+// does not advance while the machine sleeps) and Date.now() (CLOCK_REALTIME: does). The host checks that beats
+// resume after each wake, that the network works again and how both clocks moved across the sleep.
+let ticks = 0, beats = 0, failures = 0;
+function tick() { ticks++; document.getElementById('n').textContent = ticks; setTimeout(tick, 500); }
+async function beat() {
+  beats++;
+  const body = JSON.stringify({kind: 'beat', beat: beats, ticks, perf: performance.now(), date: Date.now(), failures});
+  try { const r = await fetch('/beat', {method: 'POST', body}); if (!r.ok) failures++; }
+  catch (e) { failures++; }
+  document.getElementById('t').textContent = 'beats ' + beats + ' failures ' + failures;
+  setTimeout(beat, 1000);
+}
+tick(); beat();
+</script></body></html>

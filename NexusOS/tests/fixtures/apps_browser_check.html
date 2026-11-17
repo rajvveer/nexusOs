@@ -1,0 +1,44 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>NexusOS browser check</title>
+<style>body{font:20px sans-serif;margin:16px;background:#fafafa;color:#111}#s{font-size:32px;font-weight:bold}canvas{border:1px solid #888;display:block;margin-top:12px}</style>
+</head><body>
+<div id="s">starting</div><div id="d"></div>
+<canvas id="c" width="640" height="360"></canvas>
+<script>
+const S = document.getElementById('s'), D = document.getElementById('d'), C = document.getElementById('c'), G = C.getContext('2d');
+const results = {ua: navigator.userAgent, platform: navigator.platform, cores: navigator.hardwareConcurrency};
+function post(kind, data) { return fetch('/result', {method: 'POST', body: JSON.stringify({kind, data})}).catch(() => {}); }
+function sieve(n) { const a = new Uint8Array(n + 1); let count = 0; for (let i = 2; i <= n; i++) { if (!a[i]) { count++; for (let j = i * i; j <= n; j += i) a[j] = 1; } } return count; }
+function fib(n) { return n < 2 ? n : fib(n - 1) + fib(n - 2); }
+function strings() { let s = ''; for (let i = 0; i < 20000; i++) s += String.fromCharCode(65 + i % 26); return s.split('').reverse().join('').length; }
+function json() { const o = []; for (let i = 0; i < 20000; i++) o.push({i, s: 'x' + i, v: [i, i * 2]}); return JSON.parse(JSON.stringify(o)).length; }
+async function run() {
+  post('phase', 'start');
+  S.textContent = 'javascript';
+  const js = {};
+  for (const [name, fn, expect] of [['sieve', () => sieve(2000000), 148933], ['fib', () => fib(27), 196418], ['strings', strings, 20000], ['json', json, 20000]]) {
+    const t = performance.now(); const value = fn(); js[name] = {ms: Math.round(performance.now() - t), ok: value === expect};
+  }
+  results.js = js; D.textContent = JSON.stringify(js); post('test', {js});
+  S.textContent = 'canvas';
+  const frames = 120; let drawn = 0; const t0 = performance.now();
+  await new Promise(resolve => {
+    function frame(now) {
+      G.fillStyle = '#ffffff'; G.fillRect(0, 0, 640, 360);
+      for (let i = 0; i < 200; i++) {
+        G.fillStyle = 'hsl(' + ((i * 7 + drawn * 3) % 360) + ',80%,50%)';
+        G.beginPath(); G.arc((i * 37 + drawn * 5) % 640, (i * 53) % 360, 8 + i % 12, 0, 2 * Math.PI); G.fill();
+      }
+      G.fillStyle = '#0060c0'; G.fillRect(10, 10, 100, 50);
+      if (++drawn < frames) requestAnimationFrame(frame); else resolve();
+    }
+    requestAnimationFrame(frame);
+  });
+  const ms = performance.now() - t0, pixel = G.getImageData(20, 20, 1, 1).data;
+  results.canvas = {frames, ms: Math.round(ms), fps: +(frames * 1000 / ms).toFixed(1), pixel: Array.from(pixel), ok: pixel[0] === 0 && pixel[1] === 96 && pixel[2] === 192};
+  post('test', {canvas: results.canvas});
+  S.textContent = 'done: js ' + Object.values(js).every(v => v.ok) + ', canvas ' + results.canvas.fps + ' fps';
+  post('done', results);
+}
+run();
+</script></body></html>

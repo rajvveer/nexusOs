@@ -1,0 +1,137 @@
+{
+ "format": 1,
+ "generated": "2026-10-13",
+ "note": "Windows applications for tests/test_wine.py, downloaded only from the publishers' own sites or their GitHub releases. 'sha256' is checked on every download; 'checksum_source' says where it came from.",
+ "apps": [
+  {
+   "name": "7z2604-x64.exe",
+   "app": "7-Zip 26.04",
+   "bits": 64,
+   "kind": "7-Zip installer (x64)",
+   "url": "https://github.com/ip7z/7zip/releases/download/26.04/7z2604-x64.exe",
+   "bytes": 1664082,
+   "sha256": "d54bf805f9f3704d1e8db2fa3498ae7ef2df0312b40b558e7c71c734430a665d",
+   "checksum_source": "GitHub release asset digest (api.github.com/repos/ip7z/7zip/releases/tags/26.04); linked from https://www.7-zip.org/download.html"
+  },
+  {
+   "name": "7z2604.exe",
+   "app": "7-Zip 26.04",
+   "bits": 32,
+   "kind": "7-Zip installer (x86)",
+   "url": "https://github.com/ip7z/7zip/releases/download/26.04/7z2604.exe",
+   "bytes": 1361691,
+   "sha256": "39bf65045153fc26c42fa9fe47afd8cd1b11671c7f11d031e738c9a13960c009",
+   "checksum_source": "GitHub release asset digest"
+  },
+  {
+   "name": "7z2604-x64.msi",
+   "app": "7-Zip 26.04",
+   "bits": 64,
+   "kind": "MSI package (x64)",
+   "url": "https://github.com/ip7z/7zip/releases/download/26.04/7z2604-x64.msi",
+   "bytes": 2009088,
+   "sha256": "0b01334a418654293513449f61d6bfc99e5196ca371e3c3dc961eda57cd535c6",
+   "checksum_source": "GitHub release asset digest"
+  },
+  {
+   "name": "7z2604.msi",
+   "app": "7-Zip 26.04",
+   "bits": 32,
+   "kind": "MSI package (x86)",
+   "url": "https://github.com/ip7z/7zip/releases/download/26.04/7z2604.msi",
+   "bytes": 1574400,
+   "sha256": "cdacbb1396ca43da6dacafa22f7007a6c6f9911c42683d71ba23cc88d7028b49",
+   "checksum_source": "GitHub release asset digest"
+  },
+  {
+   "name": "npp.8.9.8.1.portable.x64.zip",
+   "app": "Notepad++ 8.9.8.1",
+   "bits": 64,
+   "kind": "portable zip (x64)",
+   "url": "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.9.8.1/npp.8.9.8.1.portable.x64.zip",
+   "bytes": 8250001,
+   "sha256": "beddf5548e75c97930d1575ba1c7d113e6e2b33d0a200310e734ca08e225f414",
+   "checksum_source": "GitHub release asset digest (notepad-plus-plus/notepad-plus-plus v8.9.8.1)"
+  },
+  {
+   "name": "npp.8.9.8.1.Installer.exe",
+   "app": "Notepad++ 8.9.8.1",
+   "bits": 32,
+   "kind": "NSIS installer (x86)",
+   "url": "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.9.8.1/npp.8.9.8.1.Installer.exe",
+   "bytes": 6814128,
+   "sha256": "ee848aa54df153921678b343857a83861da81ce0c9dbb217b6f55a8780e60f5e",
+   "checksum_source": "GitHub release asset digest"
+  },
+  {
+   "name": "putty-w64.exe",
+   "app": "PuTTY 0.85",
+   "bits": 64,
+   "kind": "standalone executable (x64)",
+   "url": "https://the.earth.li/~sgtatham/putty/0.85/w64/putty.exe",
+   "bytes": null,
+   "sha256": "d01fdb5aae8f112526040a39b0bfb9e27d813003178645e65f8d1cfdb2a26c87",
+   "checksum_source": "https://the.earth.li/~sgtatham/putty/0.85/sha256sums (PuTTY's official download site)"
+  },
+  {
+   "name": "putty-w32.exe",
+   "app": "PuTTY 0.85",
+   "bits": 32,
+   "kind": "standalone executable (x86)",
+   "url": "https://the.earth.li/~sgtatham/putty/0.85/w32/putty.exe",
+   "bytes": null,
+   "sha256": "4c70267ca03a00ea761ec358498b990a7221decb36eace9b7dbe6a751be0fb3b",
+   "checksum_source": "https://the.earth.li/~sgtatham/putty/0.85/sha256sums"
+  },
+  {
+   "name": "putty-64bit-0.85-installer.msi",
+   "app": "PuTTY 0.85",
+   "bits": 64,
+   "kind": "MSI package (x64)",
+   "url": "https://the.earth.li/~sgtatham/putty/0.85/w64/putty-64bit-0.85-installer.msi",
+   "bytes": null,
+   "sha256": "2213ebacf962b709411d654a40087508a694756bc4e41c5a1c24ad86596b2511",
+   "checksum_source": "https://the.earth.li/~sgtatham/putty/0.85/sha256sums"
+  },
+  {
+   "name": "SumatraPDF-3.6.1-64.zip",
+   "app": "SumatraPDF 3.6.1",
+   "bits": 64,
+   "kind": "portable zip (x64)",
+   "url": "https://www.sumatrapdfreader.org/dl/rel/3.6.1/SumatraPDF-3.6.1-64.zip",
+   "bytes": 10031830,
+   "sha256": "98b33a518d42986856d225064b0cd2d3643ecf78cbf84ab873d26cc51877a544",
+   "checksum_source": "the publisher does not publish checksums: pinned on first download from sumatrapdfreader.org"
+  },
+  {
+   "name": "SumatraPDF-3.6.1.zip",
+   "app": "SumatraPDF 3.6.1",
+   "bits": 32,
+   "kind": "portable zip (x86)",
+   "url": "https://www.sumatrapdfreader.org/dl/rel/3.6.1/SumatraPDF-3.6.1.zip",
+   "bytes": 9376622,
+   "sha256": "670e694a5c91633d28ab0df689b4dbf92021183cfe82270ae552cb617a0a07ed",
+   "checksum_source": "the publisher does not publish checksums: pinned on first download from sumatrapdfreader.org"
+  },
+  {
+   "name": "innosetup-7.1.0-x64.exe",
+   "app": "Inno Setup 7.1.0",
+   "bits": 64,
+   "kind": "Inno Setup installer (x64), includes the ISCC compiler",
+   "url": "https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe",
+   "bytes": 14304168,
+   "sha256": "0362a383ed217d4c4239b5933866dd96d3eb2102737da92f80f6057a4b40df2f",
+   "checksum_source": "GitHub release asset digest (api.github.com/repos/jrsoftware/issrc/releases/tags/is-7_1_0); linked from https://jrsoftware.org/isdl.php"
+  },
+  {
+   "name": "innosetup-7.1.0-x86.exe",
+   "app": "Inno Setup 7.1.0",
+   "bits": 32,
+   "kind": "Inno Setup installer (x86), includes the ISCC compiler",
+   "url": "https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x86.exe",
+   "bytes": 13119232,
+   "sha256": "f9671174e0d15ba9b4f6b56564c6aed32ea8db9c3cb9bf6f2af0850fe7894f60",
+   "checksum_source": "GitHub release asset digest (api.github.com/repos/jrsoftware/issrc/releases/tags/is-7_1_0); linked from https://jrsoftware.org/isdl.php"
+  }
+ ]
+}

@@ -1,0 +1,27 @@
+{
+ "format": 1,
+ "generated": "2026-10-18",
+ "note": ".NET Framework programs for tests/test_wine_dotnet.py (Wine Mono) and the CHM help (MSHTML through Wine Gecko). Downloaded only from the publishers' official distribution points. 'sha256' is checked on every download; the Authenticode signatures were verified on the Windows host when the entries were pinned ('signer').",
+ "apps": [
+  {
+   "name": "nuget.exe",
+   "app": "NuGet command-line 6.11.1",
+   "kind": ".NET Framework 4.7.2 console application",
+   "url": "https://dist.nuget.org/win-x86-commandline/v6.11.1/nuget.exe",
+   "bytes": 8593856,
+   "sha256": "c0ddc9cb0633c4607da7e8028eb4f91248c8b74e45a68b0c79fcfa7d78c2a481",
+   "signer": "Microsoft Corporation (Authenticode: Valid)",
+   "license": "Apache-2.0"
+  },
+  {
+   "name": "KeePass-2.57.zip",
+   "app": "KeePass Password Safe 2.57 (portable)",
+   "kind": ".NET Framework WinForms application + HTML Help (KeePass.chm)",
+   "url": "https://downloads.sourceforge.net/project/keepass/KeePass%202.x/2.57/KeePass-2.57.zip",
+   "bytes": 3222872,
+   "sha256": "6fa6c3a240a988447151bda939035f55bb97e937b3d9f1f7d46a807154c64e4c",
+   "signer": "KeePass.exe: Open Source Developer, Dominik Reichl (Authenticode: Valid)",
+   "license": "GPL-2.0-or-later"
+  }
+ ]
+}
