@@ -120,6 +120,6 @@ def convert(img_path, out_path):
 
 if __name__ == "__main__":
     convert(
-        r"assets\ChatGPT Image Feb 26, 2026, 02_54_43 PM.png",
+        r"assets\wallpaper-source.png",
         r"kernel\wallpaper_img.c"
     )
