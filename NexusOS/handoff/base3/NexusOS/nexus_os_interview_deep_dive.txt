@@ -1,0 +1,133 @@
+============================================================================
+NEXUSOS - ARCHITECTURAL DEEP-DIVE & INTERVIEW PREPARATION
+============================================================================
+Project: NexusOS v3.4.0
+Architecture: x86 (i386) 32-bit Protected Mode
+Language: C (95%) + x86 Assembly (5%)
+Key Goal: Hybrid OS with Win32/X11/POSIX compatibility in <1MB kernel.
+============================================================================
+
+1. CORE PHILOSOPHY & DESIGN
+---------------------------
+NexusOS is a bare-metal implementation designed as a "monolithic hybrid." 
+While it uses a monolithic kernel for speed and direct hardware access (common 
+in early Linux), it implements "emulation silos" for POSIX (Linux), X11 (Unix), 
+and Win32 (Windows). 
+
+It is "vibe coded" not just for functionality, but for architectural purity. 
+No GRUB, no standard libc, no existing kernel. Every line was written to 
+demonstrate mastery over x86 hardware and OS theory.
+
+2. THE BOOT FLOW (THE FIRST 100 MILLISECONDS)
+---------------------------------------------
+- Stage 1 (boot.asm): A 512-byte MBR loaded by BIOS at 0x7C00. Its ONLY job is 
+  to load Stage 2 from the disk using BIOS Interrupt 13h.
+- Stage 2 (boot2.asm): 
+    1. Sets VESA VBE mode (1024x768x32bpp) via Bochs VBE extensions.
+    2. Loads the kernel binary into memory at 0x1000.
+    3. Sets up a temporary GDT.
+    4. Switches to 32-bit Protected Mode (sets CR0 protection bit).
+    5. Jumps to 'kernel_entry.asm' (the C-bridge).
+- kernel_entry.asm: Sets up the stack and calls 'kernel_main()'.
+
+3. MEMORY MANAGEMENT: THE FOUNDATION
+------------------------------------
+- Physical Memory Manager (pmm.c): Uses a BITMAP to track 4KB pages.
+  - Tracking 16MB of RAM = 4096 pages.
+  - 1 bit per page. 0 = free, 1 = used.
+- Paging (paging.c): 2-level Page Directory/Page Table system.
+  - Identity maps the first 16MB (to keep kernel code accessible).
+  - Maps the VESA Linear Framebuffer into a high memory address.
+- Virtual Memory Manager (vmm.c): Adds advanced features.
+  - Page Reference Counting: Necessary for CoW.
+  - Copy-on-Write (COW): When fork() is called, the child gets the exact 
+    same page table as the parent, but all WRITABLE pages are marked 
+    READ-ONLY + a custom "COW" bit.
+  - Page Fault Handler: When a write occurs to a COW page, the kernel:
+    1. Allocates a new physical page.
+    2. Copies the data.
+    3. Updates the process's page table.
+    4. Makes it WRITABLE.
+- Heap (heap.c): 'kmalloc' implemention using a linked-list of free blocks.
+  - Supports splitting (taking a big block and making it small) and 
+    coalescing (joining two adjacent free blocks).
+
+4. SCHEDULING & MULTITASKING
+----------------------------
+- Scheduler (scheduler.c): Round-Robin Preemptive.
+  - Timeslice: 5 timer ticks (~275ms, assuming 18.2Hz).
+  - Preemption: Hooked into IRQ0 (PIT). Every tick, 'schedule()' checks 
+    if the timeslice expired.
+- Context Switching (switch.asm):
+  - Saves all registers (EAX, EBX, ECX, EDX, ESI, EDI, EBP).
+  - Saves the current ESP (stack pointer) into the Task Control Block (TCB).
+  - Loads the next process's ESP.
+  - Pops the next process's registers.
+  - 'iret' returns to the next process's EIP.
+
+5. FILESYSTEM: VFS & FAT32
+--------------------------
+- VFS (vfs.c): An abstraction layer (think POSIX 'vnode').
+  - Standard operations: read, write, open, close, readdir.
+- FAT32 (fat32.c): 
+  - Standard FAT32 on the 16MB disk image.
+  - Supports Long File Names (LFN) and directory walking.
+- procfs (procfs.c): Virtual filesystem mirroring Linux's /proc.
+  - Files like '/proc/meminfo' generate text on-the-fly from kernel structs.
+
+6. NETWORKING STACK: FROM PACKETS TO BROWSERS
+---------------------------------------------
+- RTL8139 Driver (rtl8139.c): 
+  - PCI-based hardware interface.
+  - Uses Bus Mastering for TX and a Ring Buffer for RX.
+- Packet Pipeline:
+  - Ethernet -> ARP (to find MAC) -> IPv4 -> TCP or UDP.
+- TCP Implementation (tcp.c):
+  - Full State Machine: LISTEN, SYN_SENT, ESTABLISHED, FIN_WAIT, etc.
+  - Handshake: 3-way (SYN -> SYN-ACK -> ACK).
+  - Reliability: Sequence and ACK numbers ensure no data loss.
+- High-level: DHCP (auto-config IP), DNS (host lookup), and HTTP Client.
+
+7. COMPATIBILITY LAYERS (THE MODERN STUFF)
+------------------------------------------
+- PE32 Loader (pe.c):
+  - Parses Windows '.exe' format.
+  - MZ Header -> PE Signature -> NT Headers.
+  - Maps Sections (.text for code, .data for variables) to memory.
+  - Resolves Imports: Looks at the Import Address Table (IAT) and 
+    replaces DLL function names with the address of the NexusOS shim.
+- Win32 API Shim (win32.c):
+  - Shims 'kernel32.dll', 'user32.dll', 'gdi32.dll'.
+  - Mapping: 'CreateWindowExA' actually calls the NexusOS window manager!
+  - Messaging: Implements a message queue (WM_PAINT, WM_KEYDOWN) for 
+    Windows-style event loops.
+- X11 Shim (x11.c):
+  - Minimal Xlib implementation.
+  - Maps Xlib drawing ('XDrawLine', 'XFillRectangle') to NexusOS 
+    gfx primitives.
+  - Allows portingUnix/X11 apps with minimal friction.
+- ELF Dynamic Linking (dynlink.c):
+  - Supports '.so' shared libraries via a Global Offset Table (GOT).
+
+8. GRAPHICS & GUI
+-----------------
+- GFX Primitive (gfx.c): Pure math for lines, rects, circles, and 
+  gradients. Optimized pixel plotting with double buffering (fb_flip).
+- Window Manager (window.c):
+  - Manages a Z-Order (who is on top).
+  - Clipping: Ensures windows don't draw outside their borders.
+  - Events: Propagates mouse clicks to the correct window.
+
+9. INTERVIEW "PRO-TIPS" / DEFENSES
+----------------------------------
+- If asked about "Vibe Coding": Say it refers to the iterative, 
+  design-first approach where the UX (graphics/shell) drove the kernel 
+  requirements. 
+- If asked about Security: Admit it's a single-user system (Phase 44 roadmap) 
+  but emphasizes that Process Isolation is handled via Paging (User/Supervisor bits).
+- Why no standard library? "To avoid bloat and understand the exact 
+  contract between the compiler and the kernel (e.g., -ffreestanding)."
+
+============================================================================
+Generated by Antigravity AI for NexusOS Interview Preparation.
+============================================================================
