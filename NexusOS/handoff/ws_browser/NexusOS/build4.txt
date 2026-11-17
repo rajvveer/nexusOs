@@ -1,0 +1,100 @@
+
+========================================
+ NexusOS Build System
+========================================
+
+[OK] Tools found
+[BUILD] Stage 1 bootloader...
+[BUILD] Stage 2 bootloader...
+[BUILD] Kernel assembly...
+[BUILD] Kernel C files...
+        kernel\ac97.c
+        kernel\accessibility.c
+        kernel\appearance.c
+        kernel\appstore.c
+        kernel\appui.c
+        kernel\arp.c
+        kernel\assistant.c
+        kernel\ata.c
+        kernel\audio.c
+        kernel\blkdev.c
+        kernel\breakout.c
+        kernel\browser.c
+        kernel\calculator.c
+        kernel\calendar.c
+        kernel\clipboard.c
+        kernel\clipmgr.c
+        kernel\clock.c
+        kernel\cocoa.c
+        kernel\colorpick.c
+        kernel\contacts.c
+        kernel\context_menu.c
+        kernel\crashtest.c
+        kernel\des.c
+        kernel\desktop.c
+        kernel\dhcp.c
+        kernel\dns.c
+        kernel\dock.c
+        kernel\doom.c
+        kernel\driver.c
+        kernel\dynlink.c
+        kernel\editor.c
+        kernel\elf.c
+        kernel\env.c
+        kernel\fat32.c
+        kernel\filemgr.c
+        kernel\fileops.c
+        kernel\finale.c
+        kernel\firewall.c
+        kernel\font.c
+        kernel\framebuffer.c
+        kernel\game.c
+        kernel\gamepad.c
+        kernel\gdt.c
+        kernel\gfx.c
+        kernel\gif.c
+        kernel\gpu.c
+        kernel\gui.c
+        kernel\heap.c
+        kernel\help.c
+        kernel\hexview.c
+        kernel\http.c
+        kernel\httpd.c
+        kernel\icmp.c
+        kernel\icons.c
+        kernel\idt.c
+        kernel\image.c
+        kernel\ip.c
+        kernel\jpeg.c
+        kernel\kernel.c
+        kernel\keyboard.c
+        kernel\kguard.c
+        kernel\libc.c
+        kernel\lockscreen.c
+        kernel\login.c
+        kernel\macho.c
+        kernel\macui.c
+        kernel\memory.c
+        kernel\menubar.c
+        kernel\minesweeper.c
+        kernel\mobile.c
+        kernel\mouse.c
+        kernel\music.c
+        kernel\net.c
+        kernel\netstream_compat.c
+kernel\netstream_compat.c: In function 'ns_open':
+kernel\netstream_compat.c:259:5: warning: implicit declaration of function 'install_pump' [-Wimplicit-function-declaration]
+     install_pump();
+     ^~~~~~~~~~~~
+kernel\netstream_compat.c: At top level:
+kernel\netstream_compat.c:347:13: warning: conflicting types for 'install_pump'
+ static void install_pump(void) {
+             ^~~~~~~~~~~~
+kernel\netstream_compat.c:347:13: error: static declaration of 'install_pump' follows non-static declaration
+kernel\netstream_compat.c:259:5: note: previous implicit declaration of 'install_pump' was here
+     install_pump();
+     ^~~~~~~~~~~~
+kernel\netstream_compat.c:347:13: warning: 'install_pump' defined but not used [-Wunused-function]
+ static void install_pump(void) {
+             ^~~~~~~~~~~~
+[FAIL] kernel\netstream_compat.c 
