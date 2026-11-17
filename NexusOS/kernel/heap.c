@@ -14,7 +14,6 @@
 
 /* Head of the free list */
 static block_header_t* heap_start = NULL;
-static uint32_t heap_end = 0;
 static uint32_t total_allocated = 0;
 
 /* --------------------------------------------------------------------------
@@ -33,11 +32,16 @@ void heap_init(void) {
     heap_start->is_free = 1;
     heap_start->next = NULL;
 
-    heap_end = HEAP_START + HEAP_INITIAL;
     total_allocated = 0;
 
+    /* Phase 57: report the real geometry (4096 KB at 0x400000). */
+    char b[16];
     vga_print_color("[OK] ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
-    vga_print("Heap initialized (1 MB at 0x200000)\n");
+    vga_print("Heap initialized (");
+    int_to_str((int)(HEAP_INITIAL / 1024u), b); vga_print(b);
+    vga_print(" KB at ");
+    hex_to_str(HEAP_START, b); vga_print(b);
+    vga_print(")\n");
 }
 
 /* --------------------------------------------------------------------------
@@ -63,20 +67,24 @@ static void split_block(block_header_t* block, uint32_t size) {
 void* kmalloc(uint32_t size) {
     if (size == 0) return NULL;
 
-    /* Align size to 4 bytes */
-    size = (size + 3) & ~3;
+    /* Larger than the whole heap can never fit — and rejecting it here keeps
+     * the round-up below from wrapping (0xFFFFFFFD+ would become tiny). */
+    if (size <= HEAP_INITIAL) {
+        /* Align size to 4 bytes */
+        size = (size + 3) & ~3;
 
-    block_header_t* current = heap_start;
+        block_header_t* current = heap_start;
 
-    /* First-fit search */
-    while (current != NULL) {
-        if (current->is_free && current->size >= size) {
-            split_block(current, size);
-            current->is_free = 0;
-            total_allocated += current->size;
-            return (void*)((uint8_t*)current + HEADER_SIZE);
+        /* First-fit search */
+        while (current != NULL) {
+            if (current->is_free && current->size >= size) {
+                split_block(current, size);
+                current->is_free = 0;
+                total_allocated += current->size;
+                return (void*)((uint8_t*)current + HEADER_SIZE);
+            }
+            current = current->next;
         }
-        current = current->next;
     }
 
     /* No suitable block found — out of heap */
@@ -89,7 +97,11 @@ void* kmalloc(uint32_t size) {
  * kmalloc_aligned: Allocate page-aligned memory
  * -------------------------------------------------------------------------- */
 void* kmalloc_aligned(uint32_t size, uint32_t alignment) {
-    /* Over-allocate and adjust pointer */
+    /* Reject sizes whose over-allocation could wrap */
+    if (alignment == 0 || size > HEAP_INITIAL || alignment > HEAP_INITIAL) return NULL;
+
+    /* Over-allocate and adjust pointer. The result may point inside the block;
+     * kfree() accepts any pointer into a live block, so it can be freed. */
     void* ptr = kmalloc(size + alignment);
     if (ptr == NULL) return NULL;
 
@@ -106,6 +118,7 @@ void* kmalloc_aligned(uint32_t size, uint32_t alignment) {
  * kcalloc: Allocate and zero-initialize memory
  * -------------------------------------------------------------------------- */
 void* kcalloc(uint32_t count, uint32_t size) {
+    if (size != 0 && count > 0xFFFFFFFFu / size) return NULL;   /* overflow */
     uint32_t total = count * size;
     void* ptr = kmalloc(total);
     if (ptr != NULL) {
@@ -115,37 +128,39 @@ void* kcalloc(uint32_t count, uint32_t size) {
 }
 
 /* --------------------------------------------------------------------------
- * merge_free: Merge adjacent free blocks
- * -------------------------------------------------------------------------- */
-static void merge_free(void) {
-    block_header_t* current = heap_start;
-    while (current != NULL && current->next != NULL) {
-        if (current->is_free && current->next->is_free) {
-            current->size += HEADER_SIZE + current->next->size;
-            current->next = current->next->next;
-            /* Don't advance — check if we can merge more */
-        } else {
-            current = current->next;
-        }
-    }
-}
-
-/* --------------------------------------------------------------------------
  * kfree: Free previously allocated memory
+ * The block list is address-ordered and contiguous, so walk it to find the
+ * live block whose data area holds ptr: this accepts kmalloc_aligned()'s
+ * mid-block pointers and silently ignores anything else (stray, foreign or
+ * double-freed pointers) instead of trusting a fake header at ptr-HEADER_SIZE.
+ * Neighbouring free blocks are merged in place (no two free blocks are ever
+ * adjacent, so one merge each way suffices).
  * -------------------------------------------------------------------------- */
 void kfree(void* ptr) {
     if (ptr == NULL) return;
 
-    block_header_t* block = (block_header_t*)((uint8_t*)ptr - HEADER_SIZE);
+    uint8_t* p = (uint8_t*)ptr;
+    block_header_t* prev = NULL;
+    block_header_t* block = heap_start;
+    while (block != NULL) {
+        uint8_t* data = (uint8_t*)block + HEADER_SIZE;
+        if (p < data) return;                 /* header / outside the heap */
+        if (p < data + block->size) break;
+        prev = block;
+        block = block->next;
+    }
+    if (block == NULL || block->is_free) return;
 
-    /* Sanity check: is this within heap range? */
-    uint32_t addr = (uint32_t)block;
-    if (addr < HEAP_START || addr >= heap_end) return;
+    total_allocated -= block->size;
+    block->is_free = 1;
 
-    if (!block->is_free) {
-        total_allocated -= block->size;
-        block->is_free = 1;
-        merge_free();
+    if (block->next != NULL && block->next->is_free) {
+        block->size += HEADER_SIZE + block->next->size;
+        block->next = block->next->next;
+    }
+    if (prev != NULL && prev->is_free) {
+        prev->size += HEADER_SIZE + block->size;
+        prev->next = block->next;
     }
 }
 

@@ -18,7 +18,7 @@
  * When ref drops to 0, the page can be freed.
  * -------------------------------------------------------------------------- */
 
-#define MAX_TRACKED_PAGES 4096  /* Track up to 16MB worth of pages */
+#define MAX_TRACKED_PAGES (IDENTITY_MAP_END / PAGE_SIZE)  /* every PMM page (32MB) */
 static uint16_t page_refs[MAX_TRACKED_PAGES];
 
 static int page_to_index(uint32_t phys) {
@@ -215,8 +215,9 @@ uint32_t vmm_fork(void) {
     for (int i = 0; i < 1024; i++) {
         if (!(parent_pd[i] & PAGE_PRESENT)) continue;
 
-        if (i < 4) {
-            /* Kernel pages (first 16MB): share directly, no COW */
+        if (i < IDENTITY_TABLES || !(parent_pd[i] & PAGE_USER)) {
+            /* Kernel identity map (32MB: kernel, heap, .bss, back buffer) and
+             * kernel-only tables (VESA LFB): share directly, no COW */
             child_pd[i] = parent_pd[i];
             continue;
         }
