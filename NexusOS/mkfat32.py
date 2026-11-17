@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """
 mkfat32.py — Create a minimal FAT32 disk image for NexusOS
-Generates a 16MB raw disk image with valid FAT32 structures.
+Generates a 16MB raw disk image with valid FAT32 structures. The FAT32 volume
+covers only LBA 0..NPFS_WINDOW_LBA-1; the rest of the disk is left for NPFS
+(kernel/npfs.h NPFS_WINDOW_LBA), so the two filesystems never overlap.
 """
 import struct, sys, os
 
 SECTOR = 512
 DISK_SIZE = 16 * 1024 * 1024  # 16 MB
-TOTAL_SECTORS = DISK_SIZE // SECTOR
+NPFS_WINDOW_LBA = 20480       # must match NPFS_WINDOW_LBA in kernel/npfs.h
+TOTAL_SECTORS = NPFS_WINDOW_LBA  # FAT32 volume size (ends before NPFS)
+assert TOTAL_SECTORS < DISK_SIZE // SECTOR
 SECTORS_PER_CLUSTER = 8  # 4KB clusters
 RESERVED_SECTORS = 32
 NUM_FATS = 2
@@ -62,7 +66,7 @@ img[0:SECTOR] = bpb
 fsinfo = bytearray(SECTOR)
 struct.pack_into('<I', fsinfo, 0, 0x41615252)      # lead_sig
 struct.pack_into('<I', fsinfo, 484, 0x61417272)     # struc_sig
-struct.pack_into('<I', fsinfo, 488, clusters - 1)    # free_count
+struct.pack_into('<I', fsinfo, 488, clusters - 2)    # free_count (root + README used)
 struct.pack_into('<I', fsinfo, 492, 3)              # next_free
 fsinfo[510] = 0x55
 fsinfo[511] = 0xAA
@@ -121,4 +125,6 @@ img[welcome_offset:welcome_offset+len(welcome_text)] = welcome_text
 with open(out, 'wb') as f:
     f.write(img)
 
-print(f'[OK] Created FAT32 disk image: {out} ({DISK_SIZE // 1024 // 1024} MB, {clusters} clusters)')
+print(f'[OK] Created FAT32 disk image: {out} ({DISK_SIZE // 1024 // 1024} MB disk, '
+      f'FAT32 volume {TOTAL_SECTORS * SECTOR // 1024 // 1024} MB / {clusters} clusters, '
+      f'NPFS window from LBA {NPFS_WINDOW_LBA})')

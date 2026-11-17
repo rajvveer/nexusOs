@@ -25,8 +25,8 @@ void blkdev_init(void) {
 
     /* Auto-register ATA disk if present */
     if (ata_is_present()) {
-        uint32_t sectors = ata_get_size() / BLKDEV_SECTOR_SIZE;
-        blkdev_register("hda", sectors, ata_blk_read, ata_blk_write);
+        /* Sector count straight from ATA: bytes would overflow at 4 GiB. */
+        blkdev_register("hda", ata_get_sectors(), ata_blk_read, ata_blk_write);
     }
 
     vga_print_color("[OK] ", VGA_COLOR(VGA_LIGHT_GREEN, VGA_BLACK));
@@ -45,7 +45,7 @@ int blkdev_register(const char* name, uint32_t sectors,
     strncpy(d->name, name, BLKDEV_NAME_MAX - 1);
     d->sector_size = BLKDEV_SECTOR_SIZE;
     d->sector_count = sectors;
-    d->size_mb = (sectors * BLKDEV_SECTOR_SIZE) / (1024 * 1024);
+    d->size_mb = sectors / ((1024 * 1024) / BLKDEV_SECTOR_SIZE);  /* no overflow */
     d->read = read_fn;
     d->write = write_fn;
     d->active = true;
