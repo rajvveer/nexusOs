@@ -1,0 +1,17 @@
+assert(2^10 == 1024)
+assert(math.abs(math.sin(1) - 0.8414709848078965) < 1e-14)
+print(2^10, math.sin(1))
+local f = assert(io.open('/disk/lua.txt', 'w'))
+assert(f:write('Lua file I/O works\n'))
+assert(f:close())
+f = assert(io.open('/disk/lua.txt', 'r'))
+assert(f:read('*a') == 'Lua file I/O works\n')
+assert(f:close())
+local a = {}
+for i = 1, 10000 do a[i] = tostring(i) end
+assert(#a == 10000 and a[10000] == '10000')
+collectgarbage()
+f = assert(io.open('/disk/lua.ok', 'w'))
+assert(f:write('LUA ALL PASSED\n'))
+assert(f:close())
+print('LUA ALL PASSED')
