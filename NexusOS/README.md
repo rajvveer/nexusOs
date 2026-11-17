@@ -1,10 +1,11 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Architecture-x86_(i386)-blue?style=for-the-badge" alt="x86"/>
+  <img src="https://img.shields.io/badge/Architecture-x86_64_%2B_i386-blue?style=for-the-badge" alt="x86-64 and i386"/>
   <img src="https://img.shields.io/badge/Language-C_&_Assembly-orange?style=for-the-badge" alt="C & ASM"/>
-  <img src="https://img.shields.io/badge/Display-1024×768_32bpp-green?style=for-the-badge" alt="VESA"/>
-  <img src="https://img.shields.io/badge/Kernel-~460KB-red?style=for-the-badge" alt="Kernel"/>
-  <img src="https://img.shields.io/badge/Phase-40_of_51-purple?style=for-the-badge" alt="Phase"/>
+  <img src="https://img.shields.io/badge/Display-1920×1080_32bpp-green?style=for-the-badge" alt="VESA"/>
+  <img src="https://img.shields.io/badge/Kernel-~760KB-red?style=for-the-badge" alt="Kernel"/>
+  <img src="https://img.shields.io/badge/Release-5.1_Aurora-purple?style=for-the-badge" alt="Release"/>
   <img src="https://img.shields.io/badge/Files-130+_source-yellow?style=for-the-badge" alt="Files"/>
+  <a href="../LICENSE"><img src="https://img.shields.io/badge/License-All_Rights_Reserved-critical?style=for-the-badge" alt="License: All Rights Reserved"/></a>
 </p>
 
 <h1 align="center">NexusOS</h1>
@@ -13,11 +14,302 @@
 
 <p align="center"><i>No GRUB. No Linux kernel. No third-party bootloader. Just raw metal.</i></p>
 
+> **© 2026 rajvveer. All rights reserved.** The source is published for viewing only and is **not open source**.
+> Copying, modifying, redistributing, rebranding or launching NexusOS (or any part of it) as your own
+> product is not allowed without written permission. See [LICENSE](../LICENSE).
+
 ---
 
-NexusOS is a bare-metal x86 operating system written in C and x86 Assembly. It boots from a custom 2-stage bootloader, initializes VESA graphics at 1024×768×32bpp, sets up full virtual memory with paging, launches a windowed desktop environment with 30+ built-in applications, provides a complete TCP/IP networking stack with a web browser, implements POSIX/X11 compatibility layers, supports ELF dynamic linking with shared libraries, includes a PE32 loader for Windows executables, ships a package manager with its own `.npk` archive format, CRC32 integrity checking, and recursive dependency resolution, embeds a scripting engine (NexusScript) for OS automation, provides a macOS compatibility shim with a Mach-O loader and a Cocoa/Core Foundation API subset, drives real sound hardware through an Intel AC'97 audio driver with a software mixer and WAV player, decodes BMP/PNG/JPEG/GIF images (with a from-scratch DEFLATE inflater, baseline-JPEG IDCT, and LZW) shown in a fullscreen viewer, and plays Motion-JPEG `.avi` video with synchronized PCM audio through its own RIFF/AVI parser and media player — all in under 1 MB of kernel code running on 16 MB of RAM.
+**Startup and rendering fixes published for `build.bat run`:** DMA disk reads,
+bounded filesystem caching and selective redraws reduce repeated work. On the
+tested 1080p Windows host, the final permanent image opened Chrome's first window
+in **9.20 seconds** and its complete HTTPS page in **13.62 seconds**, down from
+53.63/61.04 seconds. Window dragging measured 16.82 ms median; startup cursor
+samples peaked at 130.89 ms. Loaded-page cursor latency was 33.05 ms median,
+with an observed **311.19 ms spike**, so occasional stutter remains. These include
+capture/polling overhead and are not FPS. Desktop/Chrome automatically use WHPX with a validated
+CPU configuration when Windows reports the required capabilities; otherwise they
+use TCG. Force TCG with `python -I arch/x86_64/build.py desktop --tcg`.
+The two-boot app/Chrome/Hello campaign and data-preserving publication passed;
+the temporary 3 GiB test image was removed. The actual published launcher also
+passed Chrome HTTPS, physical URL/text input, button activation, wheel scrolling,
+return to Aurora and clean shutdown with the snapshot base unchanged. The final
+artifact/preservation audit passed; see [the current handoff](HANDOFF_CODEX.md)
+for its evidence path and measured scope.
+
+**Current workspace default:** `build.bat run` launches the published native x86-64
+Aurora desktop with the original wallpaper, dock, menu bar and fonts. Chrome opens
+from the dock and closes back to the desktop. Native launchers include Files,
+Notes, Terminal, Calculator, Calendar, Paint, Minesweeper, Help and About. The
+original Calculator/Calendar/Paint/Minesweeper source runs in isolated processes.
+Terminal runs native commands without a TTY; existing i386 binaries use the legacy
+environment.
+
+**Native networking (2026-10-19):** the native x86-64 kernel now provides Linux-level
+networking. That covers IPv6 (SLAAC and temporary addresses, NDP, MLDv2, fragments, extension
+headers, stateless DHCPv6) and a DHCPv4 client that renews, rebinds and handles lease expiry.
+Programs get AF_INET6, ping, raw and AF_PACKET sockets (classic BPF and mmap rings), and
+rtnetlink plus `/proc/net` and `/proc/sys/net`. The kernel also has TUN/TAP, WireGuard and an
+nf_tables firewall with connection tracking that Debian's `nft` drives. The Aurora **Network**
+app (Spotlight "Network", or the network item in the menu bar) shows every interface. It sets
+DHCP or a static IPv4 address, the DNS servers and the firewall. The settings are saved in
+`/etc/nexus/network.conf` and applied at every boot.
+`python -I arch/x86_64/nettools_install.py <disk.img>` installs Debian's iproute2, ping,
+tcpdump, nftables, wireguard-tools and net-tools; every package is pinned. All of this was
+tested in QEMU only; see the handoff.
+
+**Networking, wave 2 (2026-10-30):** Chrome, Firefox and Windows programs (Wine) work over
+IPv6, also on IPv6-only networks, with fallback when IPv6 is broken; DNS servers come from router
+advertisements and DHCPv6. The Network app also sets a static IPv6 address and gateway and can
+turn automatic IPv6 off. Multicast works for programs (IGMPv3/MLDv2 source filters), and
+avahi-daemon now runs by default on ext4 installs: `.local` names resolve and network printers
+are found (DNS-SD). nftables gains NAT (masquerade, SNAT, DNAT/port forwarding), sets, maps and
+rate limits, and the system can route between interfaces (`ip_forward`). **Wi-Fi:** the kernel
+has an nl80211 Wi-Fi stack. Debian's wpa_supplicant and hostapd run on it with WPA2-PSK and
+WPA3-SAE, scanning, signal reports and roaming. Testing uses virtual radios
+(`/proc/sys/net/nexus/wifi_sim`), so no hardware is needed; `arch/x86_64/wifi_install.py`
+installs the packages. The Network app has a **Wi-Fi** tab (networks, password, Connect,
+Forget, saved networks that reconnect at boot). A driver for real Wi-Fi cards (the MT7922)
+is not written yet; `arch/x86_64/wifi.h` describes what it must provide. The stack also enumerates through
+`/sys/class/ieee80211`, has monitor mode (radiotap capture with tcpdump), the GCMP and CCMP-256 ciphers
+(WPA3/Wi-Fi 6), and can run a hotspot and a client at once on one adapter. Tested in QEMU only.
+
+`build.bat legacy` preserves the original i386 desktop, its 30+ application
+catalogue, login/accounts, Lua/Kilo and original `disk.img`. The historical feature
+catalogue, architecture tables and screenshots below describe that legacy target
+unless explicitly labelled native x86-64. Both kernels and the bootloader are
+NexusOS; Chrome and upstream application libraries use its native compatibility ABI.
+
+The legacy i386 target is a bare-metal x86 operating system written in C and x86 Assembly. It boots from a custom 2-stage bootloader, drives a native 1920×1080×32bpp framebuffer, sets up paging, and launches **Aurora** — a macOS-style desktop with a translucent menu bar, a magnifying dock, Spotlight, Launchpad and 30+ built-in applications. It provides a complete TCP/IP networking stack with a web browser, implements POSIX/X11 compatibility layers, supports ELF dynamic linking with shared libraries, includes a PE32 loader for Windows executables, ships a package manager with its own `.npk` archive format, CRC32 integrity checking, and recursive dependency resolution, embeds a scripting engine (NexusScript) for OS automation, provides a macOS compatibility shim with a Mach-O loader and a Cocoa/Core Foundation API subset, drives real sound hardware through an Intel AC'97 audio driver with a software mixer and WAV player, decodes BMP/PNG/JPEG/GIF images (with a from-scratch DEFLATE inflater, baseline-JPEG IDCT, and LZW) shown in a fullscreen viewer, and plays Motion-JPEG `.avi` video with synchronized PCM audio through its own RIFF/AVI parser and media player — with a roughly 1 MiB kernel image. It needs at least 40 MiB of RAM; 512 MiB or more is recommended for applications. The first 40 MiB are mapped for the kernel, graphics and browser arenas.
 
 ---
+
+## 🆕 What's new in 5.1 "Aurora"
+
+- **A real Linux distribution underneath (native x86-64, production round).** New installs use an **ext4 root** (`arch/x86_64/sysinstall.py install`; `sysinstall.py migrate` moves a FAT32 desktop disk over, every file kept and compared). The first boot installs the **Debian 13 base with dpkg**; daemons run under the **nexusd** service manager (`nexusctl start|stop|status|enable|logs`, a persistent journal, `dmesg`), with D-Bus, NTP (chrony, `timedatectl`), locales (incl. Hindi) and `sudo` through PAM. **apt** installs, upgrades and removes Debian packages from the signed archive, also from the new **Software** app (search, install/remove, Update all). **Printing** works through CUPS: "Print to PDF" and driverless IPP Everywhere printers, from Chrome, Firefox and LibreOffice. **Core updates** (kernel + Aurora + boot loader) come as signed bundles (`nexus-update apply`) into A/B slots; the UEFI loader rolls back by itself when an update does not boot. Wine now carries **Wine Mono and Wine Gecko**: .NET Framework programs and MSHTML pages run without a download prompt. Details and limits: [HANDOFF_CODEX.md](HANDOFF_CODEX.md).
+- **Linux ABI (wave 2).** POSIX timers on every clock, timerfd, signalfd, pidfd, clone3, waitid(P_PIDFD) and epoll_pwait2 behave as on Linux, and 32-bit system call arguments ignore their register's upper half: Debian's **firefox-esr** installed with apt now runs. **System V IPC** (semaphores, message queues, shared memory, /proc/sysvipc, ipcs/ipcrm, per IPC namespace) serves libdevmapper's udev sync and PostgreSQL; **Landlock** (ABI v4) sandboxes files and TCP ports; util-linux mount uses the **new mount API** (fsopen, open_tree, move_mount, mount_setattr); _ALARM timers wake the machine from sleep. Kernel trace records stay out of dmesg and the journal unless the `kmsg.trace` boot option is given. Details: [HANDOFF_CODEX.md](HANDOFF_CODEX.md).
+- **Upgrade a FAT32 disk to the full system, more service types, signed updates (wave 2).** **System Settings > System Upgrade** turns the FAT32 desktop disk into the full system: choose a password, shut down, and the launcher converts the disk while NexusOS is off (every file copied and compared - documents, browser profiles, Windows programs and settings), then starts the full system; afterwards **Keep the Full System** or **Go Back to the Old Disk** (the old disk stays on the PC until then; `arch/x86_64/migrate_disk.py` does the same by hand). nexusd now runs **socket, timer and path units** (socket activation with `LISTEN_FDS`, calendar timers that catch up after the PC was off, file watches), a **per-user service manager** for every session (`nexusctl --user`) and limits journal floods; it also takes FIFO, netlink and dual-stack IPv6 sockets, honours the links Debian packages leave (their **timers now run**: apt-daily, logrotate, dpkg-db-backup, fstrim; user units such as gnupg's agent sockets), and the kernel has **named pipes** (`mkfifo`). Core updates are signed with the **NexusOS release key** (`update_bundle.py release`); with Secure Boot on, every A/B slot kernel must carry a valid signature before it runs, and FAT32 roots refuse A/B slots. 32-bit Windows programs that probe OpenGL (Notepad++ x86) no longer hang under Wine (fixed Wayland driver, `winewayland_build.py`), and **`.hta` applications run** (NexusOS's own `mshta`, 64- and 32-bit; Wine's is a stub). Tests keep their data where `arch/x86_64/nexus_paths.py` says (environment or `~/.nexusos/paths.json`), never on the installed disk.
+- **Disk streaming downloads.** Browser and `wget` now write bounded chunks to disk; the old 256 KiB download cap is gone. Ctrl+S/the Save arrow saves a whole URL even when the page/image preview is limited. Long filenames, unique default names, progress, cancellation and interrupted-transfer cleanup are supported. Downloads appear in the File Manager at `/disk/Downloads`.
+- **Expandable storage.** The default disk is 1 GiB. `build.bat storage 8192` grows it to 8 GiB with existing files preserved. FAT lives in a partition after the fixed NPFS/persistence region; host migration uses a temporary image and atomic replacement. A 167,683,000-byte official Chrome installer was downloaded by NexusOS over trusted HTTPS and its disk SHA-256 matched the Google-signed reference.
+
+- **Phase 57 integrated: internet + real userland.** TLS 1.3, trusted certificate checks, reliable TCP, `curl`, `wget`, and a graphical HTML/image browser with history, scrolling and downloads. HTTPS rejects unknown certificates by default; `curl -k` and the browser warning page require an explicit override. `build.bat run` uses `-cpu max` so secure random generation is available.
+- **Real programs on disk.** `build.bat apps` builds Picolibc 1.8.12, Lua 5.4.7, Kilo, a small `sh`, file utilities, 2048 and Tetris as static i386 user processes. Programs have isolated address spaces, file descriptors, pipes, spawn/wait, ANSI terminals and saved FPU state. Lua/Kilo/games also launch from Spotlight and App Store.
+- **Reproducible checks.** Network campaign: 33/33 checks; existing server regression: 58/58; userland tests verify actual files written by Lua, Kilo and shell pipelines. See [the current handoff](HANDOFF_CODEX.md) and [userland build/test instructions](userland/README.md).
+
+- **macOS-style desktop.** Translucent top menu bar (NexusOS menu, app menus, Wi-Fi, Spotlight, Control Center, clock), a frosted dock that magnifies under the pointer with name bubbles and running-app dots, Spotlight (`Ctrl+Space`), Launchpad (`F4`), a Cmd+Tab-style app switcher, Notification Center and banner notifications.
+- **New look everywhere.** Big Sur-style procedural app icons, a Sonoma-like dusk wallpaper, rounded windows with soft shadows and hover-glyph traffic lights, anti-aliased UI text (Aurora fonts) and a smooth monospace font for every app, and a macOS dark-mode palette.
+- **Mac-style login and lock screen** with a big clock, user pictures, a pill password field that shakes on a wrong password, and Restart / Shut Down buttons. A boot splash with a real progress bar replaces the scrolling boot log.
+- **Hardened kernel, persistent files, real servers (Phase 55).** The kernel now protects itself: its code and read-only data are mapped read-only (W^X), the NULL page is unmapped, a guard band sits under the kernel stack, and a **crash-containment layer (kguard)** turns a fault inside any built-in app, shell command or desktop frame into a closed window plus a notification instead of a dead OS — even a kernel-stack overflow is caught by a double-fault task gate (`crashtest`). The RAM filesystem is **persistent**: every change is snapshotted to a crash-safe A/B slot on the disk (autosave 2 s after a change and on reboot/shutdown) and restored at boot, user accounts included (`persist`). `vnc` now requires real **RFB VNC Authentication** (DES challenge/response, `vncpasswd`) and `httpd` is a real HTTP file server (`/www` document root, directory listings, `/api/status`, `/fs/<path>` with HTTP Basic auth against the OS accounts, uploads with PUT). A **multi-controller USB stack** replaces the UHCI-only driver: xHCI (USB 3, every modern PC), EHCI (USB 2, with companion hand-off), OHCI and UHCI host controllers behind one HCD abstraction, **hub walking** (devices behind hubs, nested hubs, hot-plug), and a tree view in `usbinfo`.
+- **Isolation, USB, folders, logins (Phase 54).** `runelf` runs ELF/PE/Mach-O programs in their **own ring-3 address space** with int-0x80 syscalls; a faulting program is killed on its own (Segmentation fault) while the OS keeps running, and the scheduler time-slices background user processes. A real **UHCI USB stack** drives USB keyboard, mouse and flash drives (`usbinfo`). The RAM filesystem has **real directories** (`cd`/`mkdir`/`rmdir`/`pwd`/paths). The **rshell and sync** services now require a login against the OS user accounts.
+- **Fixed:** the intermittent boot double fault (~14% of boots), the page allocator handing out heap/stack/.bss pages, a whole-OS freeze when ARP ran inside the timer interrupt, length-overflow bugs in the PNG/AVI/WAV/BMP/JPEG/GIF/ELF/PE/Mach-O parsers, IP/TCP length validation, a uid collision between new users and `guest`, stack overflows in the GUI terminal, editor and registry, `cmd > file` redirection, F1 colliding with `;`, the 1024×768 grid left over after the 1080p switch, and more.
+
+### Native x86-64 Aurora desktop (development)
+
+From `NexusOS/` in this prepared workspace:
+
+```powershell
+.\build.bat run          # Aurora desktop; launch Chrome from its dock
+.\build.bat x64 chrome   # Direct Chrome diagnostic with preserved arguments
+.\build.bat legacy       # Original i386 desktop and original data disk
+```
+
+Normal `run` launches the verified `arch/x86_64/out/desktop64.img` with 2 GiB guest
+RAM and a 3 GiB persistent disk. It does not rebuild or replace that image. Use
+Ctrl+Space for Spotlight, F4/Win for Launchpad, Alt+Tab to switch windows and Alt+F4
+to close one. The Nexus menu shuts down the session. Notes uses Ctrl+S to save;
+unsaved edits require saving or explicit discard before closing.
+
+Aurora drives several monitors (virtio-gpu heads: hot-plug, arrangement, main
+display, mirroring, resolution) and scales each one by 100-400 % (125/150/175 %
+included) in System Settings > Displays; the choice is kept across reboots. Window
+shortcuts: Super+Left/Right tile, Super+Up/Down maximize/restore, Super+W overview
+of 4 workspaces, Super+1..4 switch, Super+D show desktop, drag to an edge to snap.
+Super+L locks the screen; with a password set (System Settings > Users) a greeter
+comes first at boot unless automatic login is on. Keyboard layouts (US, UK, German,
+French, Spanish, Hindi InScript, ...) are chosen in Settings > Keyboard and switched
+with Super+Space; Settings > Accessibility has inverted colours, more contrast, a
+magnifier (Super+= / Super+-), larger text, reduced motion and sticky keys. On an
+ext4 install every account can sign in at the greeter with its own home, runtime
+folder and D-Bus session (menu N > Switch User... / Log Out...; Tab on the lock screen
+switches user); other users' windows and files stay private, and logind
+(org.freedesktop.login1) tells applications about sessions, sleep and inhibitors.
+With `apt install orca` the screen reader starts with Super+Alt+S (or Settings >
+Accessibility) and also reads Aurora's own menu bar, Dock, Spotlight and greeter;
+Ctrl+F2 opens the menu bar and Ctrl+F3 moves into the Dock from the keyboard. With
+`apt install xdg-desktop-portal` sandboxed and portal-aware applications get Aurora's
+file chooser, screenshots (with a permission prompt), dark mode and accent colour
+(Settings > Appearance). Files can be dragged between Wayland applications; the bell
+in the menu bar opens the Notification Centre with Do Not Disturb. With
+`desk_install.py install <disk> --only fonts` Aurora and the applications show
+CJK, Indic, Arabic, Hebrew, Thai, Greek, Cyrillic and other scripts and colour
+emoji. Windows programs minimize to the dock like other windows. Applications using
+Wayland text input get an input method named in `~/.aurora/input-method.conf`
+(`program=/path args`): Aurora starts it and only it may grab the keyboard. X11
+programs (Xwayland installed) are ordinary Aurora windows with Aurora's title bar,
+dock entry, focus, minimize/zoom/close, dialogs above their windows and a shared
+clipboard: start them with `nexus-x11-session --rootless xterm` (or `X11=rootless` in
+a launch file; `export=1` in `~/.aurora/x11.conf` gives every program DISPLAY); the X
+server starts on the first X connection.
+`arch/x86_64/ime_install.py install <disk>` adds fcitx5 from Debian 13 with Pinyin, Anthy
+(Japanese) and Hangul; with `program=/usr/libexec/nexus-fcitx5` they type into GTK
+applications such as Firefox and into Chrome (Ctrl+Shift+F9 switches the engine).
+
+Memory: the native kernel swaps like Linux. `build.bat run` adds a swap file once
+(`/swapfile`, up to 2 GiB, about half the free space, listed in `/etc/fstab`; the kernel
+enables it at boot), so memory-heavy programs page out instead of being killed
+(8 Chrome tabs holding 1.6 GiB in a 2 GiB guest swap ~300 MB and keep their data;
+under heavier pressure Chrome's browser process can still crash, see HANDOFF_CODEX.md).
+`python -I arch\x86_64\build.py desktop --no-swap` boots without it;
+`python -I arch\x86_64\swap_tools.py swapfile <disk> --remove` deletes it for good, and
+`--size MIB [--grow MIB]` makes another (edited in place; stop the VM first). Debian's `swapon`, `swapoff`, `mkswap` and `free`
+can be installed with `swap_tools.py install <disk>`. Without swap, or when swap is
+full, the OOM killer ends the process with the worst Linux badness score
+(`/proc/PID/oom_score`, `oom_score_adj`) and logs it; the system keeps running.
+Hibernation is not part of this.
+
+Actual Google Chrome 155.0.8059.39 has been guest-downloaded, natively installed,
+and verified rendering HTTPS on this kernel. In Chrome Downloads (Ctrl+J), opening
+a supported `.deb` launches the native installer: choose Install, then Run selected.
+Files also opens `.deb` names case-insensitively. Private application bundles are
+supported. On an ext4 installation apt and the Software app install Debian packages with their
+dependencies and maintainer scripts.
+
+Legacy FAT files and readable saved RAMFS data are imported under
+`/home/nexus/Legacy/<source-sha256>/`. Original files, the original legacy disk and
+its accounts remain preserved. Restricted/account snapshot records stay in host
+preservation evidence; legacy permissions are recorded, not silently remapped.
+See [HANDOFF_CODEX.md](HANDOFF_CODEX.md) for exact verification and migration scope.
+
+The native desktop includes no automatic i386 binary compatibility. Its Terminal
+captures native command output without emulating a TTY. The kernel now provides
+Linux seccomp (strict + classic-BPF filters + USER_NOTIF with TSYNC/ESRCH, NEW_LISTENER +
+RECV/SEND/ID_VALID/ADDFD/SET_FLAGS, WAIT_KILLABLE_RECV, FLAG_LOG/SPEC_ALLOW and
+GET_ACTION_AVAIL/GET_NOTIF_SIZES), user/PID/network/IPC namespaces with
+setns(2) - Chrome's chrome://sandbox is all green ("adequately sandboxed") and Firefox's
+content-process sandbox runs at level 6 (seccomp-bpf + namespaces) - full ASLR (PIE/ld/mmap/stack/brk
++ AT_RANDOM, honoring personality and randomize_va_space), SMEP, SMAP on by default (every kernel access
+to user memory goes through STAC/CLAC windows with fault fixups; the `nosmap` boot option disables it),
+UMIP (with SGDT/SIDT/SLDT/SMSW/STR emulation), a boot-time stack canary, W^X, Yama ptrace_scope=1,
+kernel-oops containment (a stray kernel access or a kernel-stack overflow in a syscall kills the task, not the
+system), kernel-pointer hygiene (root-writable kptr_restrict/dmesg_restrict, /proc/kallsyms with addresses gated
+by kptr_restrict + CAP_SYSLOG), kernel lockdown (integrity/confidentiality, from Secure Boot or `lockdown=`,
+exposed at /sys/kernel/security/lockdown), an authorization broker (nexus-polkitd + pkexec, admin password via
+/etc/shadow), and UEFI Secure Boot: the
+firmware verifies the Authenticode-signed loader against the enrolled db certificate and the loader verifies
+KERNEL.BIN (RSA-2048/SHA-256). KASLR (relocation table only, no
+boot-time slide yet), GPU/media coverage and input-method engines (IBus, Mozc; fcitx5 with Pinyin, Anthy and
+Hangul works) remain incomplete. This remains a development OS.
+
+Power management (native x86-64): the NexusOS menu offers Sleep, Hibernate, Restart and Shut Down; the power
+button opens a Shut Down / Restart / Sleep / Cancel dialog (press it again, or wait 60 s, to shut down); laptops
+get a menu-bar battery item with time remaining and a brightness slider. Hibernate needs a hibernation area: an
+MBR partition of type 0xA0 or a preallocated `/nexus/hiber.img`. Linux tools see `/sys/power`, `/sys/class/power_supply`,
+`/sys/class/thermal`, `/sys/class/backlight`, `/sys/devices/system/cpu/cpufreq` and `/dev/rtc0` (rtcwake works).
+Idle CPUs stop their timer tick (tickless idle; `nohz=off` restores the periodic tick). The battery panel offers
+Low Power / Balanced / Performance power modes, and Low Power turns on by itself when the battery runs low (until
+power is connected). Installed systems run a UPower + power-profiles service on D-Bus (desktop apps and Chrome's
+battery API see the battery). Hibernation can also use a swap partition or swap file (`resume=`, `resume_offset=`)
+and is refused in lockdown mode. Closing the lid while a second display is connected does not sleep (the built-in
+panel turns off until the lid opens)
+(`/sys/power/policy/lid_switch_docked`; `lid_switch_external_power` sets the action on AC).
+Tested on QEMU only; real laptops (battery, embedded controller, CPU power states) are unverified.
+
+#### Real PCs (preview, not yet run on real hardware)
+
+The native kernel boots from the UEFI image `arch/x86_64/out/nexus64-uefi.img` (write it to a USB stick in DD mode)
+or BIOS. Without a root disk (SATA, NVMe, or a USB stick made with `build.py usb-image`) it runs its
+self-tests and diagnostics only; the desktop needs the root disk. Hardware support aimed at current desktops:
+
+- **Ethernet:** Intel e1000/e1000e/igb, I217/I218/I219, I225/I226; Realtek RTL8111/8168, RTL8125 (2.5 GbE), RTL8126,
+  RTL8139. Realtek PHY firmware is optional; put it on the root disk with `python -I arch/x86_64/firmware_install.py <disk>`.
+  No Wi-Fi yet (MediaTek MT7922 and others).
+- **Storage:** AHCI SATA and NVMe (AHCI must be selected in the firmware setup; RAID mode is reported).
+- **Sound:** HD Audio analog outputs (e.g. Realtek ALC897 line-out/headphone with jack detection) and HDMI/DisplayPort
+  audio on AMD and NVIDIA graphics; `hda.output=hdmi` or `hda.output=analog` overrides the choice. Microphone and line-in
+  recording (front/rear mic jacks, built-in codec mics; Chrome getUserMedia, `arecord`). **USB audio** (USB Audio
+  Class 1 and 2 headsets, DACs and microphones) appears as a second ALSA card next to HD Audio; Aurora's
+  Settings > Sound picks the default output (newest device, or one you choose) and follows hot-plug.
+- **Webcams:** USB Video Class cameras appear as `/dev/video0` (V4L2, YUYV/NV12 streaming) for Chrome and Firefox
+  (getUserMedia) and other V4L2 programs. The kernel option `vcam` adds a virtual test camera.
+- **Game controllers:** Xbox 360 / One / Series pads (USB), DualShock 4 and DualSense (USB) and generic HID gamepads
+  and joysticks appear as `/dev/input/eventN` + `/dev/input/jsN` with rumble (found through libudev); Chrome's
+  Gamepad API sees them with the standard mapping.
+  `/dev/uinput` lets programs create virtual input devices. The kernel option `vpad` adds a virtual Xbox 360 pad.
+- **CPUs:** many-core PCs whose firmware enables x2APIC mode keep it (the kernel option `x2apic` turns it on,
+  `nox2apic` off).
+- **Bluetooth:** Debian's BlueZ 5.82 (`bluetoothd`, `bluetoothctl`, `btmon`; `arch/x86_64/bluez_install.py`) runs on
+  the kernel's own stack: discovery, pairing (BR/EDR Secure Simple Pairing, LE Secure Connections), L2CAP and RFCOMM
+  sockets, GATT for bluetoothd, USB adapters through the standard HCI-over-USB interface. Not yet: Bluetooth audio
+  (no SCO/ISO), Bluetooth keyboards/mice (no HID host), the MediaTek MT7922's firmware download.
+- **Display:** the firmware framebuffer at the monitor's native resolution (`video=1920x1080` on the loader command line
+  in `EFI\NEXUS\CMDLINE.TXT` picks a mode). There is no GPU driver for AMD or NVIDIA cards: no 3D acceleration, one
+  monitor, CPU-drawn desktop.
+- **Diagnostics:** add `diag` to `CMDLINE.TXT` or hold **D** while the PC starts: `NEXUSDIAG.TXT` (hardware, firmware
+  tables, drivers, kernel log) is written to the boot medium and a summary is shown. Please attach it to bug reports.
+
+### Native x86-64 storage: USB drives, USB boot, file systems, encryption
+
+- **USB drives** (Bulk-Only and UAS, USB 2 and 3) appear as `/dev/sdX`; Aurora mounts them at `/media/nexus/<label>`
+  (FAT, exFAT, ISO 9660; NTFS and ext4 through ntfs-3g/fuse2fs when installed) and Files shows them in its Drives
+  sidebar with Unmount and Eject. Pulling a drive without unmounting is survived (the desktop warns).
+- **Boot from USB:** `python -I arch\x86_64\build.py usb-image nexus-usb.img` makes one stick image for BIOS and UEFI
+  (GPT plus a hybrid MBR that lists the ESP and the active root, so older BIOSes boot it too; `--mbr protective` writes
+  a plain protective MBR); write it with Rufus (DD mode) or `dd`. On the running stick, `nexus-os-install nvme0n1`
+  installs the system onto the internal disk at the next boot (after typing YES on the console);
+  `nexus-os-install --encrypt nvme0n1` puts the root on LUKS2 (Argon2id) and asks for the passphrase twice.
+- **Encrypted root:** a LUKS1/LUKS2 root (`cryptroot=PARTUUID=...` or `rd.luks.uuid=...` with
+  `root=/dev/mapper/cryptroot`, or found by its GPT type) is unlocked before Aurora starts: a passphrase dialog on the
+  framebuffer (console prompt otherwise), PS/2 or USB keyboard in the system's layout (any layout Aurora offers;
+  `vconsole.keymap=de` on the command line, kept up to date at shutdown when the layout is changed in Aurora), 3 tries
+  (`cryptroot.tries=`), then the PC powers off. Hibernation works with an encrypted root: the image goes into the
+  encrypted root (`/nexus/hiber.img`) and is restored after the passphrase at the next start; while other encrypted
+  volumes are open, hibernating to an unencrypted place is refused.
+- **/etc/crypttab:** more LUKS volumes are opened at boot before /etc/fstab mounts them: `name UUID=... none|/etc/keys/k luks,discard,nofail`
+  (keyfiles must be root-owned and not readable by others; also noauto, readonly, tries=).
+- **FAT32 check and repair:** the kernel marks a FAT32 root dirty while it writes and clean at shutdown; after a crash
+  or power loss it checks and repairs the volume at boot (lost clusters, cross-links, bad sizes, broken chains;
+  `fsck.mode=force|skip`, `fsck.repair=no`), and mounts it read-only if repair is impossible.
+  On the host: `python -I userland\fatfsck.py -n|-a disk.img` (like `fsck.fat -n|-a`).
+- **Swap partitions:** `mkswap` partitions in `/etc/fstab` (`UUID=`/`LABEL=`/`/dev/...`, `pri=`, `nofail`) are enabled at
+  boot together with the swap file; swapon/swapoff with priorities and `/proc/swaps` behave as on Linux.
+- **File systems and tools:** mount/umount, `/etc/fstab`, loop devices (`losetup`, `mount -o loop`), exFAT read/write,
+  ISO 9660 (Rock Ridge, Joliet), FUSE (sshfs, ntfs-3g, fuse2fs, user mounts through fusermount3), and Debian's
+  sfdisk, parted, mkfs/fsck for FAT, exFAT and ext4, blkid and lsblk.
+- **Encryption:** device mapper with dm-crypt (AES-XTS, AES-NI or constant-time software AES) and kernel keyrings, so
+  Debian's `cryptsetup` (LUKS2 with Argon2id, LUKS1, plain) and `dmsetup` work: `cryptsetup luksFormat /dev/sdb1`,
+  `cryptsetup open /dev/sdb1 secret`, `mount /dev/mapper/secret /mnt`. AES-NI runs XTS and CBC eight blocks at a
+  time (several GB/s through dm-crypt under QEMU/WHPX; plain64, plain and ESSIV IVs, 512-byte and 4 KiB sectors);
+  `dmsetup suspend/resume` and `cryptsetup luksSuspend/luksResume` (the key is wiped while suspended) work.
+- **LVM and software RAID:** Debian's `lvm2` (linear, striped, snapshot and thin logical volumes; `pvcreate`, `vgcreate`,
+  `lvcreate`, `lvextend`, `lvremove`, `vgchange -ay`, `lvs`) and `mdadm` (RAID0, RAID1 with resync, `--fail`,
+  `--remove`, `--add` with rebuild, `--stop`, `--assemble`, `/proc/mdstat`) work. The root can be on an LV
+  (`root=/dev/vg/root`, also inside an encrypted volume, the usual Debian layout) or on a RAID1 array
+  (`root=/dev/md0`; it boots degraded when a disk is missing and resynchronises after a power cut).
+- **dm-verity:** `veritysetup format/open/verify` work; a block that does not match the hash tree reads as an I/O
+  error (or resets the machine with `--restart-on-corruption`). A verified read-only root comes from
+  `roothash=... systemd.verity_root_data=... systemd.verity_root_hash=...` on the command line (the command line itself
+  is not signed yet, see HANDOFF_CODEX.md).
+- **dm-integrity:** `integritysetup format/open` keep a checksum of every block (crc32c or sha256); a block changed
+  behind its back reads as an I/O error, and the journal keeps blocks whole across a power cut.
+- **More RAID and thin provisioning:** `mdadm` RAID5, RAID6 and RAID10 with degraded operation and rebuilds, and
+  internal write-intent bitmaps (a re-added disk resyncs only what changed; after a power cut only dirty regions
+  resync). LVM thin pools: `lvcreate -T`, over-provisioned thin volumes and snapshots; `thin_check` accepts the
+  metadata; a full pool either fails writes or holds them until `lvextend` gives it room. Mirrored logical volumes
+  (`lvcreate -m 1`) resync, can be checked and repaired, and are rebuilt with `lvconvert --repair` after a disk is
+  lost. More than 16 disks/volumes at once.
+
+### Known limitations
+
+- **Application compatibility:** the legacy i386 desktop uses the NexusOS userland ABI. The native x86-64 desktop runs unmodified Linux programs (Chrome, VS Code, Firefox, LibreOffice) and Windows `.exe`/`.msi` programs, 64-bit and 32-bit, through Wine 10.0 (tested: 7-Zip, Notepad++, PuTTY, SumatraPDF, Inno Setup); .NET Framework programs run on Wine Mono and MSHTML/web views on Wine Gecko (tested: NuGet, KeePass, HTML Help, Internet Explorer pages); macOS `.app` packages are not supported, and Linux/Windows compatibility in general is not established. This remains a development OS.
+- **Legacy i386 browser:** basic HTML and images, no JavaScript engine or modern CSS support. In-memory page/image previews remain bounded; Ctrl+S saves the complete URL to disk. Downloads have no RAM-buffer size cap. Explicit destinations are never silently overwritten; automatic filenames are made unique.
+- **Legacy i386 HTTPS:** TLS 1.3 AES-128-GCM/X25519 only, no TLS 1.2, HelloRetryRequest, OCSP/CRL or independent crypto audit. RDRAND is required; unsupported CPUs fail closed. Use the supplied QEMU command with `-cpu max`.
+- **Legacy i386 userland:** static i386 programs, a small shell (quotes, pipes, redirection, `cd`, `exit`), no fork/exec replacement, job control or full POSIX compatibility. The FAT volume is expandable; RAM snapshots can omit files when their 1.5 MiB slot fills, with an explicit status warning.
+
+- **Legacy i386 process model:** user processes are isolated; built-in apps are contained, not isolated. `runelf`'d programs get their own ring-3 page directory and a page fault in one kills only that process. Built-in apps and the desktop still share the kernel's ring-0 address space; since Phase 55 the kernel image is write-protected and a fault in an app/command/frame is caught by kguard (window closed, OS keeps running), but a fault inside an interrupt handler or during boot is still fatal.
+- **Legacy i386 preemption is user-only.** The scheduler time-slices ring-3 user processes; the kernel/desktop thread is never pre-empted (it yields cooperatively), so lock-free kernel state stays safe.
+- **Legacy i386 USB** is fully polled (no USB interrupts): xHCI/EHCI/OHCI/UHCI controllers, hubs, HID boot-protocol keyboard/mouse and Bulk-Only mass storage. No isochronous transfers (audio/video class devices), no USB 3 SuperSpeed hubs, no report-descriptor parsing (keyboards/mice must speak the boot protocol).
+- **Legacy i386 remote services:** `rshell` (2323), `sync` (7070), `vnc` (5900, RFB DES auth via `vncpasswd`, or `vnc --insecure`) and `httpd` (8080, public `/www` + Basic-auth `/fs/`) all start only when you run them. The transport is plain TCP (no TLS), VNC uses the classic 8-character DES scheme, and httpd is HTTP/1.0 serving one client at a time — fine for a LAN, not for the open internet.
+- **Legacy i386 filesystem:** the RAM-FS has real directories and is persisted to the IDE disk (LBA 26624+, two 1.5 MiB slots, after the NPFS window); RAM files are capped at 256 KiB / 96 nodes, and a CD/ISO boot without a disk runs non-persistently. NPFS remains a separate journaled volume.
 
 ## Table of Contents
 
@@ -33,10 +325,51 @@ NexusOS is a bare-metal x86 operating system written in C and x86 Assembly. It b
 - [Boot Flow](#-boot-flow)
 - [Roadmap](#-roadmap)
 - [Growth Projection](#-growth-projection)
+- [License](#-license)
 
 ---
 
 ## 📸 Screenshots
+
+<p align="center">
+  <img src="screenshots/aurora-desktop.png" width="85%" alt="NexusOS Aurora desktop"/>
+  <br>
+  <sub><b>Aurora</b> (1920×1080) — menu bar, magnifying dock, rounded windows and the dusk-hills wallpaper</sub>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/aurora-login.png" alt="Login"/><br><sub><b>Login window</b></sub></td>
+    <td width="50%" align="center"><img src="screenshots/aurora-windows.png" alt="Windows"/><br><sub><b>Terminal, Finder and About This NexusOS</b></sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/aurora-launchpad.png" alt="Launchpad"/><br><sub><b>Launchpad</b> (<code>F4</code>)</sub></td>
+    <td width="50%" align="center"><img src="screenshots/aurora-spotlight.png" alt="Spotlight"/><br><sub><b>Spotlight</b> (<code>Ctrl+Space</code>)</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/aurora-menu.png" alt="NexusOS menu"/><br><sub><b>NexusOS menu</b> and Notification Center</sub></td>
+    <td width="50%" align="center"><img src="screenshots/aurora-console.png" alt="Console"/><br><sub><b>Console</b> (<code>F12</code>) — the text shell in a Terminal window</sub></td>
+  </tr>
+</table>
+
+**Phase 55 — hardened kernel, persistent files, real servers, full USB stack**
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/phase55-crash-contained.png" alt="App crash contained"/><br><sub><b>Crash containment:</b> a built-in app dereferences NULL - the window closes, a notification explains, the desktop keeps running</sub></td>
+    <td width="50%" align="center"><img src="screenshots/phase55-crashtest.png" alt="crashtest"/><br><sub><b><code>crashtest</code>:</b> NULL read, kernel-stack overflow (double fault) and a write into kernel code - all recovered at the shell</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/phase55-persist.png" alt="persist status"/><br><sub><b>Persistent RAM-FS:</b> files, folders, a new user and a deleted built-in all back after a reboot (<code>persist status</code>)</sub></td>
+    <td width="50%" align="center"><img src="screenshots/phase55-vnc-auth.png" alt="VNC auth"/><br><sub><b>VNC authentication:</b> DES self-test, <code>vncpasswd</code>, RFB challenge/response with lockout</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="screenshots/phase55-usb-xhci-hub.png" alt="xHCI hub"/><br><sub><b>xHCI</b> with a hub: SuperSpeed stick, keyboard and mouse behind the hub (<code>usbinfo</code> tree)</sub></td>
+    <td width="50%" align="center"><img src="screenshots/phase55-usb-ehci-companion.png" alt="EHCI companion"/><br><sub><b>EHCI + UHCI companion:</b> the high-speed stick stays on EHCI, the full-speed hub is handed to the companion</sub></td>
+  </tr>
+</table>
+
+<details><summary>Earlier builds (pre-Aurora)</summary>
 
 <p align="center">
   <img src="screenshots/desktop.png" width="85%" alt="NexusOS desktop environment"/>
@@ -116,33 +449,25 @@ NexusOS is a bare-metal x86 operating system written in C and x86 Assembly. It b
   </tr>
 </table>
 
+</details>
+
 ---
 
 ## ✨ Feature Highlights
 
-### 🖥️ Desktop Environment
-- **VESA VBE 2.0 Graphics** — 1024×768 resolution, 32-bit color depth, linear framebuffer, double-buffered rendering
-- **Window Manager** — Up to 8 overlapping windows with pixel-perfect borders, rounded corners (6px radius), drop shadows (4px), gradient titlebars
-- **Window Controls** — Drag, resize (8 directions), minimize, maximize, restore, close with animations
-- **Window Snapping** — Snap windows to left/right half of screen
-- **Desktop Shell** — Login screen with animated splash, desktop icons, high-res wallpapers (BMP), right-click context menus, notification toasts
-- **Taskbar** — App launcher, running window list, system tray with clock, lock button, notification center
-- **Start Menu** — Categorized app launcher with keyboard navigation
-- **Application Dock** — Quick-launch dock bar
-- **Command Palette** — Quick command search (Ctrl+P)
-- **Window Switcher** — Alt+Tab style cycling through open windows
-- **Virtual Workspaces** — 4 virtual desktops (Ctrl+F5 through Ctrl+F8)
-- **Screensaver** — Auto-activating after 60 seconds of idle
-- **Lock Screen** — Secure lock with password prompt
-- **Notification Center** — Scrollable notification history
-- **Clipboard Manager** — Clipboard history with paste support (Ctrl+V)
-- **System Logger** — Persistent activity log
-- **Power Menu** — Shutdown, restart, lock options
-- **4 Themes** — Dark (cyan/black), Light (blue/white), Retro (green/black), Ocean (blue tones)
-- **Theme Engine** — Full color palette system with appearance settings
-- **Keyboard Shortcuts Overlay** — F1 to view all shortcuts
-- **Widget System** — Desktop widgets toggle (Ctrl+I)
-- **Custom Cursor** — 18×12 pixel cursor bitmap rendered in VESA mode
+### 🖥️ Desktop Environment (Aurora)
+- **Native 1080p** — 1920×1080×32bpp linear framebuffer, 32bpp back buffer with dirty-rect presents, VirtIO-GPU scanout when available
+- **Menu bar** — NexusOS menu (About, System Settings, Force Quit, Sleep/Restart/Shut Down, Lock Screen, Exit to Console), the active app's name and File/Edit/View/Go/Window/Help menus, plus Wi-Fi, Spotlight, Control Center and the clock
+- **Dock** — frosted shelf with magnification, name bubbles, running-app dots and the Trash; clicking a running app brings its window forward
+- **Spotlight** (`Ctrl+Space`) — finds apps and system actions as you type
+- **Launchpad** (`F4`) — full-screen grid of every app
+- **Windows** — up to 8 overlapping windows: rounded corners, soft shadows, traffic lights with hover glyphs, drag, resize from the sides and corners, zoom (double-click the title bar), minimize, tile left/right
+- **App switcher** (`Tab`/`F3`), **Notification Center** (click the clock), banner notifications, right-click desktop menu, keyboard-shortcuts sheet (`F1`)
+- **Login & lock screen** — big clock, user pictures, password field with shake feedback, Restart / Shut Down
+- **Boot splash** — logo and progress bar driven by the kernel's real init steps
+- **Typography** — anti-aliased proportional UI fonts and an anti-aliased monospace cell font (generated by `gen_uifont.py`)
+- **Virtual workspaces** (`Ctrl+F5`…`F8`), widgets (`Ctrl+I`), clipboard history, system log, screensaver after 5 minutes idle
+- **Themes** — macOS dark palette by default; Light, Retro, Ocean and High-Contrast themes remain for the classic cell apps
 
 ### 🌐 Networking Stack
 - **RTL8139 NIC Driver** — PCI-based Ethernet driver with full TX/RX, MAC addressing, link status, packet statistics
@@ -262,7 +587,7 @@ NexusOS is a bare-metal x86 operating system written in C and x86 Assembly. It b
 - **IDT** — Interrupt Descriptor Table with 256 entries, CPU exception handlers (ISR 0–31), hardware interrupt stubs (IRQ 0–15)
 - **PIC** — 8259 Programmable Interrupt Controller, remapped to IRQ 32–47
 - **Timer** — IRQ0 at ~18.2 Hz driving system tick counter, scheduler, status bar updates
-- **Physical Memory Manager** — Bitmap-based page allocator for 4 KB pages across 16 MB RAM
+- **Physical Memory Manager** — Bitmap page allocator (4 KB pages); detects installed RAM via CMOS and allocates from the 40 MiB identity-mapped window, with the kernel, heap, stack, .bss and frame buffers reserved
 - **Paging** — Page directory + page tables, identity-mapped kernel, VESA framebuffer mapping
 - **Heap Allocator** — `kmalloc`/`kfree` with free-list management, block splitting/coalescing
 - **Virtual Memory Manager** — Copy-on-Write `fork()`, shared memory between processes, memory-mapped files
@@ -270,7 +595,9 @@ NexusOS is a bare-metal x86 operating system written in C and x86 Assembly. It b
 - **RAM Filesystem** — In-memory filesystem for runtime file storage
 - **FAT32** — Read/write FAT32 on ATA disk, directory hierarchy, long filename support
 - **Process Manager** — Process creation/termination, PID tracking, state machine (UNUSED→READY→RUNNING→BLOCKED→TERMINATED)
-- **Round-Robin Scheduler** — Preemptive scheduling via timer interrupt, context switch in assembly
+- **Round-Robin Scheduler** — Enabled for ring-3 user processes (assembly context switch, per-process CR3); the kernel/desktop thread stays cooperative so lock-free kernel state is safe
+- **Kernel self-protection (Phase 55)** — W^X kernel image (read-only .text/.rodata via CR0.WP), unmapped NULL page, 16 KB kernel-stack guard band, and `kguard`: setjmp/longjmp-style crash containment for shell commands, desktop frames and every app draw/key/click callback, with a double-fault task gate (own TSS) that even recovers from a kernel-stack overflow
+- **Persistent RAM-FS (Phase 55)** — crash-safe A/B snapshot slots on the IDE disk (CRC32-checked header + payload, generation counter), built-in/dirty tracking with tombstones for deleted built-ins, debounced autosave, flush on reboot/shutdown, user-account table persisted as `/etc/passwd.db`
 - **System Calls** — INT 0x80 interface for userspace→kernel transitions
 - **Pipes** — Inter-process communication with read/write endpoints
 - **PCI Bus** — Enumeration of PCI devices, vendor/device ID matching, BAR reading
@@ -278,9 +605,7 @@ NexusOS is a bare-metal x86 operating system written in C and x86 Assembly. It b
 - **ATA Disk Driver** — PIO-mode ATA disk read/write
 - **Block Device Layer** — Abstract block device interface
 - **Disk Partitioning** — MBR partition table parsing
-- **USB Stack** — UHCI/OHCI host controller, device enumeration
-- **USB HID** — Keyboard and mouse over USB
-- **USB Mass Storage** — Flash drive support
+- **USB** — Polled host-controller stack with one HCD abstraction: xHCI, EHCI (companion hand-off), OHCI and UHCI drivers, hub class driver (nested hubs, hot-plug), descriptor-driven enumeration, HID keyboard/mouse (boot protocol) injected into the input path, and Bulk-Only mass storage registered as a block device (`usb0`)
 - **Real-Time Clock** — CMOS RTC read, time/date formatting
 - **PC Speaker** — Boot sound, beep tones
 - **Keyboard Driver** — PS/2 keyboard with IRQ1, scancode translation, modifier keys, arrow key history navigation
@@ -527,58 +852,52 @@ NexusOS is a bare-metal x86 operating system written in C and x86 Assembly. It b
 
 ### Keyboard Shortcuts
 
+This table and the feature/theme catalogue below describe `build.bat legacy`.
+Native x64 shortcuts are listed in the native Aurora section above.
+
 | Shortcut | Action |
 |---|---|
-| `Esc` | Exit desktop, return to text shell |
-| `Tab` | Open window switcher (cycle windows) |
-| `Ctrl+P` | Open command palette |
-| `Ctrl+Q` | Open power menu (shutdown/restart/lock) |
-| `Ctrl+A` | Open About NexusOS window |
-| `Ctrl+T` | Open Terminal window |
-| `Ctrl+M` | Toggle Start Menu |
-| `Ctrl+F` | Open File Manager |
-| `Ctrl+K` | Open Calculator |
-| `Ctrl+S` | Open System Monitor |
-| `Ctrl+N` | Toggle Notification Center |
+| `Ctrl+Space` (or `Win+Space`, `Ctrl+P`) | Spotlight |
+| `F4` / `Ctrl+M` | Launchpad |
+| `Tab` / `F3` | App switcher |
+| `F1` | Keyboard shortcuts sheet |
+| `F2` | Tips (help) |
+| `F12` | Exit to Console (text shell) |
+| `Ctrl+A` | About This NexusOS |
+| `Ctrl+T` | Terminal |
+| `Ctrl+F` | Finder (file manager) |
+| `Ctrl+K` | Calculator |
+| `Ctrl+S` | Activity Monitor |
+| `Ctrl+B` | Notes |
+| `Ctrl+G` | Task Manager |
+| `Ctrl+D` | Calendar |
+| `Ctrl+N` | Notification Center |
 | `Ctrl+L` | Lock screen |
-| `Ctrl+B` | Open Notepad |
-| `Ctrl+G` | Open Task Manager |
-| `Ctrl+D` | Open Calendar |
 | `Ctrl+I` | Toggle desktop widgets |
-| `Ctrl+W` | Close focused window |
+| `Ctrl+W` / `Ctrl+Q` | Close the focused window |
 | `Ctrl+V` | Paste from clipboard |
-| `F1` | Show keyboard shortcuts overlay |
-| `F2` | Open Help Center |
-| `Ctrl+F5` | Switch to Desktop 1 |
-| `Ctrl+F6` | Switch to Desktop 2 |
-| `Ctrl+F7` | Switch to Desktop 3 |
-| `Ctrl+F8` | Switch to Desktop 4 |
-| `Ctrl+←` | Snap focused window to left half |
-| `Ctrl+→` | Snap focused window to right half |
-| `Ctrl+↑` | Maximize focused window |
-| `Ctrl+↓` | Restore focused window |
-| Right-click | Open context menu (on desktop) |
-| Click icon | Launch application |
+| `Ctrl+←` / `Ctrl+→` | Tile the focused window left / right |
+| `Ctrl+↑` / `Ctrl+↓` | Zoom / restore the focused window |
+| `Ctrl+F5`…`Ctrl+F8` | Switch to desktop 1–4 |
+| `Esc` | Close the open menu / overlay |
+| Right-click desktop | Context menu |
+| Double-click title bar | Zoom |
 
 ### Desktop Features
 
 | Feature | Details |
 |---|---|
-| **Login Screen** | Animated splash with username/password authentication |
-| **Desktop Icons** | Clickable app shortcuts with labels, keyboard navigation |
-| **Right-Click Menu** | New File, Refresh, Theme Cycle, About, Settings |
-| **Notifications** | Auto-dismiss toast notifications at top-right |
-| **Notification Center** | Scrollable history of all notifications |
-| **Settings App** | Theme, System, and About tabs |
-| **Lock Screen** | Secure password-protected lock |
-| **Screensaver** | Auto-activates after 60 seconds idle |
+| **Menu bar** | NexusOS menu, app menus, status items, clock; menus slide across like macOS |
+| **Dock** | Magnification, name bubbles, running dots, Trash |
+| **Spotlight / Launchpad** | Search or browse every app and system action |
+| **Login / Lock Screen** | Aurora login window with real password checks |
+| **Notifications** | Banners under the menu bar; history in Notification Center |
+| **Right-Click Menu** | New File, Get Info, Change Appearance, System Settings, Refresh |
 | **Virtual Workspaces** | 4 independent desktops |
-| **Window Switcher** | Tab-cycle through windows with preview |
-| **Command Palette** | Quick search for actions/apps |
-| **Application Dock** | Pinned app launcher bar |
+| **App Switcher** | Icons of open windows, Tab to cycle |
 | **Clipboard Manager** | History of copied text |
-| **System Logger** | Tracks all app opens and system events |
-| **Power Menu** | Shutdown (ACPI), restart, lock screen |
+| **System Logger** | Tracks app opens and system events |
+| **Power** | Sleep, Restart, Shut Down (ACPI) from the NexusOS menu or the login window |
 
 ### Themes
 
@@ -591,7 +910,11 @@ NexusOS is a bare-metal x86 operating system written in C and x86 Assembly. It b
 
 ### Terminal Window (Desktop)
 
-The desktop includes an embedded GUI terminal with its own command set:
+The legacy i386 desktop includes an embedded GUI terminal with its own command set.
+Native x64 Terminal runs native processes and basic commands (`pwd`, `cd`, `echo`,
+`ls`, `cat`); it does not supply this kernel-command catalogue or a TTY.
+
+Legacy commands:
 - `help` / `help net` / `help srv` / `help dl` / `help x11` — Category-specific help
 - All network commands: `ifconfig`, `ping`, `netstat`, `arp`, `dns`, `wget`, `browse`
 - All server commands: `dhcp`, `ntp`, `httpd`, `rshell`
@@ -608,9 +931,9 @@ The desktop includes an embedded GUI terminal with its own command set:
 |---|---|
 | **CPU** | x86 (i386), 32-bit Protected Mode, ring-0 kernel / ring-3 userspace |
 | **Bootloader** | Custom 2-stage: Stage 1 MBR (512 bytes @ 0x7C00) → Stage 2 (VESA + Protected Mode) |
-| **Display** | VESA VBE 2.0 — 1024×768, 32bpp, linear framebuffer with double buffering; VirtIO-GPU zero-copy scanout when present |
+| **Display** | VESA VBE 2.0 — 1920×1080, 32bpp, linear framebuffer with a 32bpp back buffer and dirty-rect presents; VirtIO-GPU scanout when present; Aurora compositor (macui/menubar/dock/spotlight) |
 | **Input** | PS/2 Keyboard (IRQ1) + PS/2 Mouse (IRQ12) |
-| **Memory** | Bitmap PMM (4 KB pages, 16 MB) → Paging → Heap (kmalloc) → VMM (CoW, shmem, mmap) |
+| **Memory** | Bitmap PMM (4 KB pages, 40 MiB identity window, CMOS RAM detection) → Paging → Heap (kmalloc) → VMM (CoW, shmem, mmap) |
 | **Filesystem** | VFS → RAM filesystem + FAT32 on ATA disk + procfs |
 | **Networking** | RTL8139 NIC → Ethernet → ARP → IPv4 → ICMP/UDP/TCP → Socket API → DNS/HTTP |
 | **Process Model** | ELF32 loader, round-robin scheduler, POSIX signals, pipes, IPC, context switch (ASM) |
@@ -619,7 +942,7 @@ The desktop includes an embedded GUI terminal with its own command set:
 | **Audio** | Intel AC'97 (82801AA) bus-master PCM-out → software mixer (8 voices, resampling, volume) → WAV player |
 | **Images** | Magic-byte detect → BMP / PNG (inflate+filters) / JPEG (baseline IDCT) / GIF (LZW, animated) → ARGB → fullscreen viewer |
 | **Video** | RIFF/AVI parse → Motion-JPEG frame decode → framebuffer render + AC'97 PCM, paced off the audio clock |
-| **Disk Image** | Floppy `.img` (1.44 MB) + Hard disk image (16 MB FAT32) |
+| **Disk Image** | Floppy `.img` (1.44 MB) + growable hard disk image (1 GiB default, FAT32 partition) |
 
 ---
 
@@ -652,7 +975,7 @@ NexusOS/
 │   ├── syscall.c/h              # INT 0x80 system call interface
 │   │
 │   │  ═══ MEMORY MANAGEMENT ══════════════════════════════════════════════
-│   ├── memory.c/h               # Physical page allocator (bitmap, 4 KB pages, 16 MB)
+│   ├── memory.c/h               # Physical page allocator (bitmap, 4 KB pages, 40 MiB window)
 │   ├── paging.c/h               # Page directory/tables, identity mapping, VESA FB mapping
 │   ├── heap.c/h                 # Kernel heap (kmalloc/kfree, free-list, split/coalesce)
 │   ├── vmm.c/h                  # Virtual memory manager (CoW fork, shared memory, mmap)
@@ -665,7 +988,7 @@ NexusOS/
 │   │
 │   │  ═══ PROCESS MANAGEMENT ═════════════════════════════════════════════
 │   ├── process.c/h              # Process create/terminate, PID, state machine
-│   ├── scheduler.c/h            # Round-robin preemptive scheduler
+│   ├── scheduler.c/h            # Round-robin scheduler (present, disabled)
 │   ├── switch.asm               # Context switch (save/restore registers)
 │   ├── elf.c/h                  # ELF32 binary loader (ring-3 userspace)
 │   ├── dynlink.c/h              # Dynamic linker (.so, dlopen/dlsym/dlclose, symbol resolution)
@@ -709,9 +1032,12 @@ NexusOS/
 │   ├── speaker.c/h              # PC speaker (tone generation, boot sound)
 │   ├── pci.c/h                  # PCI bus enumeration (vendor/device ID, BAR, IRQ)
 │   ├── ata.c/h                  # ATA disk driver (PIO mode read/write)
-│   ├── usb.c/h                  # USB host controller (UHCI/OHCI, device enumeration)
-│   ├── usb_hid.c/h              # USB HID driver (keyboard/mouse)
-│   ├── usb_storage.c/h          # USB mass storage driver (flash drives)
+│   ├── usb.c/h                  # UHCI host controller + enumeration + transfers
+│   ├── usb_hid.c/h              # USB HID boot keyboard/mouse
+│   ├── usb_storage.c            # USB Bulk-Only mass storage (blkdev usb0)
+│   ├── uproc.c/h                # User processes: per-AS isolation, ring 3, scheduling
+│   ├── usb_hid.c/h              # USB HID driver stub
+│   ├── usb_storage.c/h          # USB mass storage stub
 │   ├── driver.c/h               # Driver framework (init/probe/remove, IRQ routing)
 │   ├── blkdev.c/h               # Block device abstraction layer
 │   ├── partition.c/h            # MBR partition table parsing
@@ -733,13 +1059,17 @@ NexusOS/
 │   ├── html.c/h                 # HTML parser (tags, attributes, text extraction)
 │   │
 │   │  ═══ GRAPHICS & GUI ═════════════════════════════════════════════════
-│   ├── gui.c/h                  # GUI core (128×48 char cells on 1024×768 framebuffer)
+│   ├── gui.c/h                  # GUI cell grid (240×67 cells at 1080p, sized at runtime)
+│   ├── macui.c/h                # Aurora toolkit: AA text & shapes, shadows, wallpaper, icons, splash
+│   ├── menubar.c/h              # macOS-style menu bar and dropdown menus
+│   ├── spotlight.c/h            # Spotlight search and Launchpad
+│   ├── uifont.h                 # Generated UI/cell fonts + pointer (gen_uifont.py)
 │   ├── framebuffer.c/h          # VESA framebuffer driver (pixel plotting, flip, dimensions)
 │   ├── gfx.c/h                  # Graphics primitives (lines, rects, circles, gradients, shadows)
 │   ├── font.c/h                 # Font rendering engine (8×8, 8×16 bitmap fonts, scaling)
 │   ├── font8x8.h                # 8×8 bitmap font data (CP437 character set)
 │   ├── ui_widgets.c/h           # Widget toolkit (buttons, checkboxes, sliders, scrollbars, text inputs)
-│   ├── window.c/h               # Window manager (8 windows, drag, resize, minimize, maximize, snap, z-order, animations)
+│   ├── window.c/h               # Window manager (8 windows, macOS chrome, drag, edge resize, zoom, minimize, tile, z-order)
 │   ├── desktop.c/h              # Desktop compositor (main loop, event dispatch, rendering pipeline)
 │   ├── taskbar.c/h              # Taskbar (start button, window list, system tray, clock)
 │   ├── start_menu.c/h           # Start menu (categorized app launcher, keyboard navigation)
@@ -826,19 +1156,36 @@ NexusOS/
 | **NASM** | x86 assembler (compile `.asm` files) |
 | **i686-elf-gcc** | Cross-compiler (GCC targeting i386-elf, no hosted libc) |
 | **i686-elf-ld** | Cross-linker |
-| **QEMU** | x86 system emulator (`qemu-system-i386`) |
+| **QEMU** | `qemu-system-x86_64` for native Aurora; `qemu-system-i386` for legacy |
 | **Python 3** | For `mkfat32.py` and `img2wallpaper.py` build tools |
 
 ### Build Commands
 
+The prepared native image is required by `run`; missing/unpublished images fail
+explicitly. Native source builds use `build.bat x64 build` and
+`python -I arch/x86_64/aurora.py build`, followed by verified publication. Stop any
+VM using those artifacts before rebuilding. The Makefile targets below remain i386.
+
 ```bash
-# Windows — Build the kernel and create disk image
+# Windows - Build the legacy i386 kernel/boot image
 build.bat
 
-# Windows — Build and launch in QEMU immediately
+# Build/install legacy i386 Lua, Kilo, shell, file tools and games
+build.bat apps
+
+# Launch the published native Aurora desktop (no rebuild)
 build.bat run
 
-# Windows — Clean all build artifacts (.o, .bin, .img)
+# Build and launch the original i386 desktop/data disk
+build.bat legacy
+
+# Launch the preserved direct Chrome session
+build.bat x64 chrome
+# (run/debug use `-display sdl`: QEMU's GTK backend on Windows repaints the 1080p
+#  window at only 2-4 fps, which looks like mouse lag; SDL is smooth. If you launch
+#  QEMU by hand, add -display sdl.)
+
+# Windows - Clean legacy build outputs; preserve data disks
 build.bat clean
 
 # Linux / macOS — Build
@@ -851,10 +1198,32 @@ make run
 make clean
 ```
 
-### QEMU Launch (Manual)
+### Downloads and storage (legacy i386)
+
+These commands target original `disk.img` and `/disk` paths. Native Chrome
+downloads use `/home/nexus/Downloads` on `arch/x86_64/out/desktop64.img`;
+`build.bat storage` does not target the native disk.
+
+```text
+wget https://dl.google.com/chrome/install/standalonesetup64.exe
+wget https://example.com "/disk/Downloads/example.html"
+```
+
+Use the browser's Save arrow or Ctrl+S to save any current HTTP(S) URL. Open Downloads
+shows the files; Esc/Cancel removes a partial transfer. Saving does not install or
+make a Windows/Linux/macOS program compatible with NexusOS.
+
+To enlarge the virtual disk, stop QEMU and run `build.bat storage 8192` (MiB).
+Existing files and the fixed persistence region are preserved. Enough host free
+space is needed for the actual data. The current ATA driver supports up to 128 GiB;
+[FAT32's native per-file bound](https://learn.microsoft.com/en-us/windows/win32/fileio/filesystem-functionality-comparison)
+is 4 GiB minus one byte. Removing the old RAM download cap does not remove these
+filesystem/hardware bounds.
+
+### QEMU Launch (Manual, legacy i386)
 
 ```bash
-qemu-system-i386 -fda nexus.img -hda disk.img -m 16M -rtc base=localtime \
+qemu-system-i386 -cpu max -fda nexus.img -hda disk.img -m 512M -display sdl \
   -vga none -device virtio-vga \
   -device rtl8139,netdev=net0 -netdev user,id=net0 -serial file:serial.log
 ```
@@ -871,7 +1240,7 @@ qemu-system-i386 -fda nexus.img -hda disk.img -m 16M -rtc base=localtime \
 ┌──────┐    ┌──────────────────┐    ┌──────────────────────┐    ┌──────────────────┐
 │ BIOS │───▶│ boot.asm         │───▶│ boot2.asm            │───▶│ kernel_entry.asm │
 │      │    │ Stage 1 (512B)   │    │ Stage 2              │    │ ASM → C bridge   │
-│      │    │ Load Stage 2     │    │ Set VESA 1024×768    │    │ Call kernel_main │
+│      │    │ Load Stage 2     │    │ Set VESA 1920×1080   │    │ Call kernel_main │
 │      │    │ via INT 0x13     │    │ Load kernel to 0x1000│    │                  │
 │      │    │ @ 0x7C00         │    │ Enter Protected Mode │    │                  │
 └──────┘    └──────────────────┘    └──────────────────────┘    └────────┬─────────┘
@@ -887,9 +1256,9 @@ qemu-system-i386 -fda nexus.img -hda disk.img -m 16M -rtc base=localtime \
 ├── 5.  Timer (IRQ0, ~18.2 Hz tick counter)
 ├── 6.  Keyboard (IRQ1, PS/2 scancode handler)
 ├── 7.  Mouse (IRQ12, PS/2 mouse handler)
-├── 8.  Physical Memory Manager (bitmap, 16 MB)
+├── 8.  Physical Memory Manager (bitmap, CMOS RAM detection)
 ├── 9.  Paging (page directory + tables)
-├── 10. VESA Framebuffer (1024×768×32bpp via Bochs VBE)
+├── 10. VESA Framebuffer (1920×1080×32bpp) + Aurora boot splash
 ├── 11. Heap Allocator (kmalloc/kfree)
 ├── 12. VFS + RAM Filesystem
 ├── 13. ATA Disk Driver + FAT32
@@ -897,7 +1266,7 @@ qemu-system-i386 -fda nexus.img -hda disk.img -m 16M -rtc base=localtime \
 ├── 15. System Calls (INT 0x80)
 ├── 16. ELF Loader + VMM (CoW fork) + Pipes + Env
 ├── 17. PCI Bus + Driver Framework + Block Devices + Partitions
-├── 18. USB Stack (UHCI/OHCI + HID + Storage)
+├── 18. USB controller detection (stub)
 ├── 19. Network (RTL8139 + ARP + IP + ICMP + UDP + TCP + Sockets)
 ├── 20. DNS + HTTP Client + Browser
 ├── 21. DHCP + NTP + HTTP Server + Remote Shell
@@ -1029,6 +1398,25 @@ qemu-system-i386 -fda nexus.img -hda disk.img -m 16M -rtc base=localtime \
 | 38–42 | 60 | 420 | 900 KB | **Current ⭐ (Phases 38–40 done)** — Sound (AC'97), images, video (MJPEG) — Doom runs |
 | 43–48 | 65 | 480 | 950 KB | Security, cloud sync, multi-core |
 | 49–51 | 70+ | 500+ | < 1 MB | 🌍 **App store, ISO installer, world domination** |
+
+---
+
+## 📜 License
+
+**NexusOS Proprietary License — All Rights Reserved.** Copyright © 2026 [rajvveer](https://github.com/rajvveer).
+
+NexusOS is **source-available, not open source**. You may view the code on GitHub and read it for private study.
+Without written permission from the copyright holder you may **not**:
+
+- copy, mirror, modify or create derivative works of NexusOS;
+- redistribute, publish, sell or sublicense it;
+- use it in or as any product, service, OS distribution or website;
+- rebrand it, present it as your own work, or launch it under another name;
+- remove copyright or author notices, or use the NexusOS name, logo or screenshots to promote anything.
+
+For permissions or commercial licensing, contact [rajvveer on GitHub](https://github.com/rajvveer).
+Third-party components (uACPI, Lua, kilo, Picolibc, the Aileron font, Realtek firmware, Wayland protocol files and
+the certifi root certificates) keep their own licenses; the full terms and the list are in [LICENSE](../LICENSE).
 
 ---
 

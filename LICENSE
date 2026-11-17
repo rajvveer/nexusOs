@@ -1,0 +1,97 @@
+NexusOS Proprietary License (All Rights Reserved)
+
+Copyright (c) 2026 rajvveer (https://github.com/rajvveer). All rights reserved.
+
+This repository and everything in it, including the NexusOS name and logo, source
+code, assembly, build scripts, tests, documentation, screenshots, artwork and any
+binaries or disk images built from them (together, the "Software"), belongs only to
+the copyright holder. The only exceptions are the third-party components listed at
+the end of this file.
+
+The source code is published for viewing only. It is not open source. Making it
+visible on GitHub does not give anyone permission to use it.
+
+1. What you may do
+
+   a. View the Software on GitHub, and use GitHub's "fork" feature only to the
+      extent that GitHub's Terms of Service require for public repositories.
+   b. Read the Software for your own private study.
+
+2. What you may not do without prior written permission from the copyright holder
+
+   a. Copy, reproduce or mirror the Software or any part of it, except as
+      allowed in section 1.
+   b. Modify, translate or adapt the Software, or create derivative works of it.
+   c. Distribute, publish, sublicense, sell, rent or lease the Software or any
+      derivative work, or make it available to others in any other way.
+   d. Use the Software or any part of it in or as a product, service, operating
+      system, distribution, website or commercial offering.
+   e. Rebrand the Software, present it or any part of it as your own work, or
+      release or launch it under another name.
+   f. Remove, hide or change any copyright, author or license notice.
+   g. Use the NexusOS name, logo or screenshots to promote any product or project.
+
+3. No other rights
+
+   This license grants no patent, trademark or other rights beyond section 1.
+   Downloading or cloning the Software does not give you any right to use it
+   beyond section 1.
+
+4. Contributions
+
+   If you submit an issue, patch or pull request, you give the copyright holder
+   a perpetual, worldwide, royalty-free and irrevocable right to use, modify and
+   relicense your contribution as part of the Software. Contributing does not
+   give you any rights in the Software.
+
+5. Permissions and commercial licensing
+
+   To ask for any permission not granted above, including a commercial license,
+   contact the copyright holder through https://github.com/rajvveer. A permission
+   counts only if the copyright holder gives it in writing.
+
+6. Termination and enforcement
+
+   Any use that breaks these terms immediately ends any permission you had.
+   Infringement may be pursued under copyright law, including takedown notices
+   (such as DMCA notices) and claims for damages.
+
+7. No warranty
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+   IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+-------------------------------------------------------------------------------
+Third-party components
+-------------------------------------------------------------------------------
+
+The components below were written by others. They are NOT covered by the terms
+above. They stay under their own licenses, which are kept next to them, and you
+may use them under those licenses. Copies of these components elsewhere in the
+repository, for example under NexusOS/handoff/, are covered in the same way.
+
+- uACPI: NexusOS/arch/x86_64/uacpi/
+  MIT License, Copyright (c) 2022-2026 Daniil Tatianin (see uacpi/LICENSE).
+- Lua 5.4.7: NexusOS/userland/vendor/lua-5.4.7/
+  MIT License, Copyright (C) 1994-2024 Lua.org, PUC-Rio.
+- kilo: NexusOS/userland/vendor/kilo.c
+  BSD 2-Clause License, Copyright (C) 2016 Salvatore Sanfilippo.
+- Picolibc: downloaded at build time by NexusOS/userland/build.py
+  BSD-style licenses, see NexusOS/userland/licenses/Picolibc.txt.
+- Aileron Regular font: NexusOS/arch/x86_64/fonts/Aileron-Regular.ttf, and the
+  bitmap font generated from it in NexusOS/kernel/uifont.h
+  CC0 1.0 (public domain), by Sora Sagano.
+- Realtek network firmware: NexusOS/arch/x86_64/firmware/rtl_nic/
+  Realtek redistribution license, see NexusOS/arch/x86_64/firmware/LICENSE.r8169.
+- Wayland protocol definitions: NexusOS/arch/x86_64/protocols/*.xml
+  MIT-style licenses stated in each file.
+- TLS root certificates in NexusOS/kernel/roots.h
+  Generated from certifi (Mozilla CA certificate data, MPL-2.0).
+- Software that NexusOS downloads during installation (for example Debian
+  packages, Google Chrome, Firefox, LibreOffice, VS Code and Wine, pinned in
+  the *-lock.json files) is not part of this repository. It stays under its
+  own licenses.
