@@ -194,10 +194,10 @@ static void mouse_callback(struct registers* regs) {
  * -------------------------------------------------------------------------- */
 void mouse_init(void) {
     /* Start cursor at center of screen */
-    state.x = GUI_WIDTH / 2;
-    state.y = GUI_HEIGHT / 2;
-    state.px = state.x * 8;
-    state.py = state.y * 16;
+    state.px = fb_is_vesa() ? (int)fb_get_width() / 2 : 512;
+    state.py = fb_is_vesa() ? (int)fb_get_height() / 2 : 384;
+    state.x = state.px / 8;
+    state.y = state.py / 16;
     state.buttons = 0;
     state.moved = false;
     state.clicked = false;

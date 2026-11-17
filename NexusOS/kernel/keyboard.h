@@ -29,6 +29,28 @@
 #define KEY_LEFT       0x4B
 #define KEY_RIGHT      0x4D
 
+/* Translated codes for non-ASCII keys (values >= 0x80 in the key buffer).
+ * Arrows 0x80-0x83 (up, down, left, right); Ctrl+arrows 0x84-0x87;
+ * Ctrl+F5..F8 0x88-0x8B; F1..F12 0x90-0x9B. */
+#define KEYC_UP         0x80
+#define KEYC_DOWN       0x81
+#define KEYC_LEFT       0x82
+#define KEYC_RIGHT      0x83
+#define KEYC_SNAP_LEFT  0x84
+#define KEYC_SNAP_RIGHT 0x85
+#define KEYC_MAXIMIZE   0x86
+#define KEYC_RESTORE    0x87
+#define KEYC_DESKTOP(n) (0x88 + (n))      /* n = 0..3 */
+#define KEYC_F(n)       (0x8F + (n))      /* n = 1..12 */
+#define KEYC_SPOTLIGHT  0x9C              /* Ctrl+Space or Win+Space */
+#define KEYC_DELETE     0x7F
+/* Phase 57 apps: editing keys (delivered to user programs as VT100 sequences) */
+#define KEYC_HOME       0x9D
+#define KEYC_END        0x9E
+#define KEYC_PGUP       0x9F
+#define KEYC_PGDN       0xA0
+#define KEYC_INSERT     0xA1
+
 /* Raw scancode hook (Phase 42 gaming) — sees every make/break code before
  * ASCII translation. `ext` = E0-prefixed. Return true to consume the key
  * (it is then NOT translated into the character buffer). Runs in IRQ1
@@ -59,5 +81,6 @@ void keyboard_inject_char(char c);
  * text prompt. Pass NULL to clear. Keep the hook short and non-blocking. */
 typedef void (*keyboard_idle_hook_t)(void);
 void keyboard_set_idle_hook(keyboard_idle_hook_t hook);
+keyboard_idle_hook_t keyboard_get_idle_hook(void);   /* Phase 57 apps */
 
 #endif /* KEYBOARD_H */

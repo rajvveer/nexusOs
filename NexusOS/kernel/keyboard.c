@@ -46,6 +46,7 @@ static volatile int buffer_tail = 0;
 static bool shift_pressed = false;
 static bool caps_lock = false;
 static bool ctrl_pressed = false;
+static bool super_pressed = false; /* Windows/Command key */
 static bool e0_prefix = false;  /* Extended scancode prefix (0xE0) */
 
 /* Raw scancode observer (Phase 42 gaming framework) */
@@ -110,16 +111,26 @@ static void keyboard_callback(struct registers* regs) {
 
     /* Handle extended (E0-prefixed) scancodes */
     if (ext) {
-        /* Ignore extended key releases */
-        if (scancode & 0x80) return;
-        if (consumed) return;
+        uint8_t code = scancode & 0x7F;
+        bool release = (scancode & 0x80) != 0;
+        /* Right Ctrl and the Windows keys keep modifier state */
+        if (code == KEY_LCTRL) { ctrl_pressed = !release; return; }
+        if (code == 0x5B || code == 0x5C) { super_pressed = !release; return; }
+        if (release || consumed) return;
 
-        /* Extended key presses: arrow keys */
-        switch (scancode) {
-            case KEY_UP:    buffer_put((char)0x80); return;
-            case KEY_DOWN:  buffer_put((char)0x81); return;
-            case KEY_LEFT:  buffer_put((char)0x82); return;
-            case KEY_RIGHT: buffer_put((char)0x83); return;
+        /* Extended key presses: arrows (Ctrl+arrow drives window snapping) */
+        switch (code) {
+            case KEY_UP:    buffer_put((char)(ctrl_pressed ? KEYC_MAXIMIZE : KEYC_UP)); return;
+            case KEY_DOWN:  buffer_put((char)(ctrl_pressed ? KEYC_RESTORE : KEYC_DOWN)); return;
+            case KEY_LEFT:  buffer_put((char)(ctrl_pressed ? KEYC_SNAP_LEFT : KEYC_LEFT)); return;
+            case KEY_RIGHT: buffer_put((char)(ctrl_pressed ? KEYC_SNAP_RIGHT : KEYC_RIGHT)); return;
+            case 0x53:      buffer_put((char)KEYC_DELETE); return;
+            /* Phase 57 apps: editing keys for user programs (kilo, sh) */
+            case 0x47:      buffer_put((char)KEYC_HOME); return;
+            case 0x4F:      buffer_put((char)KEYC_END); return;
+            case 0x49:      buffer_put((char)KEYC_PGUP); return;
+            case 0x51:      buffer_put((char)KEYC_PGDN); return;
+            case 0x52:      buffer_put((char)KEYC_INSERT); return;
             default: return;  /* Ignore other extended keys */
         }
     }
@@ -161,6 +172,12 @@ static void keyboard_callback(struct registers* regs) {
     /* A game has claimed the keyboard — skip character translation */
     if (consumed) return;
 
+    /* Ctrl+Space / Win+Space: Spotlight */
+    if ((ctrl_pressed || super_pressed) && scancode == 0x39) {
+        buffer_put((char)KEYC_SPOTLIGHT);
+        return;
+    }
+
     /* Ctrl+key combos (Ctrl+A=1, Ctrl+Q=17, Ctrl+S=19, etc.) */
     if (ctrl_pressed && scancode < sizeof(scancode_ascii)) {
         char c = scancode_ascii[scancode];
@@ -170,9 +187,12 @@ static void keyboard_callback(struct registers* regs) {
         }
     }
 
-    /* Function keys F1-F4 (scancodes 0x3B-0x3E) */
-    if (scancode >= 0x3B && scancode <= 0x3E) {
-        buffer_put((char)scancode);  /* Pass raw scancode */
+    /* Function keys get their own codes so they can't collide with ASCII
+     * (F1's scancode 0x3B is also ';'). Ctrl+F5..F8 switch desktops. */
+    if ((scancode >= 0x3B && scancode <= 0x44) || scancode == 0x57 || scancode == 0x58) {
+        int n = scancode <= 0x44 ? scancode - 0x3B + 1 : scancode - 0x57 + 11;
+        if (ctrl_pressed && n >= 5 && n <= 8) buffer_put((char)KEYC_DESKTOP(n - 5));
+        else buffer_put((char)KEYC_F(n));
         return;
     }
 
@@ -227,6 +247,12 @@ static keyboard_idle_hook_t idle_hook = NULL;
 
 void keyboard_set_idle_hook(keyboard_idle_hook_t hook) {
     idle_hook = hook;
+}
+
+/* Phase 57 apps: the user-program wait loop pumps the same servers the shell
+ * does while it waits, without knowing which hook the shell installed. */
+keyboard_idle_hook_t keyboard_get_idle_hook(void) {
+    return idle_hook;
 }
 
 char keyboard_getchar(void) {
