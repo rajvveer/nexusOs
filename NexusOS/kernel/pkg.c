@@ -423,9 +423,16 @@ static int extract_and_register(const uint8_t* buf) {
     for (int i = 0; i < h->file_count; i++) {
         const char* fname = files[i].name;
 
-        /* Reuse an existing node, otherwise create one. */
-        fs_node_t* node = vfs_finddir(root, fname);
-        if (!node) node = ramfs_create(fname, FS_FILE);
+        /* Never adopt a pre-existing file: it isn't ours, so overwriting it
+         * (without truncation) would corrupt it, and a later remove/rollback
+         * would delete the user's data. Only files created here are tracked. */
+        fs_node_t* node = NULL;
+        if (vfs_finddir(root, fname)) {
+            prc("    [error] ", VGA_COLOR(VGA_LIGHT_RED, VGA_BLACK));
+            pr(fname); pr(" already exists; not overwriting\n");
+        } else {
+            node = ramfs_create(fname, FS_FILE);
+        }
         if (!node) {
             /* Roll back the files we created for this package. */
             for (int j = 0; j < inst->file_count; j++)
