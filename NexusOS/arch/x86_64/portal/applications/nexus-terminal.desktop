@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Terminal
+Comment=Aurora terminal
+Exec=/bin/aurora-app terminal
+Icon=utilities-terminal
+Categories=System;TerminalEmulator;
+Terminal=false

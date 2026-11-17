@@ -1,0 +1,6 @@
+[
+ {"name": "input-method-unstable-v2.xml", "url": "https://gitlab.freedesktop.org/wlroots/wlroots/-/raw/0.18.2/protocol/input-method-unstable-v2.xml",
+  "bytes": 21354, "sha256": "99414dbad9458e71aa1fa01bc45f94ca6685787bfcb4d98948f72c1b45b60703", "license": "MIT (see the file's copyright block)"},
+ {"name": "virtual-keyboard-unstable-v1.xml", "url": "https://gitlab.freedesktop.org/wlroots/wlroots/-/raw/0.18.2/protocol/virtual-keyboard-unstable-v1.xml",
+  "bytes": 4886, "sha256": "7ad7870003ecd592cae47dc19d277a609b7f18fd7b7be012623cf3225a7294f5", "license": "MIT (see the file's copyright block)"}
+]

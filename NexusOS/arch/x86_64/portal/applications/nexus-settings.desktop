@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=System Settings
+Exec=/bin/aurora-app settings
+Icon=preferences-system
+Categories=Settings;
+Terminal=false

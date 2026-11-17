@@ -1,0 +1,10 @@
+# NexusOS: Aurora's applications as the handlers of their types (/usr/share/applications/mimeapps.list; there is no
+# mimeinfo.cache without Debian's desktop-file-utils). The desktop portal's OpenURI/OpenFile and xdg-open use it; the
+# users' own choices (~/.config/mimeapps.list) win.
+[Default Applications]
+text/plain=nexus-notes.desktop
+inode/directory=nexus-files.desktop
+
+[Added Associations]
+text/plain=nexus-notes.desktop;
+inode/directory=nexus-files.desktop;

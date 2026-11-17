@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Notes
+Comment=Aurora text editor
+Exec=/bin/aurora-app notes %f
+Icon=accessories-text-editor
+MimeType=text/plain;
+Categories=Utility;TextEditor;
+Terminal=false
