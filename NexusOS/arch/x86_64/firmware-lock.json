@@ -1,0 +1,172 @@
+{
+  "comment": "NIC/Wi-Fi/Bluetooth firmware pinned for the native drivers (netdrv.c netdrv_firmware_pins must match). Installed with arch/x86_64/firmware_install.py; the kernel reads /lib/firmware/<name> then /usr/lib/firmware/<name>.",
+  "linux_firmware_tag": "20260916",
+  "licenses": [
+    {
+      "name": "LICENSE.r8169",
+      "url": "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/LICENSES/LICENSE.r8169?h=20260916",
+      "bytes": 219,
+      "sha256": "f9689ba2640d61e7b4527ad84cbfa6a9f0ec11484e2c9f6b5500197e22c27ecd",
+      "in_tree": "arch/x86_64/firmware/LICENSE.r8169"
+    }
+  ],
+  "files": [
+    {
+      "name": "rtl_nic/rtl8125a-3.fw",
+      "driver": "rtl8169.c",
+      "source": "linux-firmware 20260916",
+      "url": "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtl_nic/rtl8125a-3.fw?h=20260916",
+      "bytes": 3456,
+      "sha256": "3f6c328af0ceff5969c729edf0f535e8bb2a9b9e05d15b6be3199a3e6d421b99",
+      "license": "LICENSE.r8169 (redistributable, notice must accompany)",
+      "in_tree": "arch/x86_64/firmware/rtl_nic/rtl8125a-3.fw",
+      "install": "usr/lib/firmware/rtl_nic/rtl8125a-3.fw"
+    },
+    {
+      "name": "rtl_nic/rtl8125b-2.fw",
+      "driver": "rtl8169.c",
+      "source": "linux-firmware 20260916",
+      "url": "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtl_nic/rtl8125b-2.fw?h=20260916",
+      "bytes": 3328,
+      "sha256": "529bf1c25c97ff52b401090d00ff89cc22351012336e5a0c9662728a3ee909ef",
+      "license": "LICENSE.r8169 (redistributable, notice must accompany)",
+      "in_tree": "arch/x86_64/firmware/rtl_nic/rtl8125b-2.fw",
+      "install": "usr/lib/firmware/rtl_nic/rtl8125b-2.fw"
+    },
+    {
+      "name": "rtl_nic/rtl8125d-1.fw",
+      "driver": "rtl8169.c",
+      "source": "linux-firmware 20260916",
+      "url": "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtl_nic/rtl8125d-1.fw?h=20260916",
+      "bytes": 17168,
+      "sha256": "bc3c82939f02df2f58a17e7354096375001a80a5c1ca3f459c555d5a7d42bf1b",
+      "license": "LICENSE.r8169 (redistributable, notice must accompany)",
+      "in_tree": "arch/x86_64/firmware/rtl_nic/rtl8125d-1.fw",
+      "install": "usr/lib/firmware/rtl_nic/rtl8125d-1.fw"
+    },
+    {
+      "name": "rtl_nic/rtl8125d-2.fw",
+      "driver": "rtl8169.c",
+      "source": "linux-firmware 20260916",
+      "url": "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtl_nic/rtl8125d-2.fw?h=20260916",
+      "bytes": 6800,
+      "sha256": "c1cb0d358ca985b0d45584612143fd93613d567064702e265bfb370e99c90e35",
+      "license": "LICENSE.r8169 (redistributable, notice must accompany)",
+      "in_tree": "arch/x86_64/firmware/rtl_nic/rtl8125d-2.fw",
+      "install": "usr/lib/firmware/rtl_nic/rtl8125d-2.fw"
+    },
+    {
+      "name": "rtl_nic/rtl8126a-2.fw",
+      "driver": "rtl8169.c",
+      "source": "linux-firmware 20260916",
+      "url": "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtl_nic/rtl8126a-2.fw?h=20260916",
+      "bytes": 29248,
+      "sha256": "2ffa201aa7dec5e3726e268a10342b175ae8de4fa9f39f535bbbbf5cb8245879",
+      "license": "LICENSE.r8169 (redistributable, notice must accompany)",
+      "in_tree": "arch/x86_64/firmware/rtl_nic/rtl8126a-2.fw",
+      "install": "usr/lib/firmware/rtl_nic/rtl8126a-2.fw"
+    },
+    {
+      "name": "rtl_nic/rtl8126a-3.fw",
+      "driver": "rtl8169.c",
+      "source": "linux-firmware 20260916",
+      "url": "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtl_nic/rtl8126a-3.fw?h=20260916",
+      "bytes": 13232,
+      "sha256": "18ffaf3b873d217bf780503a80f04fe2b03c088ba2d0c2a3d626145cb8e53b26",
+      "license": "LICENSE.r8169 (redistributable, notice must accompany)",
+      "in_tree": "arch/x86_64/firmware/rtl_nic/rtl8126a-3.fw",
+      "install": "usr/lib/firmware/rtl_nic/rtl8126a-3.fw"
+    },
+    {
+      "name": "rtl_nic/rtl8168fp-3.fw",
+      "driver": "rtl8169.c",
+      "source": "linux-firmware 20260916",
+      "url": "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtl_nic/rtl8168fp-3.fw?h=20260916",
+      "bytes": 336,
+      "sha256": "c526c06aa0ab8d9b57ba2b730bb1e40a1c3513f8591e238dceb2e0f45210ed27",
+      "license": "LICENSE.r8169 (redistributable, notice must accompany)",
+      "in_tree": "arch/x86_64/firmware/rtl_nic/rtl8168fp-3.fw",
+      "install": "usr/lib/firmware/rtl_nic/rtl8168fp-3.fw"
+    },
+    {
+      "name": "rtl_nic/rtl8168g-2.fw",
+      "driver": "rtl8169.c",
+      "source": "linux-firmware 20260916",
+      "url": "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtl_nic/rtl8168g-2.fw?h=20260916",
+      "bytes": 4896,
+      "sha256": "f878ec719f78e0b104bc73362a9862611858bec893f58a1b3b289a0a57d71d25",
+      "license": "LICENSE.r8169 (redistributable, notice must accompany)",
+      "in_tree": "arch/x86_64/firmware/rtl_nic/rtl8168g-2.fw",
+      "install": "usr/lib/firmware/rtl_nic/rtl8168g-2.fw"
+    },
+    {
+      "name": "rtl_nic/rtl8168g-3.fw",
+      "driver": "rtl8169.c",
+      "source": "linux-firmware 20260916",
+      "url": "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtl_nic/rtl8168g-3.fw?h=20260916",
+      "bytes": 832,
+      "sha256": "e4d5e62b0a5a097af34c7aa3c55f634fd5be2c232e02c6b983ebd7e699cb27e9",
+      "license": "LICENSE.r8169 (redistributable, notice must accompany)",
+      "in_tree": "arch/x86_64/firmware/rtl_nic/rtl8168g-3.fw",
+      "install": "usr/lib/firmware/rtl_nic/rtl8168g-3.fw"
+    },
+    {
+      "name": "rtl_nic/rtl8168h-2.fw",
+      "driver": "rtl8169.c",
+      "source": "linux-firmware 20260916",
+      "url": "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtl_nic/rtl8168h-2.fw?h=20260916",
+      "bytes": 976,
+      "sha256": "0b4beab008e308f28296c13188ee23edfeff7d865e398a7ade170495c8cec7e6",
+      "license": "LICENSE.r8169 (redistributable, notice must accompany)",
+      "in_tree": "arch/x86_64/firmware/rtl_nic/rtl8168h-2.fw",
+      "install": "usr/lib/firmware/rtl_nic/rtl8168h-2.fw"
+    }
+  ],
+  "inventory_comment": "MediaTek MT7922 (PCI 14c3:0616 Wi-Fi, USB 0e8d:0616/13d3:* Bluetooth): firmware inventory for a future driver. NOT installed and NOT in the tree: there is no MT7922 driver yet (arch/x86_64/mt7922fw.c only validates the image layout; tests/test_mt7922fw.py --firmware DIR checks these pins). linux-firmware WHENCE: \"Licence: Redistributable. See LICENCE.mediatek for details.\"",
+  "inventory_licenses": [
+    {
+      "name": "LICENCE.mediatek",
+      "url": "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/LICENCE.mediatek?h=20260916",
+      "bytes": 561,
+      "sha256": "a90d3f66704d85889945fec5525ea77622549da83aced1aac99828383f8f1805"
+    }
+  ],
+  "inventory": [
+    {
+      "name": "mediatek/WIFI_MT7922_patch_mcu_1_1_hdr.bin",
+      "driver": "future mt7922 Wi-Fi",
+      "version": "20260724143257a",
+      "purpose": "ROM patch for the WM MCU (loaded first)",
+      "source": "linux-firmware 20260916",
+      "url": "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/mediatek/WIFI_MT7922_patch_mcu_1_1_hdr.bin?h=20260916",
+      "bytes": 137632,
+      "sha256": "7fc9075d6d54b31e0539734614ca971fa52caf41b642a3000c8a4501591a4d98",
+      "license": "LICENCE.mediatek (redistributable)",
+      "install": null
+    },
+    {
+      "name": "mediatek/WIFI_RAM_CODE_MT7922_1.bin",
+      "driver": "future mt7922 Wi-Fi",
+      "version": "20260724143402",
+      "purpose": "WM MCU RAM code",
+      "source": "linux-firmware 20260916",
+      "url": "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/mediatek/WIFI_RAM_CODE_MT7922_1.bin?h=20260916",
+      "bytes": 1231252,
+      "sha256": "d100e5e04c324fc8da6302112d1e0b4fac952286447d2419eabcd8fb0a1f5b93",
+      "license": "LICENCE.mediatek (redistributable)",
+      "install": null
+    },
+    {
+      "name": "mediatek/BT_RAM_CODE_MT7922_1_1_hdr.bin",
+      "driver": "future btmtk-style USB Bluetooth",
+      "version": "20260724143815",
+      "purpose": "Bluetooth controller firmware (over USB)",
+      "source": "linux-firmware 20260916",
+      "url": "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/mediatek/BT_RAM_CODE_MT7922_1_1_hdr.bin?h=20260916",
+      "bytes": 517398,
+      "sha256": "299942dbec7d34af030670ea59f9f7b4fd5c64e738b9e0157d76f4dd3beb190f",
+      "license": "LICENCE.mediatek (redistributable)",
+      "install": null
+    }
+  ]
+}

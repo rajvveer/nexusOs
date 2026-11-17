@@ -1,0 +1,2483 @@
+{
+ "format": 1,
+ "generated": "2026-10-30T01:43:25Z",
+ "suites": {
+  "trixie": {
+   "inrelease_sha256": "0584fba32e13e0ab8285fb16c27adea1ec03a73669c18702821094fd6ca86675",
+   "packages_xz_sha256": "7778d3e3f303b7ddb8ce0fe7c8d57473a076c6bf2e8f241f75421d2396352498",
+   "date": "Sat, 12 Sep 2026 07:55:41 UTC",
+   "signed_by": [
+    "Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>",
+    "Debian Stable Release Key (13/trixie) <debian-release@lists.debian.org>"
+   ]
+  },
+  "trixie-updates": {
+   "inrelease_sha256": "b710d5b7119bfae1ef61813b9428d5b7560501defd3123185efddbe26c80f6b2",
+   "packages_xz_sha256": "235fb859490d45c1490bc69836bd2607c9a8557b629ebc33bab1008edb6e9e6d",
+   "date": "Thu, 29 Oct 2026 20:22:16 UTC",
+   "signed_by": [
+    "Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>"
+   ]
+  },
+  "trixie-security": {
+   "inrelease_sha256": "227f74aa47dd38f82d03c8016f35d66621dff14bc65714760d42aa6aa94bd9d3",
+   "packages_xz_sha256": "7a15c5fa1bbde13b5b4d57154d5314a3305d96069002b22726cc7b95eb621be0",
+   "date": "Thu, 29 Oct 2026 21:33:12 UTC",
+   "signed_by": [
+    "Debian Security Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Security Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>"
+   ]
+  }
+ },
+ "keyring": {
+  "name": "debian-archive-keyring",
+  "version": "2025.1",
+  "sha256": "9ea7778e443144ca490668737a8ab22dd3e748bb99e805e22ec055abeb3c7fac",
+  "url": "https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2025.1_all.deb",
+  "bytes": 179244
+ },
+ "roots": [
+  "dash",
+  "coreutils",
+  "grep",
+  "sed",
+  "diffutils",
+  "util-linux",
+  "mount",
+  "fdisk",
+  "parted",
+  "e2fsprogs",
+  "dosfstools",
+  "exfatprogs",
+  "fuse3",
+  "fuse2fs",
+  "ntfs-3g",
+  "sshfs",
+  "openssh-sftp-server",
+  "cryptsetup-bin",
+  "dmsetup",
+  "xorriso",
+  "keyutils",
+  "findutils",
+  "lvm2",
+  "thin-provisioning-tools",
+  "mdadm"
+ ],
+ "skipped": {
+  "adduser": {
+   "reason": "maintainer scripts only",
+   "required_by": [
+    "fuse3"
+   ]
+  },
+  "debconf": {
+   "reason": "package configuration: maintainer scripts are not run",
+   "required_by": [
+    "mdadm"
+   ]
+  },
+  "init-system-helpers": {
+   "reason": "init scripts",
+   "required_by": [
+    "openssh-client"
+   ]
+  },
+  "libpam-modules": {
+   "reason": "PAM modules for su/login (util-linux): not used by the storage tools",
+   "required_by": [
+    "util-linux"
+   ]
+  },
+  "libpam-runtime": {
+   "reason": "PAM configuration: not used",
+   "required_by": [
+    "util-linux"
+   ]
+  },
+  "passwd": {
+   "reason": "maintainer scripts only",
+   "required_by": [
+    "openssh-client"
+   ]
+  }
+ },
+ "packages": [
+  {
+   "name": "coreutils",
+   "version": "9.7-3",
+   "url": "https://deb.debian.org/debian/pool/main/c/coreutils/coreutils_9.7-3_amd64.deb",
+   "sha256": "1299ab6f9389a288eb2f5f3dd222c26cc777b9a2d5ecb6ee4cbd340cebcdada2",
+   "bytes": 3023556,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/coreutils_9.7-3_amd64.deb",
+   "licenses": [
+    "BSD-4-clause-UC",
+    "FSFULLR",
+    "GFDL-NIV-1.3",
+    "GPL-3+",
+    "GPL-3+ and BSD-4-clause-UC",
+    "GPL-3+ and ISC",
+    "ISC"
+   ]
+  },
+  {
+   "name": "cryptsetup-bin",
+   "version": "2:2.7.5-2",
+   "url": "https://deb.debian.org/debian/pool/main/c/cryptsetup/cryptsetup-bin_2.7.5-2_amd64.deb",
+   "sha256": "b77b192cf1c35f96da02134300bb227ab92c49eec2444268049fa1ce84fb9bc7",
+   "bytes": 503628,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/cryptsetup-bin_2.7.5-2_amd64.deb",
+   "licenses": [
+    "Apache-2.0",
+    "CC-BY-SA-4.0",
+    "CC0",
+    "CC0 or Apache-2.0",
+    "GPL-2+",
+    "GPL-2+ with OpenSSL exception",
+    "GPL-3+",
+    "LGPL-2.1+",
+    "LGPL-2.1+ with OpenSSL exception",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "dash",
+   "version": "0.5.12-12",
+   "url": "https://deb.debian.org/debian/pool/main/d/dash/dash_0.5.12-12_amd64.deb",
+   "sha256": "a8902cb6d8650134764a25fb80aec8589d858ef71ece1680a62e84816c37bb04",
+   "bytes": 98504,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/dash_0.5.12-12_amd64.deb",
+   "licenses": [
+    "BSD-3-Clause",
+    "BSD-3-clause",
+    "GPL-2+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "debianutils",
+   "version": "5.23.2",
+   "url": "https://deb.debian.org/debian/pool/main/d/debianutils/debianutils_5.23.2_amd64.deb",
+   "sha256": "720e43fda316676076498b4224ad3318049deafe60cc7c601011048de03ee97d",
+   "bytes": 92360,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/debianutils_5.23.2_amd64.deb",
+   "licenses": [
+    "GPL-2+",
+    "SMAIL-GPL",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "diffutils",
+   "version": "1:3.10-4",
+   "url": "https://deb.debian.org/debian/pool/main/d/diffutils/diffutils_3.10-4_amd64.deb",
+   "sha256": "d3412669f7ae53ba895c3a509620ea7494ec1a36faa204c5215442ced381a479",
+   "bytes": 386504,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/diffutils_3.10-4_amd64.deb",
+   "licenses": [
+    "FSFAP",
+    "FSFULLR",
+    "GFDL-NIV-1.3",
+    "GPL-2+",
+    "GPL-3+",
+    "GPL-3+ and FSFULLR",
+    "GPL-3+ with autoconf exception",
+    "GPL-3+ with texinfo exception",
+    "LGPL-2.0+",
+    "LGPL-2.1+",
+    "LGPL-3.0+",
+    "LGPL-3.0+ or GPL-2+",
+    "X11",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "dmeventd",
+   "version": "2:1.02.205-2",
+   "url": "https://deb.debian.org/debian/pool/main/l/lvm2/dmeventd_1.02.205-2_amd64.deb",
+   "sha256": "51420462b13fb95b88f084580c8f7f4482b4f59fcc60bd7ad883c6789d61fbcf",
+   "bytes": 62400,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/dmeventd_1.02.205-2_amd64.deb",
+   "licenses": [
+    "BSD-2-Clause",
+    "GPL-2.0",
+    "GPL-2.0+",
+    "LGPL-2.1"
+   ]
+  },
+  {
+   "name": "dmidecode",
+   "version": "3.6-2",
+   "url": "https://deb.debian.org/debian/pool/main/d/dmidecode/dmidecode_3.6-2_amd64.deb",
+   "sha256": "6ad5a5483752ea05e425e77adc9ccf58ce9da22cca28d8932ea316d641f199d3",
+   "bytes": 69044,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/dmidecode_3.6-2_amd64.deb",
+   "licenses": [
+    "GPL-2+"
+   ]
+  },
+  {
+   "name": "dmsetup",
+   "version": "2:1.02.205-2",
+   "url": "https://deb.debian.org/debian/pool/main/l/lvm2/dmsetup_1.02.205-2_amd64.deb",
+   "sha256": "4771f7ab0a907a8e5d02a6358ff016ae7cb49124906bada02fa882e141b615a0",
+   "bytes": 82344,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/dmsetup_1.02.205-2_amd64.deb",
+   "licenses": [
+    "BSD-2-Clause",
+    "GPL-2.0",
+    "GPL-2.0+",
+    "LGPL-2.1"
+   ]
+  },
+  {
+   "name": "dosfstools",
+   "version": "4.2-1.2",
+   "url": "https://deb.debian.org/debian/pool/main/d/dosfstools/dosfstools_4.2-1.2_amd64.deb",
+   "sha256": "628551496a02e80eee83054b9c696b06ba8177159bf0afe9a5b4ab2fb94b1b41",
+   "bytes": 133092,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/dosfstools_4.2-1.2_amd64.deb",
+   "licenses": [
+    "GPL-3+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "e2fsprogs",
+   "version": "1.47.2-3+b12",
+   "url": "https://deb.debian.org/debian/pool/main/e/e2fsprogs/e2fsprogs_1.47.2-3+b12_amd64.deb",
+   "sha256": "e9e638eb3e22b5f14d01ce0b28aa512a5a22fcc0e70d1c733444579b67ea236b",
+   "bytes": 591288,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/e2fsprogs_1.47.2-3+b12_amd64.deb",
+   "licenses": [
+    "0BSD",
+    "Apache-2",
+    "BSD-3-Clause",
+    "BSD-3-Clause-Variant",
+    "BSD-4-Clause-CMU",
+    "Expat",
+    "GPL or MIT-US-export",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-2+ with Texinfo exception",
+    "ISC",
+    "Kazlib",
+    "LGPL-2",
+    "Latex2e"
+   ]
+  },
+  {
+   "name": "exfatprogs",
+   "version": "1.2.9-1+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/e/exfatprogs/exfatprogs_1.2.9-1+deb13u1_amd64.deb",
+   "sha256": "b48c77643a13fa6e33d362b993a251c6528cfec158b772b1d115df59117be32f",
+   "bytes": 71200,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/exfatprogs_1.2.9-1+deb13u1_amd64.deb",
+   "licenses": [
+    "see copyright (unstructured)"
+   ]
+  },
+  {
+   "name": "fdisk",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/fdisk_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "7f37094ca3f63c3a07b4431532b0bcc4aa64291e75c48cabebf41bf42ad706b1",
+   "bytes": 158640,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/fdisk_2.41.5-0+deb13u1_amd64.deb",
+   "licenses": [
+    "BSD-2-clause",
+    "BSD-3-clause",
+    "BSD-4-clause",
+    "BSLA",
+    "Expat",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-3+",
+    "ISC",
+    "LGPL",
+    "LGPL-2+",
+    "LGPL-2.1+",
+    "LGPL-3+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "findutils",
+   "version": "4.10.0-3",
+   "url": "https://deb.debian.org/debian/pool/main/f/findutils/findutils_4.10.0-3_amd64.deb",
+   "sha256": "3edf02b016456b6a98cefdbab99c5ce6f829b786f63affe970badea221aecfc7",
+   "bytes": 700008,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/findutils_4.10.0-3_amd64.deb",
+   "licenses": [
+    "BSD-3-clause",
+    "BSD-3-clause or GPL-3+",
+    "BSD-3-clause or LGPL-2.1+",
+    "BSD-3-clause or LGPL-3+",
+    "FSFAP",
+    "FSFULLR",
+    "FSFULLR or GPL or LGPL",
+    "GFDL-NIV-1.3+",
+    "GFDL-NIV-1.3+ or GFDL-NIV-1.3+",
+    "GPL",
+    "GPL with automake exception",
+    "GPL-2+",
+    "GPL-2+ with Autoconf-data exception",
+    "GPL-3+",
+    "GPL-3+ with Autoconf-data exception",
+    "GPL-3+ with Bison-2.2 exception",
+    "ISC",
+    "ISC or LGPL-2.1+",
+    "LGPL",
+    "LGPL-2+",
+    "LGPL-2.1+",
+    "LGPL-3",
+    "LGPL-3+",
+    "X11",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "fuse2fs",
+   "version": "1.47.2-3+b12",
+   "url": "https://deb.debian.org/debian/pool/main/e/e2fsprogs/fuse2fs_1.47.2-3+b12_amd64.deb",
+   "sha256": "69df61ddf99c30f9a78dbd1848acbf14b67a3129e687eca25470bfd013a6e2f8",
+   "bytes": 50376,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/fuse2fs_1.47.2-3+b12_amd64.deb",
+   "licenses": [
+    "0BSD",
+    "Apache-2",
+    "BSD-3-Clause",
+    "BSD-3-Clause-Variant",
+    "BSD-4-Clause-CMU",
+    "Expat",
+    "GPL or MIT-US-export",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-2+ with Texinfo exception",
+    "ISC",
+    "Kazlib",
+    "LGPL-2",
+    "Latex2e"
+   ]
+  },
+  {
+   "name": "fuse3",
+   "version": "3.17.2-3",
+   "url": "https://deb.debian.org/debian/pool/main/f/fuse3/fuse3_3.17.2-3_amd64.deb",
+   "sha256": "4866550a235224b538a66fcaf95c8a796b6968d21c6f231086e142350b302eea",
+   "bytes": 41296,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/fuse3_3.17.2-3_amd64.deb",
+   "licenses": [
+    "GPL-2",
+    "GPL-2+",
+    "LGPL-2.1"
+   ]
+  },
+  {
+   "name": "gcc-14-base",
+   "version": "14.2.0-19",
+   "url": "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14-base_14.2.0-19_amd64.deb",
+   "sha256": "5b6825de4263824b78c4c51f6476414f3b4e89c2ab63e81dc8b9b5501e867cf6",
+   "bytes": 49432,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/gcc-14-base_14.2.0-19_amd64.deb",
+   "licenses": [
+    "see copyright (unstructured)"
+   ]
+  },
+  {
+   "name": "grep",
+   "version": "3.11-4",
+   "url": "https://deb.debian.org/debian/pool/main/g/grep/grep_3.11-4_amd64.deb",
+   "sha256": "2d78ed07d86a530ebf538f05cb2415f37c8daf908596bc32fc2563cc7e88c55a",
+   "bytes": 431488,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/grep_3.11-4_amd64.deb",
+   "licenses": [
+    "GPL-3+"
+   ]
+  },
+  {
+   "name": "keyutils",
+   "version": "1.6.3-6",
+   "url": "https://deb.debian.org/debian/pool/main/k/keyutils/keyutils_1.6.3-6_amd64.deb",
+   "sha256": "1ea627932e5ea824b208b8426a918dec7fbf3073a369d19e82e994fbc5f9f151",
+   "bytes": 55736,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/keyutils_1.6.3-6_amd64.deb",
+   "licenses": [
+    "GPL-2+",
+    "LGPL-2+"
+   ]
+  },
+  {
+   "name": "libacl1",
+   "version": "2.3.2-2+b1",
+   "url": "https://deb.debian.org/debian/pool/main/a/acl/libacl1_2.3.2-2+b1_amd64.deb",
+   "sha256": "08074f01e384bc07c0c2d79a58cf4a6523f71cf75d1808101c79617656c9a39d",
+   "bytes": 32860,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libacl1_2.3.2-2+b1_amd64.deb",
+   "licenses": [
+    "GPL-2+",
+    "LGPL-2+"
+   ]
+  },
+  {
+   "name": "libaio1t64",
+   "version": "0.3.113-8+b1",
+   "url": "https://deb.debian.org/debian/pool/main/liba/libaio/libaio1t64_0.3.113-8+b1_amd64.deb",
+   "sha256": "490c8a2d116001a5f3b0a6d7a7aabf6a7b629366590dc5c3f75b078e931dd129",
+   "bytes": 14888,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libaio1t64_0.3.113-8+b1_amd64.deb",
+   "licenses": [
+    "LGPL-2.1+"
+   ]
+  },
+  {
+   "name": "libapparmor1",
+   "version": "4.1.0-1",
+   "url": "https://deb.debian.org/debian/pool/main/a/apparmor/libapparmor1_4.1.0-1_amd64.deb",
+   "sha256": "4158976c77038b93021967f425b4cc505df18c4f5e3f444732399e7ed4af4419",
+   "bytes": 43688,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libapparmor1_4.1.0-1_amd64.deb",
+   "licenses": [
+    "BSD-3-clause",
+    "BSD-3-clause or GPL-2+",
+    "GPL-2",
+    "GPL-2+",
+    "LGPL-2.1+"
+   ]
+  },
+  {
+   "name": "libatomic1",
+   "version": "14.2.0-19",
+   "url": "https://deb.debian.org/debian/pool/main/g/gcc-14/libatomic1_14.2.0-19_amd64.deb",
+   "sha256": "212b399aae2f7299203d261a57e49372e09565a9a5ea971905f94a3960366c05",
+   "bytes": 9308,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libatomic1_14.2.0-19_amd64.deb",
+   "licenses": [
+    "copyright file not found in the package"
+   ]
+  },
+  {
+   "name": "libattr1",
+   "version": "1:2.5.2-3",
+   "url": "https://deb.debian.org/debian/pool/main/a/attr/libattr1_2.5.2-3_amd64.deb",
+   "sha256": "606b5ee12ea2786be607a17f40c1fb5e65c76ceaff66665bdf8f8c6c1b71d1fb",
+   "bytes": 22876,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libattr1_2.5.2-3_amd64.deb",
+   "licenses": [
+    "GPL-2+",
+    "LGPL-2+"
+   ]
+  },
+  {
+   "name": "libaudit-common",
+   "version": "1:4.0.2-2+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/a/audit/libaudit-common_4.0.2-2+deb13u1_all.deb",
+   "sha256": "b9d32e5ff04fd747aacb7d6b3ebbbbf734ddefb2f1695f0b1b2a4b5e51b1052e",
+   "bytes": 12812,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libaudit-common_4.0.2-2+deb13u1_all.deb",
+   "licenses": [
+    "GPL-2",
+    "LGPL-2.1"
+   ]
+  },
+  {
+   "name": "libaudit1",
+   "version": "1:4.0.2-2+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/a/audit/libaudit1_4.0.2-2+deb13u1_amd64.deb",
+   "sha256": "3d1dd3f031a56f01b747e2acc0e14575212580e6fa63d800c44cb0a31f1edfd7",
+   "bytes": 57680,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libaudit1_4.0.2-2+deb13u1_amd64.deb",
+   "licenses": [
+    "GPL-2",
+    "LGPL-2.1"
+   ]
+  },
+  {
+   "name": "libblkid1",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/libblkid1_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "81535f3c2c0efc732965907c8749103a0a26377c761622c9ce39b4c92dcde52f",
+   "bytes": 171612,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libblkid1_2.41.5-0+deb13u1_amd64.deb",
+   "licenses": [
+    "BSD-2-clause",
+    "BSD-3-clause",
+    "BSD-4-clause",
+    "BSLA",
+    "Expat",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-3+",
+    "ISC",
+    "LGPL",
+    "LGPL-2+",
+    "LGPL-2.1+",
+    "LGPL-3+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libbsd0",
+   "version": "0.12.2-2",
+   "url": "https://deb.debian.org/debian/pool/main/libb/libbsd/libbsd0_0.12.2-2_amd64.deb",
+   "sha256": "e5a85986fa6bec3307ab1bc860736b478b331882bc45e17675a7bdf88eecb43a",
+   "bytes": 130968,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libbsd0_0.12.2-2_amd64.deb",
+   "licenses": [
+    "BSD-2-clause",
+    "BSD-2-clause-NetBSD",
+    "BSD-2-clause-author",
+    "BSD-2-clause-verbatim",
+    "BSD-3-clause",
+    "BSD-3-clause-John-Birrell",
+    "BSD-3-clause-Regents",
+    "BSD-3-clause-Regents and BSD-2-clause-NetBSD",
+    "BSD-3-clause-author",
+    "BSD-5-clause-Peter-Wemm",
+    "Beerware",
+    "Expat",
+    "ISC",
+    "ISC-Original",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libburn4t64",
+   "version": "1.5.6-1.1+b1",
+   "url": "https://deb.debian.org/debian/pool/main/libb/libburn/libburn4t64_1.5.6-1.1+b1_amd64.deb",
+   "sha256": "59edae2bc41ec2319d1569157b82c49f54b64e7459ce57c7ff443029fa8bb82f",
+   "bytes": 164240,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libburn4t64_1.5.6-1.1+b1_amd64.deb",
+   "licenses": [
+    "GPL-2",
+    "GPL-2+"
+   ]
+  },
+  {
+   "name": "libbz2-1.0",
+   "version": "1.0.8-6",
+   "url": "https://deb.debian.org/debian/pool/main/b/bzip2/libbz2-1.0_1.0.8-6_amd64.deb",
+   "sha256": "cba4cda04244b5e481bb15524bc3c983a7d1b6f330013b9b381706a2fcb65310",
+   "bytes": 37912,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libbz2-1.0_1.0.8-6_amd64.deb",
+   "licenses": [
+    "BSD-variant",
+    "GPL-2"
+   ]
+  },
+  {
+   "name": "libc6",
+   "version": "2.41-12+deb13u4",
+   "url": "https://deb.debian.org/debian/pool/main/g/glibc/libc6_2.41-12+deb13u4_amd64.deb",
+   "sha256": "967aa62605721081c3eb2a17650611a792aa802d76a6511d1840242623d204c9",
+   "bytes": 2846580,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libc6_2.41-12+deb13u4_amd64.deb",
+   "licenses": [
+    "BSD-2-clause",
+    "BSD-2-clause or GPL-2",
+    "BSD-3-clause-Berkeley",
+    "BSD-3-clause-Berkeley and BSD-3-clause-WIDE",
+    "BSD-3-clause-Berkeley and DEC",
+    "BSD-3-clause-Berkeley and DEC and IBM and ISC",
+    "BSD-3-clause-Berkeley and DEC and ISC",
+    "BSD-3-clause-Berkeley and DEC and ISC and LGPL-2.1+",
+    "BSD-3-clause-Berkeley and DEC and LGPL-2.1+",
+    "BSD-3-clause-Berkeley and ISC",
+    "BSD-3-clause-Berkeley and LGPL-2.1+",
+    "BSD-3-clause-Berkeley and LGPL-2.1+ and Univ-Coimbra",
+    "BSD-3-clause-Carnegie",
+    "BSD-3-clause-Oracle",
+    "BSD-3-clause-WIDE",
+    "BSD-like-Spencer",
+    "BSL-1.0",
+    "CORE-MATH",
+    "Carnegie",
+    "Carnegie and LGPL-2.1+",
+    "DEC",
+    "FSFAP",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-2+-with-link-exception",
+    "GPL-3+",
+    "IBM",
+    "IBM and ISC",
+    "ISC",
+    "ISC and LGPL-2.1+",
+    "Inner-Net",
+    "Inner-Net and LGPL-2.1+",
+    "LGPL-2+",
+    "LGPL-2.1+",
+    "LGPL-2.1+ and GPL-2",
+    "LGPL-2.1+ and SunPro",
+    "LGPL-2.1+-with-link-exception",
+    "LGPL-3+",
+    "MIT-like-Lord",
+    "PCRE",
+    "SunPro",
+    "Unicode-DFS-2016",
+    "Univ-Coimbra",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libcap-ng0",
+   "version": "0.8.5-4+b1",
+   "url": "https://deb.debian.org/debian/pool/main/libc/libcap-ng/libcap-ng0_0.8.5-4+b1_amd64.deb",
+   "sha256": "20a9e4b0619a3eb2566338223bed135dde5a601eaa2f8fdd5f20b94506addcac",
+   "bytes": 17584,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libcap-ng0_0.8.5-4+b1_amd64.deb",
+   "licenses": [
+    "GPL-2+",
+    "GPL-3",
+    "LGPL-2.1+"
+   ]
+  },
+  {
+   "name": "libcap2",
+   "version": "1:2.75-10+deb13u1+b3",
+   "url": "https://deb.debian.org/debian/pool/main/libc/libcap2/libcap2_2.75-10+deb13u1+b3_amd64.deb",
+   "sha256": "89fc4d34fc7a28ad6f0fcd0c561ab253b9dedf6f77f5a000b47c276c8295bf67",
+   "bytes": 28988,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libcap2_2.75-10+deb13u1+b3_amd64.deb",
+   "licenses": [
+    "BSD-3-clause",
+    "BSD-3-clause or GPL-2",
+    "BSD-3-clause or GPL-2+",
+    "GPL-2",
+    "GPL-2+"
+   ]
+  },
+  {
+   "name": "libcbor0.10",
+   "version": "0.10.2-2",
+   "url": "https://deb.debian.org/debian/pool/main/libc/libcbor/libcbor0.10_0.10.2-2_amd64.deb",
+   "sha256": "2457686e375dcb7567ba01da6638a0711e2a55725d084d65de44dd11bb1f52e2",
+   "bytes": 28296,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libcbor0.10_0.10.2-2_amd64.deb",
+   "licenses": [
+    "Expat"
+   ]
+  },
+  {
+   "name": "libcom-err2",
+   "version": "1.47.2-3+b12",
+   "url": "https://deb.debian.org/debian/pool/main/e/e2fsprogs/libcom-err2_1.47.2-3+b12_amd64.deb",
+   "sha256": "bd43e020b8fed399db3eebf098111f10fba4c436fff99ccad72cc7e27c9764ec",
+   "bytes": 25036,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libcom-err2_1.47.2-3+b12_amd64.deb",
+   "licenses": [
+    "0BSD",
+    "Apache-2",
+    "BSD-3-Clause",
+    "BSD-3-Clause-Variant",
+    "BSD-4-Clause-CMU",
+    "Expat",
+    "GPL or MIT-US-export",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-2+ with Texinfo exception",
+    "ISC",
+    "Kazlib",
+    "LGPL-2",
+    "Latex2e"
+   ]
+  },
+  {
+   "name": "libcrypt1",
+   "version": "1:4.4.38-1",
+   "url": "https://deb.debian.org/debian/pool/main/libx/libxcrypt/libcrypt1_4.4.38-1_amd64.deb",
+   "sha256": "0ebc144d662e3197982d1bf3a7b8b35ca845e54c68811de0328b1f0d7c67585c",
+   "bytes": 90072,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libcrypt1_4.4.38-1_amd64.deb",
+   "licenses": [
+    "see copyright (unstructured)"
+   ]
+  },
+  {
+   "name": "libcryptsetup12",
+   "version": "2:2.7.5-2",
+   "url": "https://deb.debian.org/debian/pool/main/c/cryptsetup/libcryptsetup12_2.7.5-2_amd64.deb",
+   "sha256": "84f6596296c346c1c8f6bb16b0d4d485215b7a23a23ff21e9c28e35822d45a7b",
+   "bytes": 254056,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libcryptsetup12_2.7.5-2_amd64.deb",
+   "licenses": [
+    "Apache-2.0",
+    "CC-BY-SA-4.0",
+    "CC0",
+    "CC0 or Apache-2.0",
+    "GPL-2+",
+    "GPL-2+ with OpenSSL exception",
+    "GPL-3+",
+    "LGPL-2.1+",
+    "LGPL-2.1+ with OpenSSL exception",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libdevmapper-event1.02.1",
+   "version": "2:1.02.205-2",
+   "url": "https://deb.debian.org/debian/pool/main/l/lvm2/libdevmapper-event1.02.1_1.02.205-2_amd64.deb",
+   "sha256": "f6af1ffe41ee3c291626b4ebdeda1e90075a7217788b1c2f76fe200cc3e3280a",
+   "bytes": 13648,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libdevmapper-event1.02.1_1.02.205-2_amd64.deb",
+   "licenses": [
+    "BSD-2-Clause",
+    "GPL-2.0",
+    "GPL-2.0+",
+    "LGPL-2.1"
+   ]
+  },
+  {
+   "name": "libdevmapper1.02.1",
+   "version": "2:1.02.205-2",
+   "url": "https://deb.debian.org/debian/pool/main/l/lvm2/libdevmapper1.02.1_1.02.205-2_amd64.deb",
+   "sha256": "e924e0df8823987f271b7d3a375dc2f8adcd76db66f09d0273043c885edb0af0",
+   "bytes": 134640,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libdevmapper1.02.1_1.02.205-2_amd64.deb",
+   "licenses": [
+    "BSD-2-Clause",
+    "GPL-2.0",
+    "GPL-2.0+",
+    "LGPL-2.1"
+   ]
+  },
+  {
+   "name": "libedit2",
+   "version": "3.1-20250104-1",
+   "url": "https://deb.debian.org/debian/pool/main/libe/libedit/libedit2_3.1-20250104-1_amd64.deb",
+   "sha256": "b002ea172b9c1e34a67bc497c523c67bb74c3f0a4e98113cb083990a1f1d3bfe",
+   "bytes": 93832,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libedit2_3.1-20250104-1_amd64.deb",
+   "licenses": [
+    "BSD-3-clause"
+   ]
+  },
+  {
+   "name": "libext2fs2t64",
+   "version": "1.47.2-3+b12",
+   "url": "https://deb.debian.org/debian/pool/main/e/e2fsprogs/libext2fs2t64_1.47.2-3+b12_amd64.deb",
+   "sha256": "9f5783fa48239e42260d41846fbc6c8b19c233251063524456096195660eaa09",
+   "bytes": 212664,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libext2fs2t64_1.47.2-3+b12_amd64.deb",
+   "licenses": [
+    "0BSD",
+    "Apache-2",
+    "BSD-3-Clause",
+    "BSD-3-Clause-Variant",
+    "BSD-4-Clause-CMU",
+    "Expat",
+    "GPL or MIT-US-export",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-2+ with Texinfo exception",
+    "ISC",
+    "Kazlib",
+    "LGPL-2",
+    "Latex2e"
+   ]
+  },
+  {
+   "name": "libfdisk1",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/libfdisk1_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "7f96d173cc01787201691f80ca9b335b8c7d6cdcc6fb81011302d4a005ff5089",
+   "bytes": 214600,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libfdisk1_2.41.5-0+deb13u1_amd64.deb",
+   "licenses": [
+    "BSD-2-clause",
+    "BSD-3-clause",
+    "BSD-4-clause",
+    "BSLA",
+    "Expat",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-3+",
+    "ISC",
+    "LGPL",
+    "LGPL-2+",
+    "LGPL-2.1+",
+    "LGPL-3+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libffi8",
+   "version": "3.4.8-2",
+   "url": "https://deb.debian.org/debian/pool/main/libf/libffi/libffi8_3.4.8-2_amd64.deb",
+   "sha256": "0ebdc340de33333639c3c63874cd4b15ac2e83dfa1ef3053b7eefaf4919f4f68",
+   "bytes": 24144,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libffi8_3.4.8-2_amd64.deb",
+   "licenses": [
+    "Expat",
+    "GPL",
+    "GPL-2+",
+    "GPL-3+",
+    "MPL-1.1 or GPL-2+ or LGPL-2.1+",
+    "X11",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libfido2-1",
+   "version": "1.15.0-1+b1",
+   "url": "https://deb.debian.org/debian/pool/main/libf/libfido2/libfido2-1_1.15.0-1+b1_amd64.deb",
+   "sha256": "094fc0fe20c652be848ab2a8b3793eb03bc4327140ebd232145356352004e6c0",
+   "bytes": 78728,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libfido2-1_1.15.0-1+b1_amd64.deb",
+   "licenses": [
+    "BSD-2-clause",
+    "ISC",
+    "ISC and BSD-2-clause",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libfuse3-4",
+   "version": "3.17.2-3",
+   "url": "https://deb.debian.org/debian/pool/main/f/fuse3/libfuse3-4_3.17.2-3_amd64.deb",
+   "sha256": "92e2d521ff872755a13aa69dba7b24025a7dc0f0f5aa708c9a86cd3565f570da",
+   "bytes": 98748,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libfuse3-4_3.17.2-3_amd64.deb",
+   "licenses": [
+    "GPL-2",
+    "GPL-2+",
+    "LGPL-2.1"
+   ]
+  },
+  {
+   "name": "libgcc-s1",
+   "version": "14.2.0-19",
+   "url": "https://deb.debian.org/debian/pool/main/g/gcc-14/libgcc-s1_14.2.0-19_amd64.deb",
+   "sha256": "3c71917b490d1a17aed43196a2787a256ecf060526cdb20216a74bedc061b150",
+   "bytes": 72772,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libgcc-s1_14.2.0-19_amd64.deb",
+   "licenses": [
+    "copyright file not found in the package"
+   ]
+  },
+  {
+   "name": "libgcrypt20",
+   "version": "1.11.0-7+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/libg/libgcrypt20/libgcrypt20_1.11.0-7+deb13u1_amd64.deb",
+   "sha256": "f0eb41f8cb40896e0822e9ab65611e8383c12b721c76c54764f744abb4a8c247",
+   "bytes": 843104,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libgcrypt20_1.11.0-7+deb13u1_amd64.deb",
+   "licenses": [
+    "see copyright (unstructured)"
+   ]
+  },
+  {
+   "name": "libglib2.0-0t64",
+   "version": "2.84.4-3~deb13u5",
+   "url": "https://deb.debian.org/debian/pool/main/g/glib2.0/libglib2.0-0t64_2.84.4-3~deb13u5_amd64.deb",
+   "sha256": "e2baf92c57d1db1753e5781a61450d9a01e7833c7bd2dfe87776a6811c11ecc2",
+   "bytes": 1521120,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libglib2.0-0t64_2.84.4-3~deb13u5_amd64.deb",
+   "licenses": [
+    "AFL-2.0",
+    "AFL-2.0 or LGPL-2.1+",
+    "Apache-2.0 with LLVM exception",
+    "CC-BY-SA-3.0",
+    "CC0-1.0",
+    "CC0-1.0 or Mingw-PD",
+    "Expat",
+    "FSFULLR",
+    "GPL-2+",
+    "Iconv-PD",
+    "Janik-permissive",
+    "Janik-permissive and old-glib-tests",
+    "Kuchling-PD",
+    "LGPL-2+",
+    "LGPL-2.1+",
+    "LGPL-2.1+ and Kuchling-PD and Plumb-PD",
+    "LGPL-3+",
+    "Mingw-PD",
+    "Plumb-PD",
+    "Unicode-DFS-2016",
+    "bzip2-1.0.6",
+    "cmph",
+    "old-glib-tests"
+   ]
+  },
+  {
+   "name": "libgmp10",
+   "version": "2:6.3.0+dfsg-3",
+   "url": "https://deb.debian.org/debian/pool/main/g/gmp/libgmp10_6.3.0+dfsg-3_amd64.deb",
+   "sha256": "d0d0265eb01770f17afd0f7c8c0622f80479dcfbbe13653a0debeec61464e622",
+   "bytes": 560220,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libgmp10_6.3.0+dfsg-3_amd64.deb",
+   "licenses": [
+    "GPL-2+",
+    "GPL-2+ or LGPL-3+",
+    "GPL-3+",
+    "GPL-3+ with Bison exception",
+    "LGPL-3+"
+   ]
+  },
+  {
+   "name": "libgnutls30t64",
+   "version": "3.8.9-3+deb13u4",
+   "url": "https://deb.debian.org/debian/pool/main/g/gnutls28/libgnutls30t64_3.8.9-3+deb13u4_amd64.deb",
+   "sha256": "18a8bdfd91c7e3bcb01719d55a2b56849c7160b34f1f52b1c4fdfdd41bf1352b",
+   "bytes": 1469024,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libgnutls30t64_3.8.9-3+deb13u4_amd64.deb",
+   "licenses": [
+    "Apache-2.0",
+    "BSD-3-Clause",
+    "CC0 license",
+    "Expat",
+    "FSFAP",
+    "GPLv3+",
+    "LGPLv2.1+",
+    "LGPLv3+_or_GPLv2+",
+    "The main library is licensed under GNU Lesser"
+   ]
+  },
+  {
+   "name": "libgpg-error0",
+   "version": "1.51-4",
+   "url": "https://deb.debian.org/debian/pool/main/libg/libgpg-error/libgpg-error0_1.51-4_amd64.deb",
+   "sha256": "22b95570fd41c113ef6f5651563b4d748292844baab1278a46eb940c1dec2322",
+   "bytes": 82108,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libgpg-error0_1.51-4_amd64.deb",
+   "licenses": [
+    "BSD-3-clause",
+    "GPL-3+",
+    "LGPL-2.1+",
+    "LGPL-2.1+ or BSD-3-clause",
+    "g10-permissive"
+   ]
+  },
+  {
+   "name": "libgssapi-krb5-2",
+   "version": "1.21.3-5+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/k/krb5/libgssapi-krb5-2_1.21.3-5+deb13u1_amd64.deb",
+   "sha256": "30847c1fde4240567d7ed3aeab4f655dd591203758b857e85e824045aae70299",
+   "bytes": 138356,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libgssapi-krb5-2_1.21.3-5+deb13u1_amd64.deb",
+   "licenses": [
+    "see copyright (unstructured)"
+   ]
+  },
+  {
+   "name": "libhogweed6t64",
+   "version": "3.10.1-1",
+   "url": "https://deb.debian.org/debian/pool/main/n/nettle/libhogweed6t64_3.10.1-1_amd64.deb",
+   "sha256": "b059ed155115ac09da295322de48ee1ed58ef5fa45edcc9e12ff0e94636ef25f",
+   "bytes": 335240,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libhogweed6t64_3.10.1-1_amd64.deb",
+   "licenses": [
+    "Expat",
+    "GAP",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-3+ with Autoconf exception",
+    "LGPL-2+",
+    "LGPL-3+",
+    "LGPL-3+ or GPL-2+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libidn2-0",
+   "version": "2.3.8-2",
+   "url": "https://deb.debian.org/debian/pool/main/libi/libidn2/libidn2-0_2.3.8-2_amd64.deb",
+   "sha256": "90b039bcdc4578f8e1c4935adf8dbb525e36a164deefdbbb8c45bac347d48278",
+   "bytes": 109096,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libidn2-0_2.3.8-2_amd64.deb",
+   "licenses": [
+    "Expat",
+    "GPL-2+",
+    "GPL-3+",
+    "LGPL-3+",
+    "LGPL-3+ or GPL-2+",
+    "Unicode"
+   ]
+  },
+  {
+   "name": "libisoburn1t64",
+   "version": "1.5.6-1.2+b1",
+   "url": "https://deb.debian.org/debian/pool/main/libi/libisoburn/libisoburn1t64_1.5.6-1.2+b1_amd64.deb",
+   "sha256": "b80bb60269492aaf4a7dd316b238db0e1fc34647f59bc0d86aeb9d298089931d",
+   "bytes": 410400,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libisoburn1t64_1.5.6-1.2+b1_amd64.deb",
+   "licenses": [
+    "BSD-2-clause",
+    "FSFUL",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-3"
+   ]
+  },
+  {
+   "name": "libisofs6t64",
+   "version": "1.5.6.pl01-1.1+b1",
+   "url": "https://deb.debian.org/debian/pool/main/libi/libisofs/libisofs6t64_1.5.6.pl01-1.1+b1_amd64.deb",
+   "sha256": "52e9b19b888ff9af70299068ccd2bad790583da54ef8b6b6d8cb16b55d16aa88",
+   "bytes": 218604,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libisofs6t64_1.5.6.pl01-1.1+b1_amd64.deb",
+   "licenses": [
+    "FSFUL",
+    "GPL-2",
+    "GPL-2+"
+   ]
+  },
+  {
+   "name": "libjson-c5",
+   "version": "0.18+ds-1",
+   "url": "https://deb.debian.org/debian/pool/main/j/json-c/libjson-c5_0.18+ds-1_amd64.deb",
+   "sha256": "4fbd5fb4d54c626f05d68abf38a31533fbf1bf4a87068696abe041ee9c974fe0",
+   "bytes": 45956,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libjson-c5_0.18+ds-1_amd64.deb",
+   "licenses": [
+    "Expat"
+   ]
+  },
+  {
+   "name": "libjte2",
+   "version": "1.22-4+b2",
+   "url": "https://deb.debian.org/debian/pool/main/j/jigit/libjte2_1.22-4+b2_amd64.deb",
+   "sha256": "2e7799a28deac613ffaa75bb131046e8f9311fc211b747a10cf6760f15f0c4ae",
+   "bytes": 29592,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libjte2_1.22-4+b2_amd64.deb",
+   "licenses": [
+    "see copyright (unstructured)"
+   ]
+  },
+  {
+   "name": "libk5crypto3",
+   "version": "1.21.3-5+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/k/krb5/libk5crypto3_1.21.3-5+deb13u1_amd64.deb",
+   "sha256": "7da07ee674b47f1f0be7cc89317c25310086a1f1761217d0f72e6ae2c5a69b84",
+   "bytes": 81152,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libk5crypto3_1.21.3-5+deb13u1_amd64.deb",
+   "licenses": [
+    "see copyright (unstructured)"
+   ]
+  },
+  {
+   "name": "libkeyutils1",
+   "version": "1.6.3-6",
+   "url": "https://deb.debian.org/debian/pool/main/k/keyutils/libkeyutils1_1.6.3-6_amd64.deb",
+   "sha256": "0b11ad17be0300b63ad4eeb4c6450fed24d34b7b740f23e5363dcb29ee6d5eba",
+   "bytes": 9456,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libkeyutils1_1.6.3-6_amd64.deb",
+   "licenses": [
+    "GPL-2+",
+    "LGPL-2+"
+   ]
+  },
+  {
+   "name": "libkmod2",
+   "version": "34.2-2",
+   "url": "https://deb.debian.org/debian/pool/main/k/kmod/libkmod2_34.2-2_amd64.deb",
+   "sha256": "ee6c50ebac79aa9795e8bf9aa01d94c99984d09d22598c66be0f8ba917b62179",
+   "bytes": 63196,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libkmod2_34.2-2_amd64.deb",
+   "licenses": [
+    "GPL-2+",
+    "LGPL-2.1+"
+   ]
+  },
+  {
+   "name": "libkrb5-3",
+   "version": "1.21.3-5+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/k/krb5/libkrb5-3_1.21.3-5+deb13u1_amd64.deb",
+   "sha256": "47d71d6a7f2e59b9bae5f89602397594805113b95889ad18fa703cd53abafc97",
+   "bytes": 326056,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libkrb5-3_1.21.3-5+deb13u1_amd64.deb",
+   "licenses": [
+    "see copyright (unstructured)"
+   ]
+  },
+  {
+   "name": "libkrb5support0",
+   "version": "1.21.3-5+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/k/krb5/libkrb5support0_1.21.3-5+deb13u1_amd64.deb",
+   "sha256": "3a0acd8b37955c0e102c756b52c97df2a31f67b96453c35dab70df218d309117",
+   "bytes": 33124,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libkrb5support0_1.21.3-5+deb13u1_amd64.deb",
+   "licenses": [
+    "see copyright (unstructured)"
+   ]
+  },
+  {
+   "name": "liblastlog2-2",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/liblastlog2-2_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "abb76aecbf51479e6e193873dfddaa1b88667dc0b1db82a11286a67550ba1557",
+   "bytes": 28772,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/liblastlog2-2_2.41.5-0+deb13u1_amd64.deb",
+   "licenses": [
+    "BSD-2-clause",
+    "BSD-3-clause",
+    "BSD-4-clause",
+    "BSLA",
+    "Expat",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-3+",
+    "ISC",
+    "LGPL",
+    "LGPL-2+",
+    "LGPL-2.1+",
+    "LGPL-3+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "liblvm2cmd2.03",
+   "version": "2.03.31-2",
+   "url": "https://deb.debian.org/debian/pool/main/l/lvm2/liblvm2cmd2.03_2.03.31-2_amd64.deb",
+   "sha256": "a1a5c3ddf09c22038503b975a6f9625d3e41535599c473db7fc98a09f40fc4ea",
+   "bytes": 784696,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/liblvm2cmd2.03_2.03.31-2_amd64.deb",
+   "licenses": [
+    "BSD-2-Clause",
+    "GPL-2.0",
+    "GPL-2.0+",
+    "LGPL-2.1"
+   ]
+  },
+  {
+   "name": "libmd0",
+   "version": "1.1.0-2+b1",
+   "url": "https://deb.debian.org/debian/pool/main/libm/libmd/libmd0_1.1.0-2+b1_amd64.deb",
+   "sha256": "7244ec3839b61fac0c1884fe08aaa040f26e8f1f35f1f5d3482eacefd30d1b44",
+   "bytes": 36272,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libmd0_1.1.0-2+b1_amd64.deb",
+   "licenses": [
+    "BSD-2-clause",
+    "BSD-2-clause-NetBSD",
+    "BSD-3-clause",
+    "BSD-3-clause-Aaron-D-Gifford",
+    "Beerware",
+    "ISC",
+    "public-domain-md4",
+    "public-domain-md5",
+    "public-domain-sha1"
+   ]
+  },
+  {
+   "name": "libmount1",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/libmount1_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "6d00f45f2e80e078e906e3eedecd3ba6913e39fef49bff361ee583f17f00ec05",
+   "bytes": 210408,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libmount1_2.41.5-0+deb13u1_amd64.deb",
+   "licenses": [
+    "BSD-2-clause",
+    "BSD-3-clause",
+    "BSD-4-clause",
+    "BSLA",
+    "Expat",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-3+",
+    "ISC",
+    "LGPL",
+    "LGPL-2+",
+    "LGPL-2.1+",
+    "LGPL-3+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libncursesw6",
+   "version": "6.5+20250216-2",
+   "url": "https://deb.debian.org/debian/pool/main/n/ncurses/libncursesw6_6.5+20250216-2_amd64.deb",
+   "sha256": "47baa2e11579583654583a066b69bd5a5d2f22423081f707ed6c0c3ba6d538b7",
+   "bytes": 135484,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libncursesw6_6.5+20250216-2_amd64.deb",
+   "licenses": [
+    "copyright file not found in the package"
+   ]
+  },
+  {
+   "name": "libnettle8t64",
+   "version": "3.10.1-1",
+   "url": "https://deb.debian.org/debian/pool/main/n/nettle/libnettle8t64_3.10.1-1_amd64.deb",
+   "sha256": "1b03d4a9cd9c8143ba50fe6396f36937e901a317d492d179f4596862c1731cfe",
+   "bytes": 305436,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libnettle8t64_3.10.1-1_amd64.deb",
+   "licenses": [
+    "Expat",
+    "GAP",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-3+ with Autoconf exception",
+    "LGPL-2+",
+    "LGPL-3+",
+    "LGPL-3+ or GPL-2+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libntfs-3g89t64",
+   "version": "1:2022.10.3-5+deb13u3",
+   "url": "https://deb.debian.org/debian-security/pool/updates/main/n/ntfs-3g/libntfs-3g89t64_2022.10.3-5+deb13u3_amd64.deb",
+   "sha256": "eac375d5e7b0c0a4bfba7f228218e61296362bd19f2851a48f292ec417a6d690",
+   "bytes": 167724,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie-security",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libntfs-3g89t64_2022.10.3-5+deb13u3_amd64.deb",
+   "licenses": [
+    "GPL-2+",
+    "LGPL-2+"
+   ]
+  },
+  {
+   "name": "libp11-kit0",
+   "version": "0.25.5-3",
+   "url": "https://deb.debian.org/debian/pool/main/p/p11-kit/libp11-kit0_0.25.5-3_amd64.deb",
+   "sha256": "784bf2063e166c8bc851a32623b74ebd85c499043a9d57c5bbd64fa63447f45a",
+   "bytes": 425240,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libp11-kit0_0.25.5-3_amd64.deb",
+   "licenses": [
+    "Apache-2.0",
+    "BSD-3-clause",
+    "FSFAP",
+    "FSFULLR",
+    "GPL-2+ with Autoconf-data exception",
+    "GPL-3+ with Autoconf-data exception",
+    "ISC",
+    "LGPL-2.1+",
+    "X11",
+    "customFSFUL",
+    "customFSFULLRWD"
+   ]
+  },
+  {
+   "name": "libpam0g",
+   "version": "1.7.0-5",
+   "url": "https://deb.debian.org/debian/pool/main/p/pam/libpam0g_1.7.0-5_amd64.deb",
+   "sha256": "4f5bde27d8df2de6ea8990319b42d9974f56a3ba9907ce7296fd0f8964fc9fb1",
+   "bytes": 69880,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libpam0g_1.7.0-5_amd64.deb",
+   "licenses": [
+    "BSD-3-clause or GPL",
+    "BSD-tcp_wrappers",
+    "Beerware",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-3",
+    "GPL-3+ with Bison exception",
+    "LGPL-2+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libparted2t64",
+   "version": "3.6-5",
+   "url": "https://deb.debian.org/debian/pool/main/p/parted/libparted2t64_3.6-5_amd64.deb",
+   "sha256": "65bc42f046f51f01152da1c6b48f7b65d2e84bc0b04c0da29c33bded87217a36",
+   "bytes": 300020,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libparted2t64_3.6-5_amd64.deb",
+   "licenses": [
+    "see copyright (unstructured)"
+   ]
+  },
+  {
+   "name": "libpcre2-8-0",
+   "version": "10.46-1~deb13u3",
+   "url": "https://deb.debian.org/debian-security/pool/updates/main/p/pcre2/libpcre2-8-0_10.46-1~deb13u3_amd64.deb",
+   "sha256": "e226f661d918f04daf38cdbc4806b7ed7d6ef95c7eb0ade692fc350e31970040",
+   "bytes": 299148,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie-security",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libpcre2-8-0_10.46-1~deb13u3_amd64.deb",
+   "licenses": [
+    "BSD-2-clause",
+    "BSD-3-clause",
+    "BSD-3-clause-Cambridge with BINARY LIBRARY-LIKE PACKAGES exception",
+    "X11",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libpopt0",
+   "version": "1.19+dfsg-2",
+   "url": "https://deb.debian.org/debian/pool/main/p/popt/libpopt0_1.19+dfsg-2_amd64.deb",
+   "sha256": "07f649b706852af937654295697dcfc7858f3295718ec18681dce1704663e4f2",
+   "bytes": 43844,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libpopt0_1.19+dfsg-2_amd64.deb",
+   "licenses": [
+    "GPL-2+",
+    "expat",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libreadline8t64",
+   "version": "8.2-6",
+   "url": "https://deb.debian.org/debian/pool/main/r/readline/libreadline8t64_8.2-6_amd64.deb",
+   "sha256": "eeadf2b5e755c9f183883feea2d9b5b28560284275d5f54d3e55d0923b1d0967",
+   "bytes": 168832,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libreadline8t64_8.2-6_amd64.deb",
+   "licenses": [
+    "GFDL-NIV-1.3+",
+    "GPL-2+",
+    "GPL-3",
+    "GPL-3+",
+    "ISC-no-attribution"
+   ]
+  },
+  {
+   "name": "libseccomp2",
+   "version": "2.6.0-2",
+   "url": "https://deb.debian.org/debian/pool/main/libs/libseccomp/libseccomp2_2.6.0-2_amd64.deb",
+   "sha256": "89d5138e05fb6a86b9afd8b54dc0fb4b14f4c27c05e6c5f767c2132bdf808531",
+   "bytes": 51712,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libseccomp2_2.6.0-2_amd64.deb",
+   "licenses": [
+    "LGPL-2.1"
+   ]
+  },
+  {
+   "name": "libselinux1",
+   "version": "3.8.1-1",
+   "url": "https://deb.debian.org/debian/pool/main/libs/libselinux/libselinux1_3.8.1-1_amd64.deb",
+   "sha256": "68bb8d32bd8d6d7d2f5952a169db03d1484b46ae1e52abccdec42a19dccea5d5",
+   "bytes": 84680,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libselinux1_3.8.1-1_amd64.deb",
+   "licenses": [
+    "GPL-2",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libsmartcols1",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/libsmartcols1_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "d96bac9c8805685f2734885098a214b82950da6ebb182c27a6b7a124a0323392",
+   "bytes": 143216,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libsmartcols1_2.41.5-0+deb13u1_amd64.deb",
+   "licenses": [
+    "BSD-2-clause",
+    "BSD-3-clause",
+    "BSD-4-clause",
+    "BSLA",
+    "Expat",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-3+",
+    "ISC",
+    "LGPL",
+    "LGPL-2+",
+    "LGPL-2.1+",
+    "LGPL-3+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libsqlite3-0",
+   "version": "3.46.1-7+deb13u2",
+   "url": "https://deb.debian.org/debian/pool/main/s/sqlite3/libsqlite3-0_3.46.1-7+deb13u2_amd64.deb",
+   "sha256": "0a459adaffd901109f7811ab65f58e7a957b4907d05539cf3d1184efdcde0468",
+   "bytes": 914584,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libsqlite3-0_3.46.1-7+deb13u2_amd64.deb",
+   "licenses": [
+    "GPL-2+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libss2",
+   "version": "1.47.2-3+b12",
+   "url": "https://deb.debian.org/debian/pool/main/e/e2fsprogs/libss2_1.47.2-3+b12_amd64.deb",
+   "sha256": "c5d38d71984c1bf774c1254238636e605fc4e0dc24d853f709921eb740327f4a",
+   "bytes": 29724,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libss2_1.47.2-3+b12_amd64.deb",
+   "licenses": [
+    "0BSD",
+    "Apache-2",
+    "BSD-3-Clause",
+    "BSD-3-Clause-Variant",
+    "BSD-4-Clause-CMU",
+    "Expat",
+    "GPL or MIT-US-export",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-2+ with Texinfo exception",
+    "ISC",
+    "Kazlib",
+    "LGPL-2",
+    "Latex2e"
+   ]
+  },
+  {
+   "name": "libssl3t64",
+   "version": "3.5.7-1~deb13u3",
+   "url": "https://deb.debian.org/debian-security/pool/updates/main/o/openssl/libssl3t64_3.5.7-1~deb13u3_amd64.deb",
+   "sha256": "ff16bc048bcd7d1b256094450b79c77947d8e76fe2a24bd99b91021d591fa074",
+   "bytes": 2458176,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie-security",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libssl3t64_3.5.7-1~deb13u3_amd64.deb",
+   "licenses": [
+    "Apache-2.0",
+    "Artistic",
+    "Artistic or GPL-1+",
+    "GPL-1+"
+   ]
+  },
+  {
+   "name": "libsystemd-shared",
+   "version": "257.13-1~deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/s/systemd/libsystemd-shared_257.13-1~deb13u1_amd64.deb",
+   "sha256": "2d349824e57f88507e2a33360610d8afc143a4ad5e80ee4bf8f37b826d6f37f9",
+   "bytes": 2154616,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libsystemd-shared_257.13-1~deb13u1_amd64.deb",
+   "licenses": [
+    "CC0-1.0",
+    "Expat",
+    "GPL-2 with Linux-syscall-note exception",
+    "GPL-2+",
+    "LGPL-2.1+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libsystemd0",
+   "version": "257.13-1~deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/s/systemd/libsystemd0_257.13-1~deb13u1_amd64.deb",
+   "sha256": "ab0d4127b5e46e6f8c015a1db15a62ba9ae274cdefa150083adf90ada0600ea1",
+   "bytes": 454648,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libsystemd0_257.13-1~deb13u1_amd64.deb",
+   "licenses": [
+    "CC0-1.0",
+    "Expat",
+    "GPL-2 with Linux-syscall-note exception",
+    "GPL-2+",
+    "LGPL-2.1+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libtasn1-6",
+   "version": "4.20.0-2+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/libt/libtasn1-6/libtasn1-6_4.20.0-2+deb13u1_amd64.deb",
+   "sha256": "23fec6e06583ce2bad9b2c04c9b485e90440e259b1abf8677cd80d3ce60831ad",
+   "bytes": 50112,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libtasn1-6_4.20.0-2+deb13u1_amd64.deb",
+   "licenses": [
+    "see copyright (unstructured)"
+   ]
+  },
+  {
+   "name": "libtinfo6",
+   "version": "6.5+20250216-2",
+   "url": "https://deb.debian.org/debian/pool/main/n/ncurses/libtinfo6_6.5+20250216-2_amd64.deb",
+   "sha256": "8b9f6a7983e9418564e48a627518de4c03917b56efe68d7f3e93bd8fffa1cc10",
+   "bytes": 348380,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libtinfo6_6.5+20250216-2_amd64.deb",
+   "licenses": [
+    "BSD-3-clause",
+    "MIT/X11",
+    "X11"
+   ]
+  },
+  {
+   "name": "libudev1",
+   "version": "257.13-1~deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/s/systemd/libudev1_257.13-1~deb13u1_amd64.deb",
+   "sha256": "5d41c284f5a93b05bc7d648b61a02dd2bb9ff05b2261ad1a8b7d96044a0cfa88",
+   "bytes": 152300,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libudev1_257.13-1~deb13u1_amd64.deb",
+   "licenses": [
+    "CC0-1.0",
+    "Expat",
+    "GPL-2 with Linux-syscall-note exception",
+    "GPL-2+",
+    "LGPL-2.1+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libunistring5",
+   "version": "1.3-2",
+   "url": "https://deb.debian.org/debian/pool/main/libu/libunistring/libunistring5_1.3-2_amd64.deb",
+   "sha256": "6dd3490bef06ea1096f32d10766b7e016cf579bfae8451d1b7df15ce05b8aa46",
+   "bytes": 476768,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libunistring5_1.3-2_amd64.deb",
+   "licenses": [
+    "BSD-3-clause or LGPL-2.1+",
+    "BSD-3-clause or LGPL-3+",
+    "FreeSoftware",
+    "GFDL-1.2+ or GPL-3+ or LGPL-3",
+    "GFDL-1.3+",
+    "GPL-2+",
+    "GPL-2+ with distribution exception",
+    "GPL-2+ with distribution exception, Expat and GPL-2+",
+    "GPL-3+",
+    "ISC or LGPL-2.1+",
+    "LGPL-2+",
+    "LGPL-2+ or LGPL-3+",
+    "LGPL-2.1+",
+    "LGPL-3",
+    "LGPL-3+",
+    "Unicode-DFS-2016",
+    "X11",
+    "bsd-3-clause",
+    "gfdl-1.2+",
+    "gfdl-1.3+",
+    "isc",
+    "public-domain",
+    "unicode-dfs-2016"
+   ]
+  },
+  {
+   "name": "libuuid1",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/libuuid1_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "c1bf4c4c3ff48c57fabf93307dfb56996b60cfa33927afc4158b5db36fb2721e",
+   "bytes": 37848,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libuuid1_2.41.5-0+deb13u1_amd64.deb",
+   "licenses": [
+    "BSD-2-clause",
+    "BSD-3-clause",
+    "BSD-4-clause",
+    "BSLA",
+    "Expat",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-3+",
+    "ISC",
+    "LGPL",
+    "LGPL-2+",
+    "LGPL-2.1+",
+    "LGPL-3+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "libzstd1",
+   "version": "1.5.7+dfsg-1",
+   "url": "https://deb.debian.org/debian/pool/main/libz/libzstd/libzstd1_1.5.7+dfsg-1_amd64.deb",
+   "sha256": "2f6a2aeacfc925eba8b00ac9139bc4bfccf8cacb09eb93de067074b26948eef9",
+   "bytes": 303836,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/libzstd1_1.5.7+dfsg-1_amd64.deb",
+   "licenses": [
+    "BSD-3-clause",
+    "BSD-3-clause or GPL-2",
+    "Expat",
+    "GPL-2",
+    "zlib"
+   ]
+  },
+  {
+   "name": "logsave",
+   "version": "1.47.2-3+b12",
+   "url": "https://deb.debian.org/debian/pool/main/e/e2fsprogs/logsave_1.47.2-3+b12_amd64.deb",
+   "sha256": "aa028720743b79bd054749af34c501c093f0ab5e044e4dc44273765be5e95de5",
+   "bytes": 24864,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/logsave_1.47.2-3+b12_amd64.deb",
+   "licenses": [
+    "0BSD",
+    "Apache-2",
+    "BSD-3-Clause",
+    "BSD-3-Clause-Variant",
+    "BSD-4-Clause-CMU",
+    "Expat",
+    "GPL or MIT-US-export",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-2+ with Texinfo exception",
+    "ISC",
+    "Kazlib",
+    "LGPL-2",
+    "Latex2e"
+   ]
+  },
+  {
+   "name": "lvm2",
+   "version": "2.03.31-2",
+   "url": "https://deb.debian.org/debian/pool/main/l/lvm2/lvm2_2.03.31-2_amd64.deb",
+   "sha256": "a6a130eae69ec2ede92b2bf4bfab35208a5340c2c3e2dcb4453bf8fbf742d0a6",
+   "bytes": 1287460,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/lvm2_2.03.31-2_amd64.deb",
+   "licenses": [
+    "BSD-2-Clause",
+    "GPL-2.0",
+    "GPL-2.0+",
+    "LGPL-2.1"
+   ]
+  },
+  {
+   "name": "mdadm",
+   "version": "4.4-11",
+   "url": "https://deb.debian.org/debian/pool/main/m/mdadm/mdadm_4.4-11_amd64.deb",
+   "sha256": "6b659c6c053d7b069924a1b254c17dfb11980f4035198b7e30161fe5f0d8f6b9",
+   "bytes": 444496,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/mdadm_4.4-11_amd64.deb",
+   "licenses": [
+    "GPL-2+"
+   ]
+  },
+  {
+   "name": "mount",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/mount_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "eb70a615114ac40123768beb20e302554d5cb7edb33290be7e418ebe1075c878",
+   "bytes": 163208,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/mount_2.41.5-0+deb13u1_amd64.deb",
+   "licenses": [
+    "BSD-2-clause",
+    "BSD-3-clause",
+    "BSD-4-clause",
+    "BSLA",
+    "Expat",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-3+",
+    "ISC",
+    "LGPL",
+    "LGPL-2+",
+    "LGPL-2.1+",
+    "LGPL-3+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "ntfs-3g",
+   "version": "1:2022.10.3-5+deb13u3",
+   "url": "https://deb.debian.org/debian-security/pool/updates/main/n/ntfs-3g/ntfs-3g_2022.10.3-5+deb13u3_amd64.deb",
+   "sha256": "2e2f42d3051f5ddd6f5c0d449543f23fc0e3fc4631a8a82207dfaab9213bdfaa",
+   "bytes": 409952,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie-security",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/ntfs-3g_2022.10.3-5+deb13u3_amd64.deb",
+   "licenses": [
+    "GPL-2+",
+    "LGPL-2+"
+   ]
+  },
+  {
+   "name": "openssh-client",
+   "version": "1:10.0p1-7+deb13u4",
+   "url": "https://deb.debian.org/debian/pool/main/o/openssh/openssh-client_10.0p1-7+deb13u4_amd64.deb",
+   "sha256": "8fff343654f86c3b3266f94cd338c7b4da2e386da029327815118ea00bce03b9",
+   "bytes": 989904,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/openssh-client_10.0p1-7+deb13u4_amd64.deb",
+   "licenses": [
+    "BSD-2-clause",
+    "BSD-3-clause",
+    "Expat-with-advertising-restriction",
+    "Mazieres-BSD-style",
+    "OpenSSH",
+    "Powell-BSD-style",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "openssh-sftp-server",
+   "version": "1:10.0p1-7+deb13u4",
+   "url": "https://deb.debian.org/debian/pool/main/o/openssh/openssh-sftp-server_10.0p1-7+deb13u4_amd64.deb",
+   "sha256": "28a82485438fafc8d6a7552ab61cac827338c16f39e3790d6ebcc146d452e542",
+   "bytes": 65348,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/openssh-sftp-server_10.0p1-7+deb13u4_amd64.deb",
+   "licenses": [
+    "copyright file not found in the package"
+   ]
+  },
+  {
+   "name": "openssl-provider-legacy",
+   "version": "3.5.7-1~deb13u3",
+   "url": "https://deb.debian.org/debian-security/pool/updates/main/o/openssl/openssl-provider-legacy_3.5.7-1~deb13u3_amd64.deb",
+   "sha256": "c12e0266c4780749a4702b8959ac979689f4182e18eed85a8a5eb90ed0e16eab",
+   "bytes": 316452,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie-security",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/openssl-provider-legacy_3.5.7-1~deb13u3_amd64.deb",
+   "licenses": [
+    "Apache-2.0",
+    "Artistic",
+    "Artistic or GPL-1+",
+    "GPL-1+"
+   ]
+  },
+  {
+   "name": "parted",
+   "version": "3.6-5",
+   "url": "https://deb.debian.org/debian/pool/main/p/parted/parted_3.6-5_amd64.deb",
+   "sha256": "fbb8429783a8dd065bf9c37e249acaa56cb7bb8a3ff5bb531ef0aac3e8945f2d",
+   "bytes": 40176,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/parted_3.6-5_amd64.deb",
+   "licenses": [
+    "copyright file not found in the package"
+   ]
+  },
+  {
+   "name": "readline-common",
+   "version": "8.2-6",
+   "url": "https://deb.debian.org/debian/pool/main/r/readline/readline-common_8.2-6_all.deb",
+   "sha256": "f77e8aa0bf0de618f11cb0b21658a4ed60f177d63b3cf26d7fc3706b6d0eaaa9",
+   "bytes": 69360,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/readline-common_8.2-6_all.deb",
+   "licenses": [
+    "GFDL-NIV-1.3+",
+    "GPL-2+",
+    "GPL-3",
+    "GPL-3+",
+    "ISC-no-attribution"
+   ]
+  },
+  {
+   "name": "sed",
+   "version": "4.9-2+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/s/sed/sed_4.9-2+deb13u1_amd64.deb",
+   "sha256": "7071270ed4f6adda55bc4f926347fb847bacaffbdee3dff917bc6006ed7e3775",
+   "bytes": 330696,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/sed_4.9-2+deb13u1_amd64.deb",
+   "licenses": [
+    "BSD-4-clause-UC",
+    "BSL-1",
+    "GFDL-NIV-1.3+",
+    "GPL-3+",
+    "GPL-3+ and ISC",
+    "ISC",
+    "X11",
+    "pcre"
+   ]
+  },
+  {
+   "name": "sshfs",
+   "version": "3.7.3-1.2~deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/s/sshfs-fuse/sshfs_3.7.3-1.2~deb13u1_amd64.deb",
+   "sha256": "2e026e0dac3d1d209112eafac8fea76e242f94615b16f0ae3cefef6ae7f6b405",
+   "bytes": 46708,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/sshfs_3.7.3-1.2~deb13u1_amd64.deb",
+   "licenses": [
+    "GPL-2",
+    "GPL-2+"
+   ]
+  },
+  {
+   "name": "systemd",
+   "version": "257.13-1~deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/s/systemd/systemd_257.13-1~deb13u1_amd64.deb",
+   "sha256": "ee81302a1d5b7434762b6e784a572854d4b6cf6235e33e2d104ad4e1cae71ab4",
+   "bytes": 3093632,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/systemd_257.13-1~deb13u1_amd64.deb",
+   "licenses": [
+    "CC0-1.0",
+    "Expat",
+    "GPL-2 with Linux-syscall-note exception",
+    "GPL-2+",
+    "LGPL-2.1+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "thin-provisioning-tools",
+   "version": "1.1.0-4+b1",
+   "url": "https://deb.debian.org/debian/pool/main/t/thin-provisioning-tools/thin-provisioning-tools_1.1.0-4+b1_amd64.deb",
+   "sha256": "b63ea01ec3ab5e8c98752787e0805deb33eb4ce803a717d61069ea31295c7c7f",
+   "bytes": 1042500,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/thin-provisioning-tools_1.1.0-4+b1_amd64.deb",
+   "licenses": [
+    "GPL-2+",
+    "GPL-3+"
+   ]
+  },
+  {
+   "name": "udev",
+   "version": "257.13-1~deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/s/systemd/udev_257.13-1~deb13u1_amd64.deb",
+   "sha256": "a9d751b4d73a489120ef68a21caedf0b58fba80598fb22a17f85060f308bfe7e",
+   "bytes": 1418624,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/udev_257.13-1~deb13u1_amd64.deb",
+   "licenses": [
+    "CC0-1.0",
+    "Expat",
+    "GPL-2 with Linux-syscall-note exception",
+    "GPL-2+",
+    "LGPL-2.1+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "util-linux",
+   "version": "2.41.5-0+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/u/util-linux/util-linux_2.41.5-0+deb13u1_amd64.deb",
+   "sha256": "7d5b1176cc3d8cc6b290b3ec17af458f362d9200845f30da22057a8198744430",
+   "bytes": 1242392,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/util-linux_2.41.5-0+deb13u1_amd64.deb",
+   "licenses": [
+    "BSD-2-clause",
+    "BSD-3-clause",
+    "BSD-4-clause",
+    "BSLA",
+    "Expat",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-3+",
+    "ISC",
+    "LGPL",
+    "LGPL-2+",
+    "LGPL-2.1+",
+    "LGPL-3+",
+    "public-domain"
+   ]
+  },
+  {
+   "name": "xorriso",
+   "version": "1.5.6-1.2+b1",
+   "url": "https://deb.debian.org/debian/pool/main/libi/libisoburn/xorriso_1.5.6-1.2+b1_amd64.deb",
+   "sha256": "9ee40b0f45479283c1c69e5d914f69c44051c61b6efb3f86994238a62ceddd1a",
+   "bytes": 323180,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/xorriso_1.5.6-1.2+b1_amd64.deb",
+   "licenses": [
+    "BSD-2-clause",
+    "FSFUL",
+    "GPL-2",
+    "GPL-2+",
+    "GPL-3"
+   ]
+  },
+  {
+   "name": "zlib1g",
+   "version": "1:1.3.dfsg+really1.3.1-1+b1",
+   "url": "https://deb.debian.org/debian/pool/main/z/zlib/zlib1g_1.3.dfsg+really1.3.1-1+b1_amd64.deb",
+   "sha256": "015be740d6236ad114582dea500c1d907f29e16d6db00566ca32fb68d71ac90d",
+   "bytes": 88892,
+   "kind": "deb",
+   "app": "disk-tools",
+   "suite": "trixie",
+   "needed_by": [
+    "disk-tools"
+   ],
+   "filename": "debs/zlib1g_1.3.dfsg+really1.3.1-1+b1_amd64.deb",
+   "licenses": [
+    "Zlib"
+   ]
+  }
+ ]
+}

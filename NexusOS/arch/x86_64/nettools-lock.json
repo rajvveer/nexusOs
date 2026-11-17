@@ -1,0 +1,666 @@
+{
+ "format": 1,
+ "generated": "2026-10-18T16:29:10Z",
+ "suites": {
+  "trixie": {
+   "inrelease_sha256": "0584fba32e13e0ab8285fb16c27adea1ec03a73669c18702821094fd6ca86675",
+   "packages_xz_sha256": "7778d3e3f303b7ddb8ce0fe7c8d57473a076c6bf2e8f241f75421d2396352498",
+   "date": "Sat, 12 Sep 2026 07:55:41 UTC",
+   "signed_by": [
+    "Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>",
+    "Debian Stable Release Key (13/trixie) <debian-release@lists.debian.org>"
+   ]
+  },
+  "trixie-updates": {
+   "inrelease_sha256": "4933c2b3e21ffbf47feec884081709c0c6fe0677a32b3e9fe1bbde58ecbf5b17",
+   "packages_xz_sha256": "10012cb384dc2613586d7b3d391d92a5637c9faa36017239739f2a6109a0d45f",
+   "date": "Sun, 18 Oct 2026 14:16:08 UTC",
+   "signed_by": [
+    "Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>"
+   ]
+  },
+  "trixie-security": {
+   "inrelease_sha256": "5510808993fdc57e97aca13dda7573e45cf39c201870faca02ed323874801713",
+   "packages_xz_sha256": "da000332b59fbd809b7e7a13c11cc78c36ad1430dd1869a49a514ff5ebc2bc90",
+   "date": "Sun, 18 Oct 2026 12:31:26 UTC",
+   "signed_by": [
+    "Debian Security Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>",
+    "Debian Security Archive Automatic Signing Key (13/trixie) <ftpmaster@debian.org>"
+   ]
+  }
+ },
+ "keyring": {
+  "name": "debian-archive-keyring",
+  "version": "2025.1",
+  "sha256": "9ea7778e443144ca490668737a8ab22dd3e748bb99e805e22ec055abeb3c7fac",
+  "url": "https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2025.1_all.deb",
+  "bytes": 179244
+ },
+ "present": {
+  "libc6": "2.41-12+deb13u4"
+ },
+ "skipped": {
+  "adduser": {
+   "reason": "tcpdump postinst creates the tcpdump user; tcpdump drops privileges only when started as root",
+   "required_by": [
+    "tcpdump"
+   ]
+  },
+  "debconf": {
+   "reason": "maintainer-script configuration only",
+   "required_by": [
+    "iproute2"
+   ]
+  },
+  "libcap2-bin": {
+   "reason": "setcap/getcap for maintainer scripts; NexusOS grants capabilities by policy",
+   "required_by": [
+    "iproute2"
+   ]
+  }
+ },
+ "packages": [
+  {
+   "name": "iproute2",
+   "version": "6.15.0-1",
+   "url": "https://deb.debian.org/debian/pool/main/i/iproute2/iproute2_6.15.0-1_amd64.deb",
+   "sha256": "7b2dcade4a83ded723fcab21c5a53c47f29352c9c5e1661a089a1e481b3fb48a",
+   "bytes": 1089184,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/iproute2_6.15.0-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250527T022950Z/pool/main/i/iproute2/iproute2_6.15.0-1_amd64.deb"
+  },
+  {
+   "name": "iputils-ping",
+   "version": "3:20240905-3",
+   "url": "https://deb.debian.org/debian/pool/main/i/iputils/iputils-ping_20240905-3_amd64.deb",
+   "sha256": "a78f6118527796bde8c34d410dda1e5457f4e4e2de080a0b852cd59d7058ef6f",
+   "bytes": 51248,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/iputils-ping_20240905-3_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250422T145557Z/pool/main/i/iputils/iputils-ping_20240905-3_amd64.deb"
+  },
+  {
+   "name": "libbpf1",
+   "version": "1:1.5.0-3",
+   "url": "https://deb.debian.org/debian/pool/main/libb/libbpf/libbpf1_1.5.0-3_amd64.deb",
+   "sha256": "04c96ead3024888d80d08c8d08cc8cf4589f4614627acc69519f87ffb5adc1c2",
+   "bytes": 168832,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libbpf1_1.5.0-3_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250426T024229Z/pool/main/libb/libbpf/libbpf1_1.5.0-3_amd64.deb"
+  },
+  {
+   "name": "libbsd0",
+   "version": "0.12.2-2",
+   "url": "https://deb.debian.org/debian/pool/main/libb/libbsd/libbsd0_0.12.2-2_amd64.deb",
+   "sha256": "e5a85986fa6bec3307ab1bc860736b478b331882bc45e17675a7bdf88eecb43a",
+   "bytes": 130968,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libbsd0_0.12.2-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241002T144646Z/pool/main/libb/libbsd/libbsd0_0.12.2-2_amd64.deb"
+  },
+  {
+   "name": "libcap2",
+   "version": "1:2.75-10+deb13u1+b3",
+   "url": "https://deb.debian.org/debian/pool/main/libc/libcap2/libcap2_2.75-10+deb13u1+b3_amd64.deb",
+   "sha256": "89fc4d34fc7a28ad6f0fcd0c561ab253b9dedf6f77f5a000b47c276c8295bf67",
+   "bytes": 28988,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libcap2_2.75-10+deb13u1+b3_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20260713T143636Z/pool/main/libc/libcap2/libcap2_2.75-10+deb13u1+b3_amd64.deb"
+  },
+  {
+   "name": "libcom-err2",
+   "version": "1.47.2-3+b12",
+   "url": "https://deb.debian.org/debian/pool/main/e/e2fsprogs/libcom-err2_1.47.2-3+b12_amd64.deb",
+   "sha256": "bd43e020b8fed399db3eebf098111f10fba4c436fff99ccad72cc7e27c9764ec",
+   "bytes": 25036,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libcom-err2_1.47.2-3+b12_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20260713T025009Z/pool/main/e/e2fsprogs/libcom-err2_1.47.2-3+b12_amd64.deb"
+  },
+  {
+   "name": "libdb5.3t64",
+   "version": "5.3.28+dfsg2-9",
+   "url": "https://deb.debian.org/debian/pool/main/d/db5.3/libdb5.3t64_5.3.28+dfsg2-9_amd64.deb",
+   "sha256": "18d02510ee78b67e4504ba050176797a200ff24214a7cd318082ab60ad7bf3fc",
+   "bytes": 703676,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libdb5.3t64_5.3.28+dfsg2-9_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241015T144446Z/pool/main/d/db5.3/libdb5.3t64_5.3.28+dfsg2-9_amd64.deb"
+  },
+  {
+   "name": "libdbus-1-3",
+   "version": "1.16.2-2",
+   "url": "https://deb.debian.org/debian/pool/main/d/dbus/libdbus-1-3_1.16.2-2_amd64.deb",
+   "sha256": "bbcb711daff7e104b5f80f9b05475b6142674bfe65518a36a56e96a91068a3f5",
+   "bytes": 177904,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libdbus-1-3_1.16.2-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250309T040517Z/pool/main/d/dbus/libdbus-1-3_1.16.2-2_amd64.deb"
+  },
+  {
+   "name": "libedit2",
+   "version": "3.1-20250104-1",
+   "url": "https://deb.debian.org/debian/pool/main/libe/libedit/libedit2_3.1-20250104-1_amd64.deb",
+   "sha256": "b002ea172b9c1e34a67bc497c523c67bb74c3f0a4e98113cb083990a1f1d3bfe",
+   "bytes": 93832,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libedit2_3.1-20250104-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250117T150945Z/pool/main/libe/libedit/libedit2_3.1-20250104-1_amd64.deb"
+  },
+  {
+   "name": "libelf1t64",
+   "version": "0.192-4",
+   "url": "https://deb.debian.org/debian/pool/main/e/elfutils/libelf1t64_0.192-4_amd64.deb",
+   "sha256": "94497b7e17b6f574a0605b380d454e20d3f01a9c63b70c2a2263f679d30053e1",
+   "bytes": 189408,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libelf1t64_0.192-4_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241022T144244Z/pool/main/e/elfutils/libelf1t64_0.192-4_amd64.deb"
+  },
+  {
+   "name": "libgmp10",
+   "version": "2:6.3.0+dfsg-3",
+   "url": "https://deb.debian.org/debian/pool/main/g/gmp/libgmp10_6.3.0+dfsg-3_amd64.deb",
+   "sha256": "d0d0265eb01770f17afd0f7c8c0622f80479dcfbbe13653a0debeec61464e622",
+   "bytes": 560220,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libgmp10_6.3.0+dfsg-3_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241203T084120Z/pool/main/g/gmp/libgmp10_6.3.0+dfsg-3_amd64.deb"
+  },
+  {
+   "name": "libgssapi-krb5-2",
+   "version": "1.21.3-5+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/k/krb5/libgssapi-krb5-2_1.21.3-5+deb13u1_amd64.deb",
+   "sha256": "30847c1fde4240567d7ed3aeab4f655dd591203758b857e85e824045aae70299",
+   "bytes": 138356,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libgssapi-krb5-2_1.21.3-5+deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20260522T212946Z/pool/updates/main/k/krb5/libgssapi-krb5-2_1.21.3-5+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libidn2-0",
+   "version": "2.3.8-2",
+   "url": "https://deb.debian.org/debian/pool/main/libi/libidn2/libidn2-0_2.3.8-2_amd64.deb",
+   "sha256": "90b039bcdc4578f8e1c4935adf8dbb525e36a164deefdbbb8c45bac347d48278",
+   "bytes": 109096,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libidn2-0_2.3.8-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250315T025205Z/pool/main/libi/libidn2/libidn2-0_2.3.8-2_amd64.deb"
+  },
+  {
+   "name": "libjansson4",
+   "version": "2.14-2+b3",
+   "url": "https://deb.debian.org/debian/pool/main/j/jansson/libjansson4_2.14-2+b3_amd64.deb",
+   "sha256": "60707a62fe6c1228c3389b12a13ca4efd76defc5532473e547a29e99cf7d2a6e",
+   "bytes": 39792,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libjansson4_2.14-2+b3_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241029T234230Z/pool/main/j/jansson/libjansson4_2.14-2+b3_amd64.deb"
+  },
+  {
+   "name": "libk5crypto3",
+   "version": "1.21.3-5+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/k/krb5/libk5crypto3_1.21.3-5+deb13u1_amd64.deb",
+   "sha256": "7da07ee674b47f1f0be7cc89317c25310086a1f1761217d0f72e6ae2c5a69b84",
+   "bytes": 81152,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libk5crypto3_1.21.3-5+deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20260522T212946Z/pool/updates/main/k/krb5/libk5crypto3_1.21.3-5+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libkeyutils1",
+   "version": "1.6.3-6",
+   "url": "https://deb.debian.org/debian/pool/main/k/keyutils/libkeyutils1_1.6.3-6_amd64.deb",
+   "sha256": "0b11ad17be0300b63ad4eeb4c6450fed24d34b7b740f23e5363dcb29ee6d5eba",
+   "bytes": 9456,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libkeyutils1_1.6.3-6_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250413T150122Z/pool/main/k/keyutils/libkeyutils1_1.6.3-6_amd64.deb"
+  },
+  {
+   "name": "libkrb5-3",
+   "version": "1.21.3-5+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/k/krb5/libkrb5-3_1.21.3-5+deb13u1_amd64.deb",
+   "sha256": "47d71d6a7f2e59b9bae5f89602397594805113b95889ad18fa703cd53abafc97",
+   "bytes": 326056,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libkrb5-3_1.21.3-5+deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20260522T212946Z/pool/updates/main/k/krb5/libkrb5-3_1.21.3-5+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libkrb5support0",
+   "version": "1.21.3-5+deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/k/krb5/libkrb5support0_1.21.3-5+deb13u1_amd64.deb",
+   "sha256": "3a0acd8b37955c0e102c756b52c97df2a31f67b96453c35dab70df218d309117",
+   "bytes": 33124,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libkrb5support0_1.21.3-5+deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20260522T212946Z/pool/updates/main/k/krb5/libkrb5support0_1.21.3-5+deb13u1_amd64.deb"
+  },
+  {
+   "name": "libmd0",
+   "version": "1.1.0-2+b1",
+   "url": "https://deb.debian.org/debian/pool/main/libm/libmd/libmd0_1.1.0-2+b1_amd64.deb",
+   "sha256": "7244ec3839b61fac0c1884fe08aaa040f26e8f1f35f1f5d3482eacefd30d1b44",
+   "bytes": 36272,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libmd0_1.1.0-2+b1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241029T234230Z/pool/main/libm/libmd/libmd0_1.1.0-2+b1_amd64.deb"
+  },
+  {
+   "name": "libmnl0",
+   "version": "1.0.5-3",
+   "url": "https://deb.debian.org/debian/pool/main/libm/libmnl/libmnl0_1.0.5-3_amd64.deb",
+   "sha256": "4ec9c1096e0b954e3bdb03a62314ee7f49999045d3d55be3e4ded520ffc9baf5",
+   "bytes": 11928,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libmnl0_1.0.5-3_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20240919T025936Z/pool/main/libm/libmnl/libmnl0_1.0.5-3_amd64.deb"
+  },
+  {
+   "name": "libnftables1",
+   "version": "1.1.3-1",
+   "url": "https://deb.debian.org/debian/pool/main/n/nftables/libnftables1_1.1.3-1_amd64.deb",
+   "sha256": "c7cbee3dce8452ae5c3c4269f6f52e96b896d36a46ea3c490e0e11e8ff359896",
+   "bytes": 332448,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libnftables1_1.1.3-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250629T202831Z/pool/main/n/nftables/libnftables1_1.1.3-1_amd64.deb"
+  },
+  {
+   "name": "libnftnl11",
+   "version": "1.2.9-1",
+   "url": "https://deb.debian.org/debian/pool/main/libn/libnftnl/libnftnl11_1.2.9-1_amd64.deb",
+   "sha256": "1b3eae46bfb9c6ab44e404797fb45278045f926d73974a84097ad47a3e27d983",
+   "bytes": 65012,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libnftnl11_1.2.9-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250416T024450Z/pool/main/libn/libnftnl/libnftnl11_1.2.9-1_amd64.deb"
+  },
+  {
+   "name": "libpcap0.8t64",
+   "version": "1.10.5-2",
+   "url": "https://deb.debian.org/debian/pool/main/libp/libpcap/libpcap0.8t64_1.10.5-2_amd64.deb",
+   "sha256": "6a756d536a5b0cd3ef92f19ff9f22ed80c66baadbc0fe55d599f4aa0c27d3f86",
+   "bytes": 168608,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libpcap0.8t64_1.10.5-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250209T152814Z/pool/main/libp/libpcap/libpcap0.8t64_1.10.5-2_amd64.deb"
+  },
+  {
+   "name": "libpcre2-8-0",
+   "version": "10.46-1~deb13u3",
+   "url": "https://deb.debian.org/debian-security/pool/updates/main/p/pcre2/libpcre2-8-0_10.46-1~deb13u3_amd64.deb",
+   "sha256": "e226f661d918f04daf38cdbc4806b7ed7d6ef95c7eb0ade692fc350e31970040",
+   "bytes": 299148,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie-security",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libpcre2-8-0_10.46-1~deb13u3_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20260929T204601Z/pool/updates/main/p/pcre2/libpcre2-8-0_10.46-1~deb13u3_amd64.deb"
+  },
+  {
+   "name": "libselinux1",
+   "version": "3.8.1-1",
+   "url": "https://deb.debian.org/debian/pool/main/libs/libselinux/libselinux1_3.8.1-1_amd64.deb",
+   "sha256": "68bb8d32bd8d6d7d2f5952a169db03d1484b46ae1e52abccdec42a19dccea5d5",
+   "bytes": 84680,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libselinux1_3.8.1-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250316T145036Z/pool/main/libs/libselinux/libselinux1_3.8.1-1_amd64.deb"
+  },
+  {
+   "name": "libssl3t64",
+   "version": "3.5.7-1~deb13u3",
+   "url": "https://deb.debian.org/debian-security/pool/updates/main/o/openssl/libssl3t64_3.5.7-1~deb13u3_amd64.deb",
+   "sha256": "ff16bc048bcd7d1b256094450b79c77947d8e76fe2a24bd99b91021d591fa074",
+   "bytes": 2458176,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie-security",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libssl3t64_3.5.7-1~deb13u3_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20260930T060347Z/pool/updates/main/o/openssl/libssl3t64_3.5.7-1~deb13u3_amd64.deb"
+  },
+  {
+   "name": "libsystemd0",
+   "version": "257.13-1~deb13u1",
+   "url": "https://deb.debian.org/debian/pool/main/s/systemd/libsystemd0_257.13-1~deb13u1_amd64.deb",
+   "sha256": "ab0d4127b5e46e6f8c015a1db15a62ba9ae274cdefa150083adf90ada0600ea1",
+   "bytes": 454648,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libsystemd0_257.13-1~deb13u1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20260503T204801Z/pool/main/s/systemd/libsystemd0_257.13-1~deb13u1_amd64.deb"
+  },
+  {
+   "name": "libtinfo6",
+   "version": "6.5+20250216-2",
+   "url": "https://deb.debian.org/debian/pool/main/n/ncurses/libtinfo6_6.5+20250216-2_amd64.deb",
+   "sha256": "8b9f6a7983e9418564e48a627518de4c03917b56efe68d7f3e93bd8fffa1cc10",
+   "bytes": 348380,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libtinfo6_6.5+20250216-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250306T211336Z/pool/main/n/ncurses/libtinfo6_6.5+20250216-2_amd64.deb"
+  },
+  {
+   "name": "libtirpc-common",
+   "version": "1.3.6+ds-1",
+   "url": "https://deb.debian.org/debian/pool/main/libt/libtirpc/libtirpc-common_1.3.6+ds-1_all.deb",
+   "sha256": "300f582e2c9151a8d329568c705cadc76252c417147312fe331c4560d2c7a6c3",
+   "bytes": 11004,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libtirpc-common_1.3.6+ds-1_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250318T024424Z/pool/main/libt/libtirpc/libtirpc-common_1.3.6+ds-1_all.deb"
+  },
+  {
+   "name": "libtirpc3t64",
+   "version": "1.3.6+ds-1",
+   "url": "https://deb.debian.org/debian/pool/main/libt/libtirpc/libtirpc3t64_1.3.6+ds-1_amd64.deb",
+   "sha256": "ef4536c09bf5063554310e22d586ae90990100ba66d2fe7c35660e9e658913b6",
+   "bytes": 83300,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libtirpc3t64_1.3.6+ds-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250318T024424Z/pool/main/libt/libtirpc/libtirpc3t64_1.3.6+ds-1_amd64.deb"
+  },
+  {
+   "name": "libunistring5",
+   "version": "1.3-2",
+   "url": "https://deb.debian.org/debian/pool/main/libu/libunistring/libunistring5_1.3-2_amd64.deb",
+   "sha256": "6dd3490bef06ea1096f32d10766b7e016cf579bfae8451d1b7df15ce05b8aa46",
+   "bytes": 476768,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libunistring5_1.3-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250323T084929Z/pool/main/libu/libunistring/libunistring5_1.3-2_amd64.deb"
+  },
+  {
+   "name": "libxtables12",
+   "version": "1.8.11-2",
+   "url": "https://deb.debian.org/debian/pool/main/i/iptables/libxtables12_1.8.11-2_amd64.deb",
+   "sha256": "4de5aa59faef5e98d6ba9f5f521a915be5641f224f597862f8d29e8319e8db16",
+   "bytes": 31896,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libxtables12_1.8.11-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241120T145502Z/pool/main/i/iptables/libxtables12_1.8.11-2_amd64.deb"
+  },
+  {
+   "name": "libzstd1",
+   "version": "1.5.7+dfsg-1",
+   "url": "https://deb.debian.org/debian/pool/main/libz/libzstd/libzstd1_1.5.7+dfsg-1_amd64.deb",
+   "sha256": "2f6a2aeacfc925eba8b00ac9139bc4bfccf8cacb09eb93de067074b26948eef9",
+   "bytes": 303836,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/libzstd1_1.5.7+dfsg-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250314T032421Z/pool/main/libz/libzstd/libzstd1_1.5.7+dfsg-1_amd64.deb"
+  },
+  {
+   "name": "net-tools",
+   "version": "2.10-1.3",
+   "url": "https://deb.debian.org/debian/pool/main/n/net-tools/net-tools_2.10-1.3_amd64.deb",
+   "sha256": "e136d38b98f14c2aa1e8fc1c6d2846de6be665a2abebf227fc31984e34d93139",
+   "bytes": 245436,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/net-tools_2.10-1.3_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250522T082930Z/pool/main/n/net-tools/net-tools_2.10-1.3_amd64.deb"
+  },
+  {
+   "name": "netbase",
+   "version": "6.5",
+   "url": "https://deb.debian.org/debian/pool/main/n/netbase/netbase_6.5_all.deb",
+   "sha256": "76bafa92947ebd37b0a6f9ec6570412041f56edebc1c66d323731216d318471e",
+   "bytes": 12436,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/netbase_6.5_all.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250316T025729Z/pool/main/n/netbase/netbase_6.5_all.deb"
+  },
+  {
+   "name": "nftables",
+   "version": "1.1.3-1",
+   "url": "https://deb.debian.org/debian/pool/main/n/nftables/nftables_1.1.3-1_amd64.deb",
+   "sha256": "2ddfa61baaf3a76e2c499db9e521ba6affb226f85af0b6fef739f346ac5f0c39",
+   "bytes": 75864,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/nftables_1.1.3-1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250629T202831Z/pool/main/n/nftables/nftables_1.1.3-1_amd64.deb"
+  },
+  {
+   "name": "openssl-provider-legacy",
+   "version": "3.5.7-1~deb13u3",
+   "url": "https://deb.debian.org/debian-security/pool/updates/main/o/openssl/openssl-provider-legacy_3.5.7-1~deb13u3_amd64.deb",
+   "sha256": "c12e0266c4780749a4702b8959ac979689f4182e18eed85a8a5eb90ed0e16eab",
+   "bytes": 316452,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie-security",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/openssl-provider-legacy_3.5.7-1~deb13u3_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian-security/20260930T060347Z/pool/updates/main/o/openssl/openssl-provider-legacy_3.5.7-1~deb13u3_amd64.deb"
+  },
+  {
+   "name": "tcpdump",
+   "version": "4.99.5-2",
+   "url": "https://deb.debian.org/debian/pool/main/t/tcpdump/tcpdump_4.99.5-2_amd64.deb",
+   "sha256": "c35a180eb0ee118976c4648473de0beb36788dc2ec6986ab880722f5a9868ba6",
+   "bytes": 471048,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/tcpdump_4.99.5-2_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250209T152814Z/pool/main/t/tcpdump/tcpdump_4.99.5-2_amd64.deb"
+  },
+  {
+   "name": "wireguard-tools",
+   "version": "1.0.20210914-3",
+   "url": "https://deb.debian.org/debian/pool/main/w/wireguard/wireguard-tools_1.0.20210914-3_amd64.deb",
+   "sha256": "4fc58e193786a86465596c83ebfc10bfcb5241b918e9a4b60113f62e98046fe1",
+   "bytes": 84924,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/wireguard-tools_1.0.20210914-3_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20250410T083441Z/pool/main/w/wireguard/wireguard-tools_1.0.20210914-3_amd64.deb"
+  },
+  {
+   "name": "zlib1g",
+   "version": "1:1.3.dfsg+really1.3.1-1+b1",
+   "url": "https://deb.debian.org/debian/pool/main/z/zlib/zlib1g_1.3.dfsg+really1.3.1-1+b1_amd64.deb",
+   "sha256": "015be740d6236ad114582dea500c1d907f29e16d6db00566ca32fb68d71ac90d",
+   "bytes": 88892,
+   "kind": "deb",
+   "app": "nettools",
+   "suite": "trixie",
+   "needed_by": [
+    "nettools"
+   ],
+   "filename": "debs/zlib1g_1.3.dfsg+really1.3.1-1+b1_amd64.deb",
+   "snapshot": "https://snapshot.debian.org/archive/debian/20241029T234230Z/pool/main/z/zlib/zlib1g_1.3.dfsg+really1.3.1-1+b1_amd64.deb"
+  }
+ ]
+}
