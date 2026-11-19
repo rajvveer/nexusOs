@@ -22,7 +22,7 @@
 
 ## 📸 Screenshots
 
-### Native x86-64 NexusOS (captured 17 Nov 2026)
+### Native x86-64 NexusOS 
 
 <p align="center">
   <img src="screenshots/os-hero.png" width="100%" alt="NexusOS running Google Chrome, Terminal and Files"/>
